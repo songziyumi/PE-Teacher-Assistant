@@ -1,0 +1,7 @@
+target/
+*.log
+*.class
+.idea/
+*.iml
+.DS_Store
+src/main/resources/application.yml

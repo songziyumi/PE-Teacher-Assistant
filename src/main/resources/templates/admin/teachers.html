@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教师管理 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div class="page-header"><h2>教师管理</h2></div>
+    <div class="card">
+        <h3>添加教师</h3>
+        <form th:action="@{/admin/teachers/add}" method="post" class="form-inline">
+            <input type="text" name="username" placeholder="用户名" required>
+            <input type="text" name="name" placeholder="姓名" required>
+            <input type="password" name="password" placeholder="初始密码" required>
+            <input type="tel" name="phone" placeholder="手机号码" required>
+            <select name="classIds" multiple style="height:100px; min-width:200px;">
+                <option th:each="c : ${classes}" th:value="${c.id}"
+                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name + ' [' + c.type + ']'}"></option>
+            </select>
+            <small style="display:block;color:#666;margin-top:2px;">按住 Ctrl 可多选班级（选填）</small>
+            <button type="submit" class="btn btn-primary">添加</button>
+        </form>
+    </div>
+    <table class="table">
+        <thead><tr><th>用户名</th><th>姓名</th><th>手机号</th><th>角色</th><th>重置密码</th><th>操作</th></tr></thead>
+        <tbody>
+            <tr th:each="t : ${teachers}">
+                <td th:text="${t.username}"></td>
+                <td th:text="${t.name}"></td>
+                <td th:text="${t.phone != null ? t.phone : '-'}"></td>
+                <td><span th:class="'badge ' + (${t.role == 'ADMIN'} ? 'badge-admin' : 'badge-teacher')"
+                          th:text="${t.role == 'ADMIN' ? '管理员' : '教师'}"></span></td>
+                <td>
+                    <form th:action="@{/admin/teachers/reset-password/{id}(id=${t.id})}" method="post" class="form-inline">
+                        <input type="password" name="newPassword" placeholder="新密码" required>
+                        <button type="submit" class="btn btn-sm btn-secondary">重置</button>
+                    </form>
+                </td>
+                <td>
+                    <form th:action="@{/admin/teachers/delete/{id}(id=${t.id})}" method="post" style="display:inline"
+                          onsubmit="return confirm('确认删除？')">
+                        <button type="submit" class="btn btn-sm btn-danger"
+                                th:disabled="${t.role == 'ADMIN'}">删除</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

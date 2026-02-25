@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生列表 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header">
+        <h2 th:text="${schoolClass.grade.name} + ' ' + ${schoolClass.name} + ' - 学生列表'"></h2>
+        <span class="badge" th:text="'共 ' + ${#lists.size(students)} + ' 人'"></span>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>姓名</th>
+                <th>性别</th>
+                <th>学号</th>
+                <th>选课班</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="s, iter : ${students}">
+                <td th:text="${iter.count}"></td>
+                <td th:text="${s.name}"></td>
+                <td th:text="${s.gender}"></td>
+                <td th:text="${s.studentNo}"></td>
+                <td th:text="${s.electiveClass}"></td>
+                <td>
+                    <a th:href="@{/attendance/student/{id}(id=${s.id})}" class="btn btn-sm btn-primary">考勤记录</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="form-actions">
+        <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">去考勤</a>
+        <a th:href="@{/dashboard}" class="btn btn-secondary">返回</a>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生管理 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div class="page-header">
+        <h2 th:text="${schoolClass != null ? schoolClass.grade.name + ' ' + schoolClass.name + ' - 学生管理' : '学生管理'}"></h2>
+    </div>
+    <div class="card">
+        <h3>选择班级</h3>
+        <div class="class-selector">
+            <a th:each="c : ${classes}"
+               th:href="@{/admin/students/class/{id}(id=${c.id})}"
+               th:class="'btn btn-sm ' + (${schoolClass != null && schoolClass.id == c.id} ? 'btn-primary' : 'btn-outline')"
+               th:text="${c.grade.name} + ' ' + ${c.name}"></a>
+        </div>
+    </div>
+    <div th:if="${schoolClass != null}">
+        <div class="card">
+            <h3>添加学生</h3>
+            <form th:action="@{/admin/students/add}" method="post" class="form-grid">
+                <input type="hidden" name="classId" th:value="${schoolClass.id}">
+                <input type="text" name="name" placeholder="姓名" required>
+                <select name="gender">
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+                <input type="text" name="studentNo" placeholder="学号">
+                <input type="text" name="idCard" placeholder="身份证号">
+                <input type="text" name="electiveClass" placeholder="选课班">
+                <button type="submit" class="btn btn-primary">添加</button>
+            </form>
+        </div>
+        <table class="table">
+            <thead><tr><th>#</th><th>姓名</th><th>性别</th><th>学号</th><th>身份证</th><th>选课班</th><th>操作</th></tr></thead>
+            <tbody>
+                <tr th:each="s, iter : ${students}">
+                    <td th:text="${iter.count}"></td>
+                    <td th:text="${s.name}"></td>
+                    <td th:text="${s.gender}"></td>
+                    <td th:text="${s.studentNo}"></td>
+                    <td th:text="${s.idCard}"></td>
+                    <td th:text="${s.electiveClass}"></td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary"
+                                onclick="openEdit(this)"
+                                th:data-id="${s.id}"
+                                th:data-name="${s.name}"
+                                th:data-gender="${s.gender}"
+                                th:data-studentno="${s.studentNo}"
+                                th:data-idcard="${s.idCard}"
+                                th:data-elective="${s.electiveClass}">编辑</button>
+                        <form th:action="@{/admin/students/delete/{id}(id=${s.id})}" method="post" style="display:inline"
+                              onsubmit="return confirm('确认删除？')">
+                            <input type="hidden" name="classId" th:value="${schoolClass.id}">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- 编辑弹窗 -->
+<div id="editModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3>编辑学生</h3>
+        <form id="editForm" method="post">
+            <input type="hidden" name="classId" th:value="${schoolClass != null ? schoolClass.id : ''}">
+            <div class="form-group"><label>姓名</label><input type="text" name="name" id="edit-name" required></div>
+            <div class="form-group"><label>性别</label>
+                <select name="gender" id="edit-gender">
+                    <option value="男">男</option><option value="女">女</option>
+                </select>
+            </div>
+            <div class="form-group"><label>学号</label><input type="text" name="studentNo" id="edit-studentNo"></div>
+            <div class="form-group"><label>身份证</label><input type="text" name="idCard" id="edit-idCard"></div>
+            <div class="form-group"><label>选课班</label><input type="text" name="electiveClass" id="edit-elective"></div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEdit()">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function openEdit(btn) {
+    document.getElementById('edit-name').value = btn.dataset.name;
+    document.getElementById('edit-gender').value = btn.dataset.gender;
+    document.getElementById('edit-studentNo').value = btn.dataset.studentno;
+    document.getElementById('edit-idCard').value = btn.dataset.idcard;
+    document.getElementById('edit-elective').value = btn.dataset.elective;
+    document.getElementById('editForm').action = '/admin/students/edit/' + btn.dataset.id;
+    document.getElementById('editModal').style.display = 'flex';
+}
+function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header"><h2>管理后台</h2></div>
+    <div class="admin-grid">
+        <a th:href="@{/admin/grades}" class="admin-card">
+            <div class="admin-card-icon">🎓</div>
+            <div class="admin-card-title">年级管理</div>
+        </a>
+        <a th:href="@{/admin/classes}" class="admin-card">
+            <div class="admin-card-icon">🏫</div>
+            <div class="admin-card-title">班级管理</div>
+        </a>
+        <a th:href="@{/admin/teachers}" class="admin-card">
+            <div class="admin-card-icon">👨‍🏫</div>
+            <div class="admin-card-title">教师管理</div>
+        </a>
+        <a th:href="@{/admin/students}" class="admin-card">
+            <div class="admin-card-icon">👨‍🎓</div>
+            <div class="admin-card-title">学生管理</div>
+        </a>
+        <a th:href="@{/admin/stats}" class="admin-card">
+            <div class="admin-card-icon">📊</div>
+            <div class="admin-card-title">考勤统计</div>
+        </a>
+        <a th:href="@{/admin/stats/absent}" class="admin-card">
+            <div class="admin-card-icon">📋</div>
+            <div class="admin-card-title">缺勤查询</div>
+        </a>
+        <a th:href="@{/admin/import}" class="admin-card">
+            <div class="admin-card-icon">📥</div>
+            <div class="admin-card-title">数据导入</div>
+        </a>
+    </div>
+</div>
+</body>
+</html>

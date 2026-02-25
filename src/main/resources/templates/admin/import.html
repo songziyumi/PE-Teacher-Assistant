@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据导入 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div class="page-header"><h2>数据导入</h2></div>
+    <div class="card">
+        <h3>批量导入班级</h3>
+        <p class="text-muted">Excel格式（.xlsx），第一行为表头：班级名称、类型（行政班/选修课）、年级（选修课可留空）</p>
+        <p><a th:href="@{/admin/import/template/classes}" class="btn btn-secondary">下载班级导入模板</a></p>
+        <form th:action="@{/admin/import/classes}" method="post" enctype="multipart/form-data" class="form-inline">
+            <input type="file" name="file" accept=".xlsx" required>
+            <button type="submit" class="btn btn-primary">导入</button>
+        </form>
+    </div>
+    <div class="card">
+        <h3>批量导入学生</h3>
+        <p class="text-muted">Excel格式（.xlsx），第一行为表头：年级、班级、姓名、性别、学号、身份证号、选修课</p>
+        <p><a th:href="@{/admin/import/template/students}" class="btn btn-secondary">下载学生导入模板</a></p>
+        <form th:action="@{/admin/import/students}" method="post" enctype="multipart/form-data" class="form-inline">
+            <input type="file" name="file" accept=".xlsx" required>
+            <button type="submit" class="btn btn-primary">导入</button>
+        </form>
+    </div>
+    <div class="card">
+        <h3>批量导入教师</h3>
+        <p class="text-muted">Excel格式（.xlsx），第一行为表头：姓名、手机号、密码（可选，默认123456）、行政班（可选，多个用逗号分隔）、选修课（可选，多个用逗号分隔）。用户名默认为手机号。</p>
+        <p><a th:href="@{/admin/import/template/teachers}" class="btn btn-secondary">下载教师导入模板</a></p>
+        <form th:action="@{/admin/import/teachers}" method="post" enctype="multipart/form-data" class="form-inline">
+            <input type="file" name="file" accept=".xlsx" required>
+            <button type="submit" class="btn btn-primary">导入</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

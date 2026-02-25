@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缺勤查询 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header"><h2>缺勤查询</h2></div>
+    <div class="card">
+        <form th:action="@{/admin/stats/absent}" method="get" class="form-inline">
+            <label>开始日期：</label>
+            <input type="date" name="start" th:value="${start}" required>
+            <label>结束日期：</label>
+            <input type="date" name="end" th:value="${end}" required>
+            <button type="submit" class="btn btn-primary">查询</button>
+            <a th:if="${records != null}"
+               th:href="@{/admin/stats/absent/export(start=${start},end=${end})}"
+               class="btn btn-secondary">导出CSV</a>
+        </form>
+    </div>
+    <div th:if="${records != null}">
+        <p th:text="'共 ' + ${#lists.size(records)} + ' 条缺勤记录'"></p>
+        <table class="table">
+            <thead><tr><th>日期</th><th>姓名</th><th>年级</th><th>班级</th><th>状态</th></tr></thead>
+            <tbody>
+                <tr th:each="r : ${records}">
+                    <td th:text="${r.date}"></td>
+                    <td th:text="${r.student.name}"></td>
+                    <td th:text="${r.student.schoolClass.grade.name}"></td>
+                    <td th:text="${r.student.schoolClass.name}"></td>
+                    <td><span class="badge badge-absent" th:text="${r.status}"></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

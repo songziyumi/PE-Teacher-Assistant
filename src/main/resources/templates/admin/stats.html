@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考勤统计 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header">
+        <h2>考勤统计</h2>
+        <a th:href="@{/admin/stats/absent}" class="btn btn-secondary">缺勤查询</a>
+    </div>
+    <div class="stats-table">
+        <table class="table">
+            <thead>
+                <tr><th>班级</th><th>总记录</th><th>出勤</th><th>缺勤</th><th>请假</th><th>出勤率</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="s : ${classStats}">
+                    <td th:text="${s.className}"></td>
+                    <td th:text="${s.total}"></td>
+                    <td th:text="${s.present}"></td>
+                    <td th:text="${s.absent}"></td>
+                    <td th:text="${s.leave}"></td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" th:style="'width:' + ${s.rate} + '%'"></div>
+                        </div>
+                        <span th:text="${s.rate} + '%'"></span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

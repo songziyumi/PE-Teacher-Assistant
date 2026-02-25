@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考勤记录 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/dashboard}">首页</a>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div class="page-header">
+        <h2 th:text="${student.name} + ' - 考勤记录'"></h2>
+        <p th:text="${student.schoolClass.grade.name} + ' ' + ${student.schoolClass.name}"></p>
+    </div>
+    <div class="stats-row">
+        <div class="stat-card present">
+            <div class="stat-num" th:text="${stats.present}"></div>
+            <div class="stat-label">出勤</div>
+        </div>
+        <div class="stat-card absent">
+            <div class="stat-num" th:text="${stats.absent}"></div>
+            <div class="stat-label">缺勤</div>
+        </div>
+        <div class="stat-card leave">
+            <div class="stat-num" th:text="${stats.leave}"></div>
+            <div class="stat-label">请假</div>
+        </div>
+        <div class="stat-card total">
+            <div class="stat-num" th:text="${stats.rate} + '%'"></div>
+            <div class="stat-label">出勤率</div>
+        </div>
+    </div>
+    <table class="table">
+        <thead>
+            <tr><th>日期</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+            <tr th:each="r : ${records}">
+                <td th:text="${r.date}"></td>
+                <td>
+                    <span th:class="'badge badge-' + ${r.status == '出勤' ? 'present' : (r.status == '缺勤' ? 'absent' : 'leave')}"
+                          th:text="${r.status}"></span>
+                </td>
+                <td>
+                    <form th:action="@{/attendance/update/{id}(id=${r.id})}" method="post" style="display:inline">
+                        <input type="hidden" name="studentId" th:value="${student.id}">
+                        <select name="status" class="select-sm">
+                            <option th:each="s : ${ {'出勤','缺勤','请假'} }"
+                                    th:value="${s}" th:text="${s}"
+                                    th:selected="${r.status == s}"></option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary">修改</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="form-actions">
+        <a th:href="@{/teacher/students/class/{id}(id=${student.schoolClass.id})}" class="btn btn-secondary">返回</a>
+    </div>
+</div>
+</body>
+</html>
