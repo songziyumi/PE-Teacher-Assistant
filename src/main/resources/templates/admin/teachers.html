@@ -5,6 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>教师管理 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        /* Modal Box */
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            width: 480px;
+            max-width: 95vw;
+            box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            animation: modalIn .2s ease;
+        }
+        @keyframes modalIn {
+            from { transform: translateY(-24px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px;
+            background: #4a90e2;
+            border-radius: 12px 12px 0 0;
+        }
+        .modal-header h3 { font-size: 16px; color: #fff; margin: 0; }
+        .modal-close {
+            background: none; border: none; font-size: 22px;
+            color: rgba(255,255,255,.8); cursor: pointer; line-height: 1; padding: 0 4px;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+            padding: 16px 24px;
+            border-top: 1px solid #eee;
+        }
+
+        /* Form Grid */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; color: #555; font-weight: 500; }
+        .form-group input, .form-group select {
+            padding: 8px 11px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color .2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #4a90e2; }
+        .form-group select[multiple] { height: 110px; }
+        .form-hint { font-size: 12px; color: #999; margin-top: 2px; }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -20,24 +81,16 @@
 <div class="container">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
-    <div class="page-header"><h2>教师管理</h2></div>
-    <div class="card">
-        <h3>添加教师</h3>
-        <form th:action="@{/admin/teachers/add}" method="post" class="form-inline">
-            <input type="text" name="username" placeholder="用户名" required>
-            <input type="text" name="name" placeholder="姓名" required>
-            <input type="password" name="password" placeholder="初始密码" required>
-            <input type="tel" name="phone" placeholder="手机号码" required>
-            <select name="classIds" multiple style="height:100px; min-width:200px;">
-                <option th:each="c : ${classes}" th:value="${c.id}"
-                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name + ' [' + c.type + ']'}"></option>
-            </select>
-            <small style="display:block;color:#666;margin-top:2px;">按住 Ctrl 可多选班级（选填）</small>
-            <button type="submit" class="btn btn-primary">添加</button>
-        </form>
+
+    <div class="page-header">
+        <h2>教师管理</h2>
+        <button class="btn btn-primary" onclick="openModal()">＋ 添加教师</button>
     </div>
+
     <table class="table">
-        <thead><tr><th>用户名</th><th>姓名</th><th>手机号</th><th>角色</th><th>重置密码</th><th>操作</th></tr></thead>
+        <thead>
+            <tr><th>用户名</th><th>姓名</th><th>手机号</th><th>角色</th><th>重置密码</th><th>操作</th></tr>
+        </thead>
         <tbody>
             <tr th:each="t : ${teachers}">
                 <td th:text="${t.username}"></td>
@@ -62,5 +115,51 @@
         </tbody>
     </table>
 </div>
+
+<!-- 添加教师弹窗 -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>添加教师</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <form th:action="@{/admin/teachers/add}" method="post">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>姓名 <span style="color:#e74c3c">*</span></label>
+                        <input type="text" name="name" placeholder="请输入姓名" required>
+                    </div>
+                    <div class="form-group">
+                        <label>手机号码 <span style="color:#e74c3c">*</span></label>
+                        <input type="tel" name="phone" placeholder="请输入手机号（即用户名）" required>
+                    </div>
+                    <div class="form-group full">
+                        <label>初始密码 <span style="color:#e74c3c">*</span></label>
+                        <input type="password" name="password" placeholder="请输入初始密码" required>
+                    </div>
+                    <div class="form-group full">
+                        <label>所属班级</label>
+                        <select name="classIds" multiple>
+                            <option th:each="c : ${classes}" th:value="${c.id}"
+                                    th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name + ' [' + c.type + ']'}"></option>
+                        </select>
+                        <span class="form-hint">按住 Ctrl 可多选班级（选填）</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">确认添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal()  { document.getElementById('addModal').classList.add('active'); }
+    function closeModal() { document.getElementById('addModal').classList.remove('active'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
 </body>
 </html>

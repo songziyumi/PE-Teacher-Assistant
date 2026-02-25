@@ -5,6 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生管理 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.45); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #fff; border-radius: 12px; width: 480px;
+            max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            animation: modalIn .2s ease;
+        }
+        @keyframes modalIn {
+            from { transform: translateY(-24px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 24px; background: #4a90e2; border-radius: 12px 12px 0 0;
+        }
+        .modal-header h3 { font-size: 16px; color: #fff; margin: 0; }
+        .modal-close {
+            background: none; border: none; font-size: 22px;
+            color: rgba(255,255,255,.8); cursor: pointer; line-height: 1; padding: 0 4px;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+            padding: 16px 24px; border-top: 1px solid #eee;
+        }
+        .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-grid2 .full { grid-column: 1 / -1; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; color: #555; font-weight: 500; }
+        .form-group input, .form-group select {
+            padding: 8px 11px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 14px; transition: border-color .2s; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #4a90e2; }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -22,6 +63,7 @@
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <div class="page-header">
         <h2 th:text="${schoolClass != null ? schoolClass.grade.name + ' ' + schoolClass.name + ' - 学生管理' : '学生管理'}"></h2>
+        <button th:if="${schoolClass != null}" class="btn btn-primary" onclick="openAdd()">＋ 添加学生</button>
     </div>
     <div class="card">
         <h3>选择班级</h3>
@@ -33,21 +75,6 @@
         </div>
     </div>
     <div th:if="${schoolClass != null}">
-        <div class="card">
-            <h3>添加学生</h3>
-            <form th:action="@{/admin/students/add}" method="post" class="form-grid">
-                <input type="hidden" name="classId" th:value="${schoolClass.id}">
-                <input type="text" name="name" placeholder="姓名" required>
-                <select name="gender">
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                </select>
-                <input type="text" name="studentNo" placeholder="学号">
-                <input type="text" name="idCard" placeholder="身份证号">
-                <input type="text" name="electiveClass" placeholder="选课班">
-                <button type="submit" class="btn btn-primary">添加</button>
-            </form>
-        </div>
         <table class="table">
             <thead><tr><th>#</th><th>姓名</th><th>性别</th><th>学号</th><th>身份证</th><th>选课班</th><th>操作</th></tr></thead>
             <tbody>
@@ -59,14 +86,10 @@
                     <td th:text="${s.idCard}"></td>
                     <td th:text="${s.electiveClass}"></td>
                     <td>
-                        <button class="btn btn-sm btn-secondary"
-                                onclick="openEdit(this)"
-                                th:data-id="${s.id}"
-                                th:data-name="${s.name}"
-                                th:data-gender="${s.gender}"
-                                th:data-studentno="${s.studentNo}"
-                                th:data-idcard="${s.idCard}"
-                                th:data-elective="${s.electiveClass}">编辑</button>
+                        <button class="btn btn-sm btn-secondary" onclick="openEdit(this)"
+                                th:data-id="${s.id}" th:data-name="${s.name}"
+                                th:data-gender="${s.gender}" th:data-studentno="${s.studentNo}"
+                                th:data-idcard="${s.idCard}" th:data-elective="${s.electiveClass}">编辑</button>
                         <form th:action="@{/admin/students/delete/{id}(id=${s.id})}" method="post" style="display:inline"
                               onsubmit="return confirm('确认删除？')">
                             <input type="hidden" name="classId" th:value="${schoolClass.id}">
@@ -78,29 +101,106 @@
         </table>
     </div>
 </div>
-<!-- 编辑弹窗 -->
-<div id="editModal" class="modal" style="display:none">
-    <div class="modal-content">
-        <h3>编辑学生</h3>
-        <form id="editForm" method="post">
+
+<!-- 添加学生弹窗 -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>添加学生</h3>
+            <button class="modal-close" onclick="closeAdd()">×</button>
+        </div>
+        <form th:action="@{/admin/students/add}" method="post">
             <input type="hidden" name="classId" th:value="${schoolClass != null ? schoolClass.id : ''}">
-            <div class="form-group"><label>姓名</label><input type="text" name="name" id="edit-name" required></div>
-            <div class="form-group"><label>性别</label>
-                <select name="gender" id="edit-gender">
-                    <option value="男">男</option><option value="女">女</option>
-                </select>
+            <div class="modal-body">
+                <div class="form-grid2">
+                    <div class="form-group">
+                        <label>姓名 <span style="color:#e74c3c">*</span></label>
+                        <input type="text" name="name" placeholder="请输入姓名" required>
+                    </div>
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select name="gender">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>学号</label>
+                        <input type="text" name="studentNo" placeholder="请输入学号">
+                    </div>
+                    <div class="form-group">
+                        <label>身份证号</label>
+                        <input type="text" name="idCard" placeholder="请输入身份证号">
+                    </div>
+                    <div class="form-group full">
+                        <label>选课班</label>
+                        <select name="electiveClass">
+                            <option value="">-- 不选 --</option>
+                            <option th:each="ec : ${electiveClasses}" th:value="${ec.name}"
+                                    th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="form-group"><label>学号</label><input type="text" name="studentNo" id="edit-studentNo"></div>
-            <div class="form-group"><label>身份证</label><input type="text" name="idCard" id="edit-idCard"></div>
-            <div class="form-group"><label>选课班</label><input type="text" name="electiveClass" id="edit-elective"></div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">保存</button>
-                <button type="button" class="btn btn-secondary" onclick="closeEdit()">取消</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeAdd()">取消</button>
+                <button type="submit" class="btn btn-primary">确认添加</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- 编辑学生弹窗 -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>编辑学生</h3>
+            <button class="modal-close" onclick="closeEdit()">×</button>
+        </div>
+        <form id="editForm" method="post">
+            <input type="hidden" name="classId" th:value="${schoolClass != null ? schoolClass.id : ''}">
+            <div class="modal-body">
+                <div class="form-grid2">
+                    <div class="form-group">
+                        <label>姓名 <span style="color:#e74c3c">*</span></label>
+                        <input type="text" name="name" id="edit-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select name="gender" id="edit-gender">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>学号</label>
+                        <input type="text" name="studentNo" id="edit-studentNo">
+                    </div>
+                    <div class="form-group">
+                        <label>身份证号</label>
+                        <input type="text" name="idCard" id="edit-idCard">
+                    </div>
+                    <div class="form-group full">
+                        <label>选课班</label>
+                        <select name="electiveClass" id="edit-elective">
+                            <option value="">-- 不选 --</option>
+                            <option th:each="ec : ${electiveClasses}" th:value="${ec.name}"
+                                    th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
+                <button type="submit" class="btn btn-primary">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+function openAdd()  { document.getElementById('addModal').classList.add('active'); }
+function closeAdd() { document.getElementById('addModal').classList.remove('active'); }
 function openEdit(btn) {
     document.getElementById('edit-name').value = btn.dataset.name;
     document.getElementById('edit-gender').value = btn.dataset.gender;
@@ -108,9 +208,10 @@ function openEdit(btn) {
     document.getElementById('edit-idCard').value = btn.dataset.idcard;
     document.getElementById('edit-elective').value = btn.dataset.elective;
     document.getElementById('editForm').action = '/admin/students/edit/' + btn.dataset.id;
-    document.getElementById('editModal').style.display = 'flex';
+    document.getElementById('editModal').classList.add('active');
 }
-function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+function closeEdit() { document.getElementById('editModal').classList.remove('active'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAdd(); closeEdit(); } });
 </script>
 </body>
 </html>
