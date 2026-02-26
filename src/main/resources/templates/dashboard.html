@@ -32,7 +32,7 @@
     <div class="class-grid">
         <div th:each="cls : ${classes}" class="class-card">
             <div class="class-card-header">
-                <span class="grade-badge" th:text="${cls.grade.name}"></span>
+                <span class="grade-badge" th:text="${cls.grade != null ? cls.grade.name : ''}"></span>
                 <h3 th:text="${cls.name}"></h3>
             </div>
             <div class="class-card-body">
@@ -54,11 +54,12 @@
     <div class="class-grid">
         <div th:each="ec : ${electiveClasses}" class="class-card">
             <div class="class-card-header">
-                <span class="grade-badge">选修</span>
-                <h3 th:text="${ec}"></h3>
+                <span class="grade-badge" th:text="${ec.grade != null ? ec.grade.name : '选修'}"></span>
+                <h3 th:text="${ec.name}"></h3>
             </div>
             <div class="class-card-actions">
-                <a th:href="@{/attendance/elective/{name}(name=${ec})}" class="btn btn-primary">考勤登记</a>
+                <a th:href="@{/attendance/class/{id}(id=${ec.id})}" class="btn btn-primary">考勤登记</a>
+                <a th:href="@{/teacher/students/class/{id}(id=${ec.id})}" class="btn btn-secondary">学生列表</a>
             </div>
         </div>
     </div>

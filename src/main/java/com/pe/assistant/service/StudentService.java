@@ -67,6 +67,14 @@ public class StudentService {
     }
 
     @Transactional
+    public void updateElectiveByStudentNo(String studentNo, String electiveClass) {
+        Student s = studentRepository.findByStudentNo(studentNo)
+            .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
+        s.setElectiveClass(electiveClass);
+        studentRepository.save(s);
+    }
+
+    @Transactional
     public void delete(Long id) {
         studentRepository.deleteById(id);
     }

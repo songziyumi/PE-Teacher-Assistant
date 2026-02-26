@@ -70,9 +70,9 @@
                     <td th:text="${s.studentName}"></td>
                     <td th:text="${s.studentNo}"></td>
                     <td th:text="${s.total}"></td>
-                    <td th:text="${s.present}"></td>
-                    <td th:text="${s.absent}"></td>
-                    <td th:text="${s.leave}"></td>
+                    <td style="color:#27ae60;font-weight:600" th:text="${s.present}"></td>
+                    <td style="color:#e74c3c;font-weight:600" th:text="${s.absent}"></td>
+                    <td style="color:#2980b9;font-weight:600" th:text="${s.leave}"></td>
                     <td>
                         <div class="progress-bar">
                             <div class="progress-fill" th:style="'width:' + ${s.rate} + '%'"></div>

@@ -22,6 +22,9 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a WHERE a.status = '缺勤' AND a.date BETWEEN :start AND :end")
     List<Attendance> findAbsentBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
 
+    @Query("SELECT a FROM Attendance a WHERE a.status IN ('缺勤', '请假') AND a.date BETWEEN :start AND :end ORDER BY a.date, a.status")
+    List<Attendance> findAbsentOrLeaveBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+
     @Query("SELECT COUNT(a) FROM Attendance a WHERE a.student.id = :studentId AND a.status = :status")
     long countByStudentIdAndStatus(@Param("studentId") Long studentId, @Param("status") String status);
 

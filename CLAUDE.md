@@ -37,7 +37,7 @@ src/main/resources/
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v1.1.0
+- `main`：主分支（生产），当前版本 v1.2.0
 - `feature/attendance`：当前开发分支
 
 ## 常用命令
@@ -56,11 +56,25 @@ mvn test
 - 数据库配置在 `src/main/resources/application.yml`
 - 使用 Spring Security，登录认证通过 `UserDetailsServiceImpl` 实现
 - 管理员和教师角色权限分离
-- 支持 Excel/CSV 批量导入学生数据
-- 停止应用时用 `Ctrl+C`，避免 8080 端口残留占用
+- 支持 Excel/CSV 批量导入学生、班级、教师数据，以及批量修改学生选修课
+- 停止应用时用 `Ctrl+C`，避免 8080 端口残留；若端口仍被占用，用 `powershell -Command "Stop-Process -Name java -Force"` 清理
 - `SchoolClassRepository` 提供 `findByKeyword`（关键词搜索）和 `findByFilters`（多条件过滤）两个分页查询方法
+- `SchoolClassRepository` 提供 `findByTeacherAndType(Teacher, String)` 按教师和班级类型查询
+- `StudentRepository.findWithFilters` 使用 `DISTINCT` + 显式 `countQuery` 避免 LEFT JOIN 导致分页计数翻倍
+- 考勤状态颜色规范：出勤=绿色(#27ae60)、缺勤=红色(#e74c3c)、请假=蓝色(#2980b9)
+- 导出缺勤/请假文件名格式：`考勤日期+缺勤、请假名单.csv`，使用 RFC 5987 编码中文文件名
+- Thymeleaf 模板中避免使用 `th:replace` 引用同页面 fragment，会导致内容重复渲染
 
 ## 版本历史
+- `v1.2.0`：考勤与导入功能增强
+  - 教师管理：删除教师前自动清除班级关联，修复外键约束 500 错误
+  - 教师管理：独立搜索字段（姓名/用户名/手机号）、分页、统计
+  - 仪表盘：行政班与选修班分开展示，修复选修班显示在行政班的问题
+  - 考勤登记：合并行政班/选修班为单一表单，修复学生列表重复（108→54）
+  - 学生管理：修复编辑弹窗 403（补充 CSRF token）
+  - 考勤统计：出勤/缺勤/请假颜色区分
+  - 缺勤查询：增加请假查询，导出包含请假记录，文件名含日期
+  - 批量导入：新增"批量修改学生选修课"（按学号匹配，覆盖选修课字段）
 - `v1.1.0`：管理模块分页、搜索与班级分配功能
   - 班级管理：按类型/年级/名称过滤、分页（15条/页）、批量删除、关键词搜索
   - 教师管理：班级分配功能，展示已分配班级列表

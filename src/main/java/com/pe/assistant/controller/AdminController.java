@@ -121,9 +121,19 @@ public class AdminController {
 
     // ===== 教师管理 =====
     @GetMapping("/teachers")
-    public String teachers(Model model) {
+    public String teachers(@RequestParam(required = false) String name,
+                           @RequestParam(required = false) String username,
+                           @RequestParam(required = false) String phone,
+                           @RequestParam(defaultValue = "0") int page,
+                           Model model) {
+        int pageSize = 15;
+        Page<Teacher> teacherPage = teacherService.findByFilters(name, username, phone, page, pageSize);
         List<com.pe.assistant.entity.SchoolClass> allClasses = classService.findAll();
-        model.addAttribute("teachers", teacherService.findAll());
+        model.addAttribute("teacherPage", teacherPage);
+        model.addAttribute("teachers", teacherPage.getContent());
+        model.addAttribute("searchName", name);
+        model.addAttribute("searchUsername", username);
+        model.addAttribute("searchPhone", phone);
         model.addAttribute("classes", allClasses);
         // 每个教师已分配的班级名称列表（供表格显示）
         Map<Long, List<String>> teacherClassNames = new HashMap<>();
@@ -300,7 +310,7 @@ public class AdminController {
         if (end == null)   end   = LocalDate.now();
         model.addAttribute("start", start);
         model.addAttribute("end", end);
-        model.addAttribute("records", attendanceService.findAbsentBetween(start, end));
+        model.addAttribute("records", attendanceService.findAbsentOrLeaveBetween(start, end));
         return "admin/absent";
     }
 
@@ -309,15 +319,19 @@ public class AdminController {
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
                              HttpServletResponse response) throws IOException {
         response.setContentType("text/csv;charset=UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=absent.csv");
-        List<Attendance> records = attendanceService.findAbsentBetween(start, end);
+        String filename = start.equals(end)
+            ? start + "缺勤、请假名单.csv"
+            : start + "至" + end + "缺勤、请假名单.csv";
+        response.setHeader("Content-Disposition",
+            "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20"));
+        List<Attendance> records = attendanceService.findAbsentOrLeaveBetween(start, end);
         try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
             writer.println("日期,姓名,班级,年级,状态");
             for (Attendance a : records) {
                 writer.printf("%s,%s,%s,%s,%s%n",
                     a.getDate(), a.getStudent().getName(),
                     a.getStudent().getSchoolClass().getName(),
-                    a.getStudent().getSchoolClass().getGrade().getName(),
+                    a.getStudent().getSchoolClass().getGrade() != null ? a.getStudent().getSchoolClass().getGrade().getName() : "",
                     a.getStatus());
             }
         }
@@ -520,6 +534,54 @@ public class AdminController {
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }
             String msg = "成功导入 " + count + " 名学生" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            if (!errors.isEmpty()) {
+                ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
+            } else {
+                ra.addFlashAttribute("success", msg);
+            }
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "导入失败：" + e.getMessage());
+        }
+        return "redirect:/admin/import";
+    }
+
+    @GetMapping("/import/template/elective")
+    public void downloadElectiveTemplate(HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=elective_template.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("选修课");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("选修课");
+            Row example = sheet.createRow(1);
+            example.createCell(0).setCellValue("20240001");
+            example.createCell(1).setCellValue("篮球");
+            wb.write(response.getOutputStream());
+        }
+    }
+
+    @PostMapping("/import/elective")
+    public String importElective(@RequestParam MultipartFile file, RedirectAttributes ra) {
+        try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = wb.getSheetAt(0);
+            Row header = sheet.getRow(0);
+            Map<String, Integer> col = new HashMap<>();
+            for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
+            int count = 0, skip = 0;
+            List<String> errors = new ArrayList<>();
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                String studentNo   = cellStr(row, col.getOrDefault("学号", -1));
+                String electiveClass = cellStr(row, col.getOrDefault("选修课", -1));
+                if (studentNo.isBlank()) { skip++; continue; }
+                try {
+                    studentService.updateElectiveByStudentNo(studentNo, electiveClass.isBlank() ? null : electiveClass);
+                    count++;
+                } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
+            }
+            String msg = "成功更新 " + count + " 名学生的选修课" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
             if (!errors.isEmpty()) {
                 ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
             } else {

@@ -11,6 +11,7 @@ import java.util.List;
 
 public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> {
     List<SchoolClass> findByTeacher(Teacher teacher);
+    List<SchoolClass> findByTeacherAndType(Teacher teacher, String type);
     List<SchoolClass> findByGradeId(Long gradeId);
     boolean existsByNameAndGradeId(String name, Long gradeId);
 
