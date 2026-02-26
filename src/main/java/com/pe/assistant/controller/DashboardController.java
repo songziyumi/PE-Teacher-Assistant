@@ -22,8 +22,8 @@ public class DashboardController {
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         Teacher teacher = teacherService.findByUsername(userDetails.getUsername());
         model.addAttribute("teacher", teacher);
-        model.addAttribute("classes", classService.findByTeacher(teacher));
-        model.addAttribute("electiveClasses", studentService.findElectiveClassNamesByTeacher(teacher));
+        model.addAttribute("classes", classService.findAdminClassesByTeacher(teacher));
+        model.addAttribute("electiveClasses", classService.findElectiveClassesByTeacher(teacher));
         return "dashboard";
     }
 }

@@ -35,6 +35,14 @@ public class ClassService {
         return classRepository.findByTeacher(teacher);
     }
 
+    public List<SchoolClass> findAdminClassesByTeacher(Teacher teacher) {
+        return classRepository.findByTeacherAndType(teacher, "行政班");
+    }
+
+    public List<SchoolClass> findElectiveClassesByTeacher(Teacher teacher) {
+        return classRepository.findByTeacherAndType(teacher, "选修课");
+    }
+
     public SchoolClass findById(Long id) {
         return classRepository.findById(id).orElseThrow();
     }

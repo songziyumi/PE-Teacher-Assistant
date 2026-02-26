@@ -29,13 +29,22 @@ public class AttendanceController {
                                  Model model) {
         if (date == null) date = LocalDate.now();
         SchoolClass sc = classService.findById(classId);
-        List<Student> students = studentService.findByClassId(classId);
-        List<Attendance> existing = attendanceService.findByClassAndDate(classId, date);
+        boolean isElective = "选修课".equals(sc.getType());
+        List<Student> students;
+        List<Attendance> existing;
+        if (isElective) {
+            students = studentService.findByElectiveClass(sc.getName());
+            existing = attendanceService.findByElectiveClassAndDate(sc.getName(), date);
+        } else {
+            students = studentService.findByClassId(classId);
+            existing = attendanceService.findByClassAndDate(classId, date);
+        }
         Map<Long, String> statusMap = new HashMap<>();
         for (Attendance a : existing) statusMap.put(a.getStudent().getId(), a.getStatus());
         model.addAttribute("schoolClass", sc);
-        model.addAttribute("classTitle", sc.getGrade().getName() + " " + sc.getName());
-        model.addAttribute("mode", "admin");
+        model.addAttribute("classTitle", (sc.getGrade() != null ? sc.getGrade().getName() + " " : "") + sc.getName());
+        model.addAttribute("mode", isElective ? "elective" : "admin");
+        model.addAttribute("electiveName", sc.getName());
         model.addAttribute("students", students);
         model.addAttribute("statusMap", statusMap);
         model.addAttribute("date", date);

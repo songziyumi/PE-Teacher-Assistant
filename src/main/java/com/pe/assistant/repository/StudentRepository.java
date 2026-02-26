@@ -12,8 +12,15 @@ import java.util.List;
 public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findBySchoolClassId(Long classId);
     long countBySchoolClassId(Long classId);
+    java.util.Optional<Student> findByStudentNo(String studentNo);
 
-    @Query("SELECT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+    @Query(value = "SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+           "(:classId IS NULL OR sc.id = :classId) AND " +
+           "(:gradeId IS NULL OR g.id = :gradeId) AND " +
+           "(:name IS NULL OR :name = '' OR s.name LIKE %:name%) AND " +
+           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE %:studentNo%) AND " +
+           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE %:idCard%)",
+           countQuery = "SELECT COUNT(DISTINCT s) FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
            "(:classId IS NULL OR sc.id = :classId) AND " +
            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
            "(:name IS NULL OR :name = '' OR s.name LIKE %:name%) AND " +

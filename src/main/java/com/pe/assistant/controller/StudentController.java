@@ -20,7 +20,9 @@ public class StudentController {
     @GetMapping("/class/{classId}")
     public String listStudents(@PathVariable Long classId, Model model) {
         SchoolClass sc = classService.findById(classId);
-        List<Student> students = studentService.findByClassId(classId);
+        List<Student> students = "选修课".equals(sc.getType())
+                ? studentService.findByElectiveClass(sc.getName())
+                : studentService.findByClassId(classId);
         model.addAttribute("schoolClass", sc);
         model.addAttribute("students", students);
         return "teacher/students";

@@ -215,6 +215,7 @@
             <button class="modal-close" onclick="closeEdit()">×</button>
         </div>
         <form id="editForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="hidden" name="classId" id="edit-classId">
             <div class="modal-body">
                 <div class="form-grid2">

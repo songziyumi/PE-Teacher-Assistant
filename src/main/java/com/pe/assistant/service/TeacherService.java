@@ -4,6 +4,9 @@ import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.SchoolClassRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,14 @@ public class TeacherService {
 
     public List<Teacher> findAll() {
         return teacherRepository.findAll();
+    }
+
+    public Page<Teacher> findByFilters(String name, String username, String phone, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        String n = (name == null || name.isBlank()) ? null : name.trim();
+        String u = (username == null || username.isBlank()) ? null : username.trim();
+        String p = (phone == null || phone.isBlank()) ? null : phone.trim();
+        return teacherRepository.findByFilters(n, u, p, pageable);
     }
 
     public Teacher findByUsername(String username) {
@@ -53,7 +64,12 @@ public class TeacherService {
 
     @Transactional
     public void delete(Long id) {
-        teacherRepository.deleteById(id);
+        Teacher teacher = teacherRepository.findById(id).orElseThrow();
+        // 先解除班级关联，避免外键约束报错
+        classRepository.findAll().stream()
+            .filter(c -> teacher.equals(c.getTeacher()))
+            .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
+        teacherRepository.delete(teacher);
     }
 
     @Transactional

@@ -66,12 +66,37 @@
 
     <div class="page-header">
         <h2>教师管理</h2>
-        <div style="display:flex;gap:8px">
-            <button class="btn btn-primary" onclick="openAddModal()">＋ 添加教师</button>
-            <form th:action="@{/admin/teachers/delete-all}" method="post" style="display:inline"
-                  onsubmit="return confirm('确认删除全部教师数据？此操作不可恢复！')">
-                <button type="submit" class="btn btn-danger">删除全部</button>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:14px 18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
+            <form th:action="@{/admin/teachers}" method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="font-size:13px;color:#555;white-space:nowrap;font-weight:500">姓名</label>
+                    <input type="text" name="name" th:value="${searchName}" placeholder="搜索姓名"
+                           style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:130px;outline:none">
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="font-size:13px;color:#555;white-space:nowrap;font-weight:500">用户名</label>
+                    <input type="text" name="username" th:value="${searchUsername}" placeholder="搜索用户名"
+                           style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:130px;outline:none">
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <label style="font-size:13px;color:#555;white-space:nowrap;font-weight:500">手机号</label>
+                    <input type="text" name="phone" th:value="${searchPhone}" placeholder="搜索手机号"
+                           style="padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;width:140px;outline:none">
+                </div>
+                <button type="submit" class="btn btn-secondary" style="padding:7px 18px">搜索</button>
+                <a th:href="@{/admin/teachers}" class="btn btn-outline" style="padding:7px 18px">清除</a>
             </form>
+            <div style="display:flex;gap:8px;flex-shrink:0">
+                <button class="btn btn-primary" onclick="openAddModal()">＋ 添加教师</button>
+                <form th:action="@{/admin/teachers/delete-all}" method="post" style="display:inline"
+                      onsubmit="return confirm('确认删除全部教师数据？此操作不可恢复！')">
+                    <button type="submit" class="btn btn-danger">删除全部</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -112,6 +137,50 @@
             </tr>
         </tbody>
     </table>
+
+    <!-- 统计与分页 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px;padding:0 2px">
+        <!-- 统计 -->
+        <div style="font-size:13px;color:#666">
+            共 <strong th:text="${teacherPage.totalElements}"></strong> 条记录，
+            每页 15 条，第 <strong th:text="${teacherPage.number + 1}"></strong> /
+            <strong th:text="${teacherPage.totalPages > 0 ? teacherPage.totalPages : 1}"></strong> 页
+        </div>
+        <!-- 分页 -->
+        <div style="display:flex;gap:4px;align-items:center" th:if="${teacherPage.totalPages > 1}">
+            <a th:if="${!teacherPage.first}"
+               th:href="@{/admin/teachers(page=${teacherPage.number - 1},name=${searchName},username=${searchUsername},phone=${searchPhone})}"
+               class="btn btn-sm btn-outline">‹ 上一页</a>
+            <span th:if="${teacherPage.first}" class="btn btn-sm btn-outline" style="opacity:.4;cursor:default">‹ 上一页</span>
+            <th:block th:each="i : ${#numbers.sequence(0, teacherPage.totalPages - 1)}">
+                <a th:if="${i != teacherPage.number}"
+                   th:href="@{/admin/teachers(page=${i},name=${searchName},username=${searchUsername},phone=${searchPhone})}"
+                   th:text="${i + 1}" class="btn btn-sm btn-outline"></a>
+                <span th:if="${i == teacherPage.number}"
+                      th:text="${i + 1}" class="btn btn-sm btn-primary" style="cursor:default"></span>
+            </th:block>
+            <a th:if="${!teacherPage.last}"
+               th:href="@{/admin/teachers(page=${teacherPage.number + 1},name=${searchName},username=${searchUsername},phone=${searchPhone})}"
+               class="btn btn-sm btn-outline">下一页 ›</a>
+            <span th:if="${teacherPage.last}" class="btn btn-sm btn-outline" style="opacity:.4;cursor:default">下一页 ›</span>
+        </div>
+        <!-- 跳转 -->
+        <form th:action="@{/admin/teachers}" method="get"
+              style="display:flex;align-items:center;gap:6px"
+              onsubmit="handlePageJump(event, this)">
+            <input type="hidden" name="name" th:value="${searchName}">
+            <input type="hidden" name="username" th:value="${searchUsername}">
+            <input type="hidden" name="phone" th:value="${searchPhone}">
+            <input type="hidden" name="page" id="jumpPageVal" value="0">
+            <span style="font-size:13px;color:#666">跳转到</span>
+            <input type="number" id="jumpInput" min="1"
+                   th:max="${teacherPage.totalPages > 0 ? teacherPage.totalPages : 1}"
+                   style="width:58px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:center"
+                   placeholder="页码">
+            <span style="font-size:13px;color:#666">页</span>
+            <button type="submit" class="btn btn-sm btn-secondary">跳转</button>
+        </form>
+    </div>
 </div>
 
 <!-- 添加教师弹窗 -->
@@ -181,6 +250,14 @@
 <script>
 function openAddModal()  { document.getElementById('addModal').classList.add('active'); }
 function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
+
+function handlePageJump(e, form) {
+    const input = document.getElementById('jumpInput');
+    const val = parseInt(input.value);
+    const max = parseInt(input.max);
+    if (!val || val < 1 || val > max) { e.preventDefault(); return; }
+    document.getElementById('jumpPageVal').value = val - 1;
+}
 
 function openAssignModal(teacherId, teacherName) {
     document.getElementById('assignTitle').textContent = '分配班级 - ' + teacherName;

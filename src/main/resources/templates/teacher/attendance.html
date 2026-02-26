@@ -26,9 +26,8 @@
             <a th:href="@{/dashboard}" class="btn btn-secondary btn-sm" style="margin-left:1rem">切换班级</a>
         </div>
     </div>
-    <form th:if="${mode == 'admin'}"
-          th:action="@{/attendance/class/{id}/save(id=${schoolClass.id})}" method="post">
-        <input type="hidden" name="mode" value="admin">
+    <form th:action="@{/attendance/class/{id}/save(id=${schoolClass.id})}" method="post">
+        <input type="hidden" name="mode" th:value="${mode}">
         <div class="attendance-toolbar">
             <div class="form-inline">
                 <label>日期：</label>
@@ -44,59 +43,33 @@
             <span class="stat-item absent">缺勤: <span id="cnt-absent">0</span></span>
             <span class="stat-item leave">请假: <span id="cnt-leave">0</span></span>
         </div>
-        <div class="attendance-list" th:replace="~{::attendanceRows}"></div>
+        <div class="attendance-list">
+            <div th:each="student, iter : ${students}" class="attendance-row">
+                <div class="student-info">
+                    <span class="student-no" th:text="${iter.count}"></span>
+                    <span class="student-name" th:text="${student.name}"></span>
+                    <span class="student-gender text-muted" th:text="${student.gender}"></span>
+                    <span th:if="${mode == 'elective'}" class="text-muted"
+                          th:text="'(' + ${student.schoolClass.grade != null ? student.schoolClass.grade.name : ''} + ${student.schoolClass.name} + ')'"></span>
+                </div>
+                <div class="status-buttons">
+                    <label th:each="status : ${ {'出勤','缺勤','请假'} }"
+                           th:class="'status-label ' + ${status}">
+                        <input type="radio"
+                               th:name="'status_' + ${student.id}"
+                               th:value="${status}"
+                               th:checked="${statusMap[student.id] == status || (statusMap[student.id] == null && status == '出勤')}"
+                               onchange="updateStats()">
+                        <span th:text="${status}"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary btn-lg">保存考勤</button>
             <a th:href="@{/dashboard}" class="btn btn-secondary">返回</a>
         </div>
     </form>
-    <form th:if="${mode == 'elective'}"
-          th:action="@{/attendance/elective/{name}/save(name=${electiveName})}" method="post">
-        <input type="hidden" name="mode" value="elective">
-        <div class="attendance-toolbar">
-            <div class="form-inline">
-                <label>日期：</label>
-                <input type="date" name="date" th:value="${date}" required>
-            </div>
-            <div class="attendance-actions">
-                <button type="button" class="btn btn-success" onclick="setAll('出勤')">一键全部出勤</button>
-                <button type="submit" class="btn btn-primary">保存考勤</button>
-            </div>
-        </div>
-        <div class="attendance-stats" id="stats">
-            <span class="stat-item present">出勤: <span id="cnt-present">0</span></span>
-            <span class="stat-item absent">缺勤: <span id="cnt-absent">0</span></span>
-            <span class="stat-item leave">请假: <span id="cnt-leave">0</span></span>
-        </div>
-        <div class="attendance-list" th:replace="~{::attendanceRows}"></div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-lg">保存考勤</button>
-            <a th:href="@{/dashboard}" class="btn btn-secondary">返回</a>
-        </div>
-    </form>
-    <!-- 学生行片段（两个 form 共用） -->
-    <th:block th:fragment="attendanceRows">
-        <div th:each="student, iter : ${students}" class="attendance-row">
-            <div class="student-info">
-                <span class="student-no" th:text="${iter.count}"></span>
-                <span class="student-name" th:text="${student.name}"></span>
-                <span class="student-gender text-muted" th:text="${student.gender}"></span>
-                <span th:if="${mode == 'elective'}" class="text-muted"
-                      th:text="'(' + ${student.schoolClass.grade.name} + ${student.schoolClass.name} + ')'"></span>
-            </div>
-            <div class="status-buttons">
-                <label th:each="status : ${ {'出勤','缺勤','请假'} }"
-                       th:class="'status-label ' + ${status}">
-                    <input type="radio"
-                           th:name="'status_' + ${student.id}"
-                           th:value="${status}"
-                           th:checked="${statusMap[student.id] == status || (statusMap[student.id] == null && status == '出勤')}"
-                           onchange="updateStats()">
-                    <span th:text="${status}"></span>
-                </label>
-            </div>
-        </div>
-    </th:block>
 </div>
 <script>
 function setAll(status) {

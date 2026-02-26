@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>缺勤查询 - 体育教师助手</title>
+    <title>缺勤/请假查询 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
@@ -18,7 +18,7 @@
     </div>
 </nav>
 <div class="container">
-    <div class="page-header"><h2>缺勤查询</h2></div>
+    <div class="page-header"><h2>缺勤/请假查询</h2></div>
     <div class="card">
         <form th:action="@{/admin/stats/absent}" method="get" class="form-inline">
             <label>开始日期：</label>
@@ -32,16 +32,19 @@
         </form>
     </div>
     <div th:if="${records != null}">
-        <p th:text="'共 ' + ${#lists.size(records)} + ' 条缺勤记录'"></p>
+        <p th:text="'共 ' + ${#lists.size(records)} + ' 条记录（缺勤/请假）'"></p>
         <table class="table">
             <thead><tr><th>日期</th><th>姓名</th><th>年级</th><th>班级</th><th>状态</th></tr></thead>
             <tbody>
                 <tr th:each="r : ${records}">
                     <td th:text="${r.date}"></td>
                     <td th:text="${r.student.name}"></td>
-                    <td th:text="${r.student.schoolClass.grade.name}"></td>
+                    <td th:text="${r.student.schoolClass.grade != null ? r.student.schoolClass.grade.name : '-'}"></td>
                     <td th:text="${r.student.schoolClass.name}"></td>
-                    <td><span class="badge badge-absent" th:text="${r.status}"></span></td>
+                    <td>
+                        <span th:if="${r.status == '缺勤'}" style="color:#e74c3c;font-weight:600" th:text="${r.status}"></span>
+                        <span th:if="${r.status == '请假'}" style="color:#2980b9;font-weight:600" th:text="${r.status}"></span>
+                    </td>
                 </tr>
             </tbody>
         </table>
