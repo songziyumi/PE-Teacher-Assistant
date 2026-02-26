@@ -15,6 +15,10 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
     boolean existsByNameAndGradeId(String name, Long gradeId);
 
     @Query("SELECT c FROM SchoolClass c LEFT JOIN c.grade g WHERE " +
+           "c.name LIKE %:keyword% OR g.name LIKE %:keyword%")
+    Page<SchoolClass> findByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("SELECT c FROM SchoolClass c LEFT JOIN c.grade g WHERE " +
            "(:type IS NULL OR :type = '' OR c.type = :type) AND " +
            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
            "(:name IS NULL OR :name = '' OR c.name LIKE %:name%)")
