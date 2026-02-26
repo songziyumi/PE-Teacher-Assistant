@@ -20,8 +20,8 @@ public class StudentService {
         return studentRepository.findBySchoolClassId(classId);
     }
 
-    public Page<Student> findWithFilters(Long classId, Long gradeId, String name, String studentNo, String idCard, int page, int size) {
-        return studentRepository.findWithFilters(classId, gradeId, name, studentNo, idCard, PageRequest.of(page, size));
+    public Page<Student> findWithFilters(Long classId, Long gradeId, String name, String studentNo, String idCard, String electiveClass, int page, int size) {
+        return studentRepository.findWithFilters(classId, gradeId, name, studentNo, idCard, electiveClass, PageRequest.of(page, size));
     }
 
     public Student findById(Long id) {

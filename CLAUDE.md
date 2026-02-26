@@ -37,7 +37,7 @@ src/main/resources/
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v1.2.0
+- `main`：主分支（生产），当前版本 v1.2.1
 - `feature/attendance`：当前开发分支
 
 ## 常用命令
@@ -61,11 +61,15 @@ mvn test
 - `SchoolClassRepository` 提供 `findByKeyword`（关键词搜索）和 `findByFilters`（多条件过滤）两个分页查询方法
 - `SchoolClassRepository` 提供 `findByTeacherAndType(Teacher, String)` 按教师和班级类型查询
 - `StudentRepository.findWithFilters` 使用 `DISTINCT` + 显式 `countQuery` 避免 LEFT JOIN 导致分页计数翻倍
+- `StudentRepository.findWithFilters` 包含 `electiveClass` 字符串参数；控制器在 `classId` 对应选修课类型时，自动将其转为 `electiveClass = 班级名称` 并清空 `classId`，以正确按选修班搜索学生
 - 考勤状态颜色规范：出勤=绿色(#27ae60)、缺勤=红色(#e74c3c)、请假=蓝色(#2980b9)
 - 导出缺勤/请假文件名格式：`考勤日期+缺勤、请假名单.csv`，使用 RFC 5987 编码中文文件名
 - Thymeleaf 模板中避免使用 `th:replace` 引用同页面 fragment，会导致内容重复渲染
 
 ## 版本历史
+- `v1.2.1`：修复学生管理按选修班搜索无结果
+  - `StudentRepository.findWithFilters` 新增 `electiveClass` 过滤条件
+  - `AdminController` `/students` 和 `/stats` 接口：选中选修课类型班级时自动转换为 `electiveClass` 字符串查询
 - `v1.2.0`：考勤与导入功能增强
   - 教师管理：删除教师前自动清除班级关联，修复外键约束 500 错误
   - 教师管理：独立搜索字段（姓名/用户名/手机号）、分页、统计

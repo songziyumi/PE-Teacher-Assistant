@@ -209,7 +209,16 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String idCard,
                            @RequestParam(defaultValue = "0") int page,
                            Model model) {
-        Page<Student> studentPage = studentService.findWithFilters(classId, gradeId, name, studentNo, idCard, page, 15);
+        Long effectiveClassId = classId;
+        String electiveClass = null;
+        if (classId != null) {
+            SchoolClass sc = classService.findById(classId);
+            if ("选修课".equals(sc.getType())) {
+                effectiveClassId = null;
+                electiveClass = sc.getName();
+            }
+        }
+        Page<Student> studentPage = studentService.findWithFilters(effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
         model.addAttribute("studentPage", studentPage);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("classId", classId);
@@ -277,7 +286,16 @@ public class AdminController {
                         @RequestParam(defaultValue = "") String idCard,
                         @RequestParam(defaultValue = "0") int page,
                         Model model) {
-        Page<Student> studentPage = studentService.findWithFilters(classId, gradeId, name, studentNo, idCard, page, 15);
+        Long effectiveClassId = classId;
+        String electiveClass = null;
+        if (classId != null) {
+            SchoolClass sc = classService.findById(classId);
+            if ("选修课".equals(sc.getType())) {
+                effectiveClassId = null;
+                electiveClass = sc.getName();
+            }
+        }
+        Page<Student> studentPage = studentService.findWithFilters(effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
         List<Map<String, Object>> studentStats = new ArrayList<>();
         for (Student s : studentPage.getContent()) {
             Map<String, Object> stat = attendanceService.getStudentStats(s.getId());
