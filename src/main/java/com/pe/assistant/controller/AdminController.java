@@ -112,13 +112,13 @@ public class AdminController {
     }
 
     @PostMapping("/teachers/add")
-    public String addTeacher(@RequestParam String username, @RequestParam String name,
+    public String addTeacher(@RequestParam String name,
                              @RequestParam String password,
                              @RequestParam String phone,
                              @RequestParam(required = false) List<Long> classIds,
                              RedirectAttributes ra) {
         try {
-            Teacher newTeacher = teacherService.create(username, name, password, "TEACHER", phone);
+            Teacher newTeacher = teacherService.create(phone, name, password, "TEACHER", phone);
             if (classIds != null) {
                 for (Long classId : classIds) {
                     classService.assignTeacher(classId, newTeacher.getId());
@@ -155,6 +155,8 @@ public class AdminController {
         model.addAttribute("schoolClass", classService.findById(classId));
         model.addAttribute("students", studentService.findByClassId(classId));
         model.addAttribute("classes", classService.findAll());
+        model.addAttribute("electiveClasses", classService.findAll().stream()
+            .filter(c -> "选修课".equals(c.getType())).toList());
         return "admin/students";
     }
 
