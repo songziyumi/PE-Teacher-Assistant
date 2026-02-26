@@ -43,6 +43,20 @@
             font-size: 14px; transition: border-color .2s; outline: none;
         }
         .form-group input:focus, .form-group select:focus { border-color: #4a90e2; }
+        .search-bar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+        .search-bar input, .search-bar select {
+            flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 14px; outline: none; min-width: 0;
+        }
+        .search-bar input:focus, .search-bar select:focus { border-color: #4a90e2; }
+        .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 16px; align-items: center; }
+        .pagination a, .pagination span {
+            padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 13px; text-decoration: none; color: #333;
+        }
+        .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
+        .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
+        .pagination .disabled { color: #bbb; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -61,12 +75,32 @@
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <div class="page-header">
         <h2>班级管理</h2>
-        <button class="btn btn-primary" onclick="openModal()">＋ 添加班级</button>
     </div>
+    <!-- 搜索框 -->
+    <form method="get" th:action="@{/admin/classes}" class="search-bar">
+        <select name="type">
+            <option value="" th:selected="${type == ''}">全部类型</option>
+            <option value="行政班" th:selected="${type == '行政班'}">行政班</option>
+            <option value="选修课" th:selected="${type == '选修课'}">选修课</option>
+        </select>
+        <select name="gradeId">
+            <option value="" th:selected="${gradeId == null}">全部年级</option>
+            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
+                    th:selected="${gradeId != null && gradeId == g.id}"></option>
+        </select>
+        <input type="text" name="name" th:value="${name}" placeholder="班级名称">
+        <button type="submit" class="btn btn-secondary">搜索</button>
+        <a th:href="@{/admin/classes}" class="btn btn-outline">重置</a>
+        <button type="button" class="btn btn-primary" onclick="openModal()">＋ 添加班级</button>
+        <form th:action="@{/admin/classes/delete-all}" method="post" style="display:inline"
+              onsubmit="return confirm('确认删除全部班级数据？此操作不可恢复！')">
+            <button type="submit" class="btn btn-danger">删除全部</button>
+        </form>
+    </form>
     <table class="table">
-        <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>分配教师</th><th>操作</th></tr></thead>
+        <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>操作</th></tr></thead>
         <tbody>
-            <tr th:each="c : ${classes}">
+            <tr th:each="c : ${classPage.content}">
                 <td>
                     <span th:if="${c.type == '选修课'}" class="badge badge-elective">选修课</span>
                     <span th:unless="${c.type == '选修课'}" class="badge badge-admin">行政班</span>
@@ -74,16 +108,6 @@
                 <td th:text="${c.grade != null ? c.grade.name : '-'}"></td>
                 <td th:text="${c.name}"></td>
                 <td th:text="${c.teacher != null ? c.teacher.name : '未分配'}"></td>
-                <td>
-                    <form th:action="@{/admin/classes/assign/{id}(id=${c.id})}" method="post" class="form-inline">
-                        <select name="teacherId" required>
-                            <option value="">选择教师</option>
-                            <option th:each="t : ${teachers}" th:value="${t.id}" th:text="${t.name}"
-                                    th:selected="${c.teacher != null && c.teacher.id == t.id}"></option>
-                        </select>
-                        <button type="submit" class="btn btn-sm btn-secondary">分配</button>
-                    </form>
-                </td>
                 <td>
                     <a th:if="${c.type != '选修课'}" th:href="@{/admin/students/class/{id}(id=${c.id})}" class="btn btn-sm btn-primary">学生</a>
                     <form th:action="@{/admin/classes/delete/{id}(id=${c.id})}" method="post" style="display:inline"
@@ -94,7 +118,82 @@
             </tr>
         </tbody>
     </table>
+    <!-- 分页参数（供JS读取） -->
+    <input type="hidden" id="pg-current"  th:value="${classPage.number}">
+    <input type="hidden" id="pg-total"    th:value="${classPage.totalPages}">
+    <input type="hidden" id="pg-type"     th:value="${type}">
+    <input type="hidden" id="pg-gradeId"  th:value="${gradeId}">
+    <input type="hidden" id="pg-name"     th:value="${name}">
+    <!-- 分页控件 -->
+    <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${classPage.totalPages > 0}">
+        <span style="font-size:13px;color:#555;white-space:nowrap"
+              th:text="'共 ' + ${classPage.totalElements} + ' 个班级，共 ' + ${classPage.totalPages} + ' 页'"></span>
+        <div class="pagination" id="pagination" th:if="${classPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
+            <a id="pg-prev">上一页</a>
+            <span id="pg-numbers"></span>
+            <a id="pg-next">下一页</a>
+        </div>
+        <span style="font-size:13px;color:#555;white-space:nowrap;margin-left:auto" th:if="${classPage.totalPages > 1}">跳转到
+            <input type="number" id="pg-jump" min="1" th:max="${classPage.totalPages}"
+                   style="width:52px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px" placeholder="页">
+            <button onclick="jumpPage()" class="btn btn-sm btn-outline" style="padding:4px 10px">GO</button>
+        </span>
+    </div>
 </div>
+
+<script>
+(function() {
+    const pg = document.getElementById('pagination');
+    if (!pg) return;
+    const current = parseInt(document.getElementById('pg-current').value);
+    const total   = parseInt(document.getElementById('pg-total').value);
+    const type    = document.getElementById('pg-type').value;
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const name    = document.getElementById('pg-name').value;
+
+    function url(p) {
+        const params = new URLSearchParams();
+        if (type)    params.set('type', type);
+        if (gradeId) params.set('gradeId', gradeId);
+        if (name)    params.set('name', name);
+        params.set('page', p);
+        return '/admin/classes?' + params.toString();
+    }
+
+    const prev = document.getElementById('pg-prev');
+    const next = document.getElementById('pg-next');
+    if (current === 0) prev.classList.add('disabled');
+    else prev.href = url(current - 1);
+    if (current === total - 1) next.classList.add('disabled');
+    else next.href = url(current + 1);
+
+    const pages = new Set([0, total - 1]);
+    for (let i = Math.max(0, current - 2); i <= Math.min(total - 1, current + 2); i++) pages.add(i);
+    const sorted = [...pages].sort((a, b) => a - b);
+    let html = '', prev2 = -1;
+    for (const p of sorted) {
+        if (prev2 !== -1 && p - prev2 > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>';
+        html += `<a href="${url(p)}" class="${p === current ? 'active' : ''}">${p + 1}</a>`;
+        prev2 = p;
+    }
+    document.getElementById('pg-numbers').innerHTML = html;
+})();
+
+function jumpPage() {
+    const total   = parseInt(document.getElementById('pg-total').value);
+    const val     = parseInt(document.getElementById('pg-jump').value);
+    if (isNaN(val) || val < 1 || val > total) return;
+    const type    = document.getElementById('pg-type').value;
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const name    = document.getElementById('pg-name').value;
+    const params  = new URLSearchParams();
+    if (type)    params.set('type', type);
+    if (gradeId) params.set('gradeId', gradeId);
+    if (name)    params.set('name', name);
+    params.set('page', val - 1);
+    location.href = '/admin/classes?' + params.toString();
+}
+</script>
 
 <!-- 添加班级弹窗 -->
 <div class="modal-overlay" id="addModal">

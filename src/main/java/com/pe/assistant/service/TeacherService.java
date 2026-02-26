@@ -1,6 +1,7 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.repository.SchoolClassRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ public class TeacherService {
 
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SchoolClassRepository classRepository;
 
     public List<Teacher> findAll() {
         return teacherRepository.findAll();
@@ -52,5 +54,36 @@ public class TeacherService {
     @Transactional
     public void delete(Long id) {
         teacherRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void assignClasses(Long teacherId, List<Long> classIds) {
+        Teacher teacher = teacherRepository.findById(teacherId).orElseThrow();
+        // 先解除该教师所有已有班级关联
+        classRepository.findAll().stream()
+            .filter(c -> teacher.equals(c.getTeacher()))
+            .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
+        // 重新分配
+        if (classIds != null) {
+            classIds.forEach(cid -> {
+                classRepository.findById(cid).ifPresent(c -> {
+                    c.setTeacher(teacher);
+                    classRepository.save(c);
+                });
+            });
+        }
+    }
+
+    @Transactional
+    public void deleteAll() {
+        // 只删除非管理员教师，先解除班级关联
+        List<Teacher> teachers = teacherRepository.findAll().stream()
+            .filter(t -> !"ADMIN".equals(t.getRole())).toList();
+        teachers.forEach(t -> {
+            classRepository.findAll().stream()
+                .filter(c -> t.equals(c.getTeacher()))
+                .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
+            teacherRepository.delete(t);
+        });
     }
 }
