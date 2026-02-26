@@ -3,19 +3,25 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class StudentService {
 
     private final StudentRepository studentRepository;
     private final SchoolClassRepository classRepository;
+    private final AttendanceRepository attendanceRepository;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassId(classId);
+    }
+
+    public Page<Student> findWithFilters(Long classId, Long gradeId, String name, String studentNo, String idCard, int page, int size) {
+        return studentRepository.findWithFilters(classId, gradeId, name, studentNo, idCard, PageRequest.of(page, size));
     }
 
     public Student findById(Long id) {
@@ -63,5 +69,11 @@ public class StudentService {
     @Transactional
     public void delete(Long id) {
         studentRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void deleteAll() {
+        attendanceRepository.deleteAll();
+        studentRepository.deleteAll();
     }
 }

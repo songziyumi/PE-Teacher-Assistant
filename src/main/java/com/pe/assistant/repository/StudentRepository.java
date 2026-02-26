@@ -2,6 +2,8 @@ package com.pe.assistant.repository;
 
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +12,19 @@ import java.util.List;
 public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findBySchoolClassId(Long classId);
     long countBySchoolClassId(Long classId);
+
+    @Query("SELECT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+           "(:classId IS NULL OR sc.id = :classId) AND " +
+           "(:gradeId IS NULL OR g.id = :gradeId) AND " +
+           "(:name IS NULL OR :name = '' OR s.name LIKE %:name%) AND " +
+           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE %:studentNo%) AND " +
+           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE %:idCard%)")
+    Page<Student> findWithFilters(@Param("classId") Long classId,
+                                  @Param("gradeId") Long gradeId,
+                                  @Param("name") String name,
+                                  @Param("studentNo") String studentNo,
+                                  @Param("idCard") String idCard,
+                                  Pageable pageable);
     List<Student> findByElectiveClass(String electiveClass);
 
     @Query("SELECT DISTINCT s.electiveClass FROM Student s WHERE s.schoolClass.teacher = :teacher AND s.electiveClass IS NOT NULL AND s.electiveClass <> ''")

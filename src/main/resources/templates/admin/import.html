@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据导入 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .progress-wrap {
+            display: none; margin-top: 12px;
+            background: #f0f0f0; border-radius: 8px; overflow: hidden; height: 20px;
+        }
+        .progress-bar {
+            height: 100%; width: 0; background: #4a90e2;
+            transition: width 0.3s ease; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: #fff; white-space: nowrap;
+        }
+        .progress-label { font-size: 13px; color: #555; margin-top: 6px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+        .alert-error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; white-space: pre-line; }
+        .import-form { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -19,35 +35,87 @@
 </nav>
 <div class="container">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div th:if="${error}"   class="alert alert-error"   th:text="${error}"></div>
     <div class="page-header"><h2>数据导入</h2></div>
+
+    <!-- 班级导入 -->
     <div class="card">
         <h3>批量导入班级</h3>
         <p class="text-muted">Excel格式（.xlsx），第一行为表头：班级名称、类型（行政班/选修课）、年级（选修课可留空）</p>
         <p><a th:href="@{/admin/import/template/classes}" class="btn btn-secondary">下载班级导入模板</a></p>
-        <form th:action="@{/admin/import/classes}" method="post" enctype="multipart/form-data" class="form-inline">
+        <form th:action="@{/admin/import/classes}" method="post" enctype="multipart/form-data"
+              class="import-form" onsubmit="startProgress(this)">
             <input type="file" name="file" accept=".xlsx" required>
             <button type="submit" class="btn btn-primary">导入</button>
         </form>
+        <div class="progress-wrap" id="prog-classes">
+            <div class="progress-bar" id="bar-classes">0%</div>
+        </div>
+        <div class="progress-label" id="label-classes"></div>
     </div>
+
+    <!-- 学生导入 -->
     <div class="card">
         <h3>批量导入学生</h3>
         <p class="text-muted">Excel格式（.xlsx），第一行为表头：年级、班级、姓名、性别、学号、身份证号、选修课</p>
         <p><a th:href="@{/admin/import/template/students}" class="btn btn-secondary">下载学生导入模板</a></p>
-        <form th:action="@{/admin/import/students}" method="post" enctype="multipart/form-data" class="form-inline">
+        <form th:action="@{/admin/import/students}" method="post" enctype="multipart/form-data"
+              class="import-form" onsubmit="startProgress(this)">
             <input type="file" name="file" accept=".xlsx" required>
             <button type="submit" class="btn btn-primary">导入</button>
         </form>
+        <div class="progress-wrap" id="prog-students">
+            <div class="progress-bar" id="bar-students">0%</div>
+        </div>
+        <div class="progress-label" id="label-students"></div>
     </div>
+
+    <!-- 教师导入 -->
     <div class="card">
         <h3>批量导入教师</h3>
         <p class="text-muted">Excel格式（.xlsx），第一行为表头：姓名、手机号、密码（可选，默认123456）、行政班（可选，多个用逗号分隔）、选修课（可选，多个用逗号分隔）。用户名默认为手机号。</p>
         <p><a th:href="@{/admin/import/template/teachers}" class="btn btn-secondary">下载教师导入模板</a></p>
-        <form th:action="@{/admin/import/teachers}" method="post" enctype="multipart/form-data" class="form-inline">
+        <form th:action="@{/admin/import/teachers}" method="post" enctype="multipart/form-data"
+              class="import-form" onsubmit="startProgress(this)">
             <input type="file" name="file" accept=".xlsx" required>
             <button type="submit" class="btn btn-primary">导入</button>
         </form>
+        <div class="progress-wrap" id="prog-teachers">
+            <div class="progress-bar" id="bar-teachers">0%</div>
+        </div>
+        <div class="progress-label" id="label-teachers"></div>
     </div>
 </div>
+
+<script>
+function startProgress(form) {
+    // 找到对应的进度条
+    const card = form.closest('.card');
+    const wrap = card.querySelector('.progress-wrap');
+    const bar  = card.querySelector('.progress-bar');
+    const label = card.querySelector('.progress-label');
+
+    wrap.style.display = 'block';
+    label.textContent = '正在上传并处理，请稍候...';
+
+    let pct = 0;
+    const interval = setInterval(() => {
+        // 模拟进度：快速到 90%，之后等待服务器响应
+        if (pct < 90) {
+            pct += Math.random() * 8;
+            if (pct > 90) pct = 90;
+        }
+        bar.style.width = pct.toFixed(0) + '%';
+        bar.textContent = pct.toFixed(0) + '%';
+    }, 200);
+
+    // 页面跳转时清除定时器（服务器返回后浏览器会跳转）
+    window.addEventListener('beforeunload', () => {
+        clearInterval(interval);
+        bar.style.width = '100%';
+        bar.textContent = '100%';
+    });
+}
+</script>
 </body>
 </html>

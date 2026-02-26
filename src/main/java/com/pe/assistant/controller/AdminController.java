@@ -5,6 +5,8 @@ import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -67,10 +69,17 @@ public class AdminController {
 
     // ===== 班级管理 =====
     @GetMapping("/classes")
-    public String classes(Model model) {
-        model.addAttribute("classes", classService.findAll());
+    public String classes(@RequestParam(defaultValue = "") String type,
+                          @RequestParam(required = false) Long gradeId,
+                          @RequestParam(defaultValue = "") String name,
+                          @RequestParam(defaultValue = "0") int page,
+                          Model model) {
+        Page<SchoolClass> classPage = classService.findByFilters(type, gradeId, name, page, 15);
+        model.addAttribute("classPage", classPage);
+        model.addAttribute("type", type);
+        model.addAttribute("gradeId", gradeId);
+        model.addAttribute("name", name);
         model.addAttribute("grades", gradeService.findAll());
-        model.addAttribute("teachers", teacherService.findAll());
         return "admin/classes";
     }
 
@@ -103,11 +112,33 @@ public class AdminController {
         return "redirect:/admin/classes";
     }
 
+    @PostMapping("/classes/delete-all")
+    public String deleteAllClasses(RedirectAttributes ra) {
+        classService.deleteAll();
+        ra.addFlashAttribute("success", "已删除全部班级数据");
+        return "redirect:/admin/classes";
+    }
+
     // ===== 教师管理 =====
     @GetMapping("/teachers")
     public String teachers(Model model) {
+        List<com.pe.assistant.entity.SchoolClass> allClasses = classService.findAll();
         model.addAttribute("teachers", teacherService.findAll());
-        model.addAttribute("classes", classService.findAll());
+        model.addAttribute("classes", allClasses);
+        // 每个教师已分配的班级名称列表（供表格显示）
+        Map<Long, List<String>> teacherClassNames = new HashMap<>();
+        // 每个教师已分配的班级 id（String key，避免 Thymeleaf inline JS 序列化 Long 加 L 后缀）
+        Map<String, List<Long>> teacherClassIds = new HashMap<>();
+        for (com.pe.assistant.entity.SchoolClass c : allClasses) {
+            if (c.getTeacher() != null) {
+                Long tid = c.getTeacher().getId();
+                String label = (c.getGrade() != null ? c.getGrade().getName() + " " : "") + c.getName();
+                teacherClassNames.computeIfAbsent(tid, k -> new ArrayList<>()).add(label);
+                teacherClassIds.computeIfAbsent(String.valueOf(tid), k -> new ArrayList<>()).add(c.getId());
+            }
+        }
+        model.addAttribute("teacherClassIds", teacherClassIds);
+        model.addAttribute("teacherClassNames", teacherClassNames);
         return "admin/teachers";
     }
 
@@ -143,21 +174,61 @@ public class AdminController {
         return "redirect:/admin/teachers";
     }
 
-    // ===== 学生管理 =====
-    @GetMapping("/students")
-    public String students(Model model) {
-        model.addAttribute("classes", classService.findAll());
-        return "admin/students";
+    @PostMapping("/teachers/assign/{id}")
+    public String assignClasses(@PathVariable Long id,
+                                @RequestParam(required = false) List<Long> classIds,
+                                RedirectAttributes ra) {
+        teacherService.assignClasses(id, classIds);
+        ra.addFlashAttribute("success", "班级分配成功");
+        return "redirect:/admin/teachers";
     }
 
-    @GetMapping("/students/class/{classId}")
-    public String studentsByClass(@PathVariable Long classId, Model model) {
-        model.addAttribute("schoolClass", classService.findById(classId));
-        model.addAttribute("students", studentService.findByClassId(classId));
+    @PostMapping("/teachers/delete-all")
+    public String deleteAllTeachers(RedirectAttributes ra) {
+        teacherService.deleteAll();
+        ra.addFlashAttribute("success", "已删除全部教师数据");
+        return "redirect:/admin/teachers";
+    }
+
+    // ===== 学生管理 =====
+    @GetMapping("/students")
+    public String students(@RequestParam(required = false) Long gradeId,
+                           @RequestParam(required = false) Long classId,
+                           @RequestParam(defaultValue = "") String name,
+                           @RequestParam(defaultValue = "") String studentNo,
+                           @RequestParam(defaultValue = "") String idCard,
+                           @RequestParam(defaultValue = "0") int page,
+                           Model model) {
+        Page<Student> studentPage = studentService.findWithFilters(classId, gradeId, name, studentNo, idCard, page, 15);
+        model.addAttribute("studentPage", studentPage);
+        model.addAttribute("gradeId", gradeId);
+        model.addAttribute("classId", classId);
+        model.addAttribute("name", name);
+        model.addAttribute("studentNo", studentNo);
+        model.addAttribute("idCard", idCard);
+        model.addAttribute("grades", gradeService.findAll());
         model.addAttribute("classes", classService.findAll());
         model.addAttribute("electiveClasses", classService.findAll().stream()
             .filter(c -> "选修课".equals(c.getType())).toList());
         return "admin/students";
+    }
+
+    @GetMapping("/students/class/{classId}")
+    public String studentsByClass(@PathVariable Long classId,
+                                  @RequestParam(defaultValue = "") String name,
+                                  @RequestParam(defaultValue = "") String studentNo,
+                                  @RequestParam(defaultValue = "") String idCard,
+                                  @RequestParam(defaultValue = "0") int page,
+                                  Model model) {
+        return "redirect:/admin/students?classId=" + classId +
+               "&name=" + name + "&studentNo=" + studentNo + "&idCard=" + idCard + "&page=" + page;
+    }
+
+    @PostMapping("/students/delete-all")
+    public String deleteAllStudents(RedirectAttributes ra) {
+        studentService.deleteAll();
+        ra.addFlashAttribute("success", "已删除全部学生数据");
+        return "redirect:/admin/students";
     }
 
     @PostMapping("/students/add")
@@ -167,7 +238,7 @@ public class AdminController {
                              RedirectAttributes ra) {
         studentService.create(name, gender, studentNo, idCard, electiveClass, classId);
         ra.addFlashAttribute("success", "学生添加成功");
-        return "redirect:/admin/students/class/" + classId;
+        return "redirect:/admin/students";
     }
 
     @PostMapping("/students/edit/{id}")
@@ -177,28 +248,47 @@ public class AdminController {
                               @RequestParam Long classId, RedirectAttributes ra) {
         studentService.update(id, name, gender, studentNo, idCard, electiveClass);
         ra.addFlashAttribute("success", "修改成功");
-        return "redirect:/admin/students/class/" + classId;
+        return "redirect:/admin/students";
     }
 
     @PostMapping("/students/delete/{id}")
     public String deleteStudent(@PathVariable Long id, @RequestParam Long classId, RedirectAttributes ra) {
         studentService.delete(id);
         ra.addFlashAttribute("success", "删除成功");
-        return "redirect:/admin/students/class/" + classId;
+        return "redirect:/admin/students";
     }
 
     // ===== 统计 =====
     @GetMapping("/stats")
-    public String stats(Model model) {
-        List<SchoolClass> classes = classService.findAll();
-        List<Map<String, Object>> classStats = new ArrayList<>();
-        for (SchoolClass sc : classes) {
-            Map<String, Object> s = attendanceService.getClassStats(sc.getId());
-            s.put("className", sc.getGrade().getName() + " " + sc.getName());
-            s.put("classId", sc.getId());
-            classStats.add(s);
+    public String stats(@RequestParam(required = false) Long gradeId,
+                        @RequestParam(required = false) Long classId,
+                        @RequestParam(defaultValue = "") String name,
+                        @RequestParam(defaultValue = "") String studentNo,
+                        @RequestParam(defaultValue = "") String idCard,
+                        @RequestParam(defaultValue = "0") int page,
+                        Model model) {
+        Page<Student> studentPage = studentService.findWithFilters(classId, gradeId, name, studentNo, idCard, page, 15);
+        List<Map<String, Object>> studentStats = new ArrayList<>();
+        for (Student s : studentPage.getContent()) {
+            Map<String, Object> stat = attendanceService.getStudentStats(s.getId());
+            stat.put("studentName", s.getName());
+            stat.put("studentNo", s.getStudentNo());
+            stat.put("className", s.getSchoolClass() != null
+                ? (s.getSchoolClass().getGrade() != null
+                    ? s.getSchoolClass().getGrade().getName() + " " + s.getSchoolClass().getName()
+                    : s.getSchoolClass().getName())
+                : "");
+            studentStats.add(stat);
         }
-        model.addAttribute("classStats", classStats);
+        model.addAttribute("studentStats", studentStats);
+        model.addAttribute("studentPage", studentPage);
+        model.addAttribute("gradeId", gradeId);
+        model.addAttribute("classId", classId);
+        model.addAttribute("name", name);
+        model.addAttribute("studentNo", studentNo);
+        model.addAttribute("idCard", idCard);
+        model.addAttribute("grades", gradeService.findAll());
+        model.addAttribute("classes", classService.findAll());
         return "admin/stats";
     }
 
@@ -206,11 +296,11 @@ public class AdminController {
     public String absentQuery(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
                               Model model) {
-        if (start != null && end != null) {
-            model.addAttribute("records", attendanceService.findAbsentBetween(start, end));
-            model.addAttribute("start", start);
-            model.addAttribute("end", end);
-        }
+        if (start == null) start = LocalDate.now();
+        if (end == null)   end   = LocalDate.now();
+        model.addAttribute("start", start);
+        model.addAttribute("end", end);
+        model.addAttribute("records", attendanceService.findAbsentBetween(start, end));
         return "admin/absent";
     }
 
@@ -267,6 +357,7 @@ public class AdminController {
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
             int count = 0, skip = 0;
+            List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -281,15 +372,20 @@ public class AdminController {
                         classService.createElective(name, grade != null ? grade.getId() : null);
                     } else {
                         Grade grade = gradeService.findByName(gradeName);
-                        if (grade == null) { skip++; continue; }
+                        if (grade == null) { errors.add("第" + (i+1) + "行：年级「" + gradeName + "」不存在"); skip++; continue; }
                         classService.create(name, grade.getId());
                     }
                     count++;
-                } catch (Exception e) { skip++; }
+                } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }
-            ra.addFlashAttribute("success", "成功导入 " + count + " 个班级" + (skip > 0 ? "，跳过 " + skip + " 条" : ""));
+            String msg = "成功导入 " + count + " 个班级" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            if (!errors.isEmpty()) {
+                ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
+            } else {
+                ra.addFlashAttribute("success", msg);
+            }
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "导入失败: " + e.getMessage());
+            ra.addFlashAttribute("error", "导入失败：" + e.getMessage());
         }
         return "redirect:/admin/import";
     }
@@ -337,6 +433,7 @@ public class AdminController {
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
             List<SchoolClass> allClasses = classService.findAll();
             int count = 0, skip = 0;
+            List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -353,7 +450,10 @@ public class AdminController {
                         for (String ac : adminClass.split("[,，]")) {
                             String acTrim = ac.trim();
                             allClasses.stream()
-                                .filter(c -> "行政班".equals(c.getType()) && acTrim.equals(c.getName()))
+                                .filter(c -> "行政班".equals(c.getType()) && (
+                                    acTrim.equals(c.getName()) ||
+                                    acTrim.equals((c.getGrade() != null ? c.getGrade().getName() : "") + c.getName())
+                                ))
                                 .findFirst()
                                 .ifPresent(c -> classService.assignTeacher(c.getId(), t.getId()));
                         }
@@ -362,17 +462,25 @@ public class AdminController {
                         for (String ec : electiveClass.split("[,，]")) {
                             String ecTrim = ec.trim();
                             allClasses.stream()
-                                .filter(c -> "选修课".equals(c.getType()) && ecTrim.equals(c.getName()))
+                                .filter(c -> "选修课".equals(c.getType()) && (
+                                    ecTrim.equals(c.getName()) ||
+                                    ecTrim.equals((c.getGrade() != null ? c.getGrade().getName() : "") + c.getName())
+                                ))
                                 .findFirst()
                                 .ifPresent(c -> classService.assignTeacher(c.getId(), t.getId()));
                         }
                     }
                     count++;
-                } catch (IllegalArgumentException e) { skip++; }
+                } catch (IllegalArgumentException e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }
-            ra.addFlashAttribute("success", "成功导入 " + count + " 名教师" + (skip > 0 ? "，跳过 " + skip + " 条" : ""));
+            String msg = "成功导入 " + count + " 名教师" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            if (!errors.isEmpty()) {
+                ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
+            } else {
+                ra.addFlashAttribute("success", msg);
+            }
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "导入失败: " + e.getMessage());
+            ra.addFlashAttribute("error", "导入失败：" + e.getMessage());
         }
         return "redirect:/admin/import";
     }
@@ -386,6 +494,7 @@ public class AdminController {
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
             List<SchoolClass> classes = classService.findAll();
             int count = 0, skip = 0;
+            List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -401,13 +510,23 @@ public class AdminController {
                             && c.getGrade() != null
                             && c.getGrade().getName().equals(gradeName))
                     .findFirst().orElse(null);
-                if (sc == null) { skip++; continue; }
-                studentService.create(name, gender, studentNo, idCard, electiveClass, sc.getId());
-                count++;
+                if (sc == null) {
+                    errors.add("第" + (i+1) + "行：找不到班级「" + gradeName + " " + className + "」");
+                    skip++; continue;
+                }
+                try {
+                    studentService.create(name, gender, studentNo, idCard, electiveClass, sc.getId());
+                    count++;
+                } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }
-            ra.addFlashAttribute("success", "成功导入 " + count + " 名学生" + (skip > 0 ? "，跳过 " + skip + " 条" : ""));
+            String msg = "成功导入 " + count + " 名学生" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            if (!errors.isEmpty()) {
+                ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
+            } else {
+                ra.addFlashAttribute("success", msg);
+            }
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "导入失败: " + e.getMessage());
+            ra.addFlashAttribute("error", "导入失败：" + e.getMessage());
         }
         return "redirect:/admin/import";
     }
