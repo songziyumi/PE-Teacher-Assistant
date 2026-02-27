@@ -1,63 +1,241 @@
 <!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生列表 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
-</head>
+    <style>
+        /* 性别徽标 */
+        .gender-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 12px; font-weight: 600;
+        }
+        .gender-male   { background: #dbeafe; color: #1d4ed8; }
+        .gender-female { background: #fce7f3; color: #be185d; }
 
+        /* 选修班徽标 */
+        .elective-tag {
+            display: inline-block; padding: 3px 10px; border-radius: 12px;
+            font-size: 12px; font-weight: 500;
+        }
+        .elective-tag.has-class  { background: #d1fae5; color: #065f46; }
+        .elective-tag.no-class   { background: #f3f4f6; color: #9ca3af; }
+
+        /* 头像圆圈 */
+        .avatar-circle {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #4a90e2, #7ec8e3);
+            color: #fff; font-size: 13px; font-weight: 700;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+
+        /* 学号字体 */
+        .student-no-text { font-family: monospace; color: #555; font-size: 13px; }
+
+        /* 班级类型标签 */
+        .class-type-badge {
+            padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
+        }
+        .class-type-admin    { background: #dbeafe; color: #1e40af; }
+        .class-type-elective { background: #d1fae5; color: #065f46; }
+
+        /* 操作按钮间距 */
+        .action-btns { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; white-space: nowrap; }
+
+        /* 弹窗 */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.45); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #fff; border-radius: 12px; width: 400px;
+            max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+            animation: modalIn .18s ease;
+        }
+        @keyframes modalIn {
+            from { transform: translateY(-16px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 22px; background: #4a90e2; border-radius: 12px 12px 0 0;
+        }
+        .modal-header h3 { font-size: 15px; color: #fff; margin: 0; }
+        .modal-close {
+            background: none; border: none; font-size: 22px;
+            color: rgba(255,255,255,.8); cursor: pointer; line-height: 1; padding: 0 2px;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-body { padding: 22px 22px 8px; }
+        .modal-footer { padding: 12px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-student-info {
+            display: flex; align-items: center; gap: 10px;
+            background: #f8f9fa; border-radius: 8px; padding: 10px 14px;
+            margin-bottom: 16px;
+        }
+        .modal-student-info .name { font-weight: 600; color: #2c3e50; font-size: 15px; }
+        .modal-student-info .current { font-size: 12px; color: #888; margin-top: 2px; }
+    </style>
+</head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">🏃 体育教师助手</div>
-        <div class="nav-links">
-            <a th:href="@{/dashboard}">首页</a>
-            <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/dashboard}">首页</a>
+        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
-                <button type="submit" class="btn-link">退出</button>
-            </form>
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}"></h2>
+        <span class="class-type-badge"
+              th:classappend="${'选修课'.equals(schoolClass.type)} ? 'class-type-elective' : 'class-type-admin'"
+              th:text="${schoolClass.type}"></span>
+        <span style="flex:1"></span>
+        <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">去考勤</a>
+        <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-row" style="flex-wrap:nowrap">
+        <div class="stat-card total">
+            <span class="stat-num" th:text="${#lists.size(students)}">0</span><span class="stat-label"> 总人数</span>
         </div>
-    </nav>
-    <div class="container">
-        <div class="page-header">
-            <h2 th:text="${schoolClass.grade.name} + ' ' + ${schoolClass.name} + ' - 学生列表'"></h2>
-            <span class="badge" th:text="'共 ' + ${#lists.size(students)} + ' 人'"></span>
+        <div class="stat-card present">
+            <span class="stat-num" th:text="${withElectiveCount}">0</span><span class="stat-label"> 已选课</span>
         </div>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>序号</th>
-                    <th>姓名 </th>
-                    <th>性别</th>
-                    <th>学号</th>
-                    <th>选课班</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr th:each="s, iter : ${students}">
-                    <td th:text="${iter.count}"></td>
-                    <td th:text="${s.name}"></td>
-                    <td th:text="${s.gender}"></td>
-                    <td th:text="${s.studentNo}"></td>
-                    <td th:text="${s.electiveClass}"></td>
-                    <td>
-                        <a th:href="@{/attendance/student/{id}(id=${s.id})}" class="btn btn-sm btn-primary">考勤记录</a>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <div class="form-actions">
-            <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">去考勤</a>
-            <a th:href="@{/dashboard}" class="btn btn-secondary">返回</a>
+        <div class="stat-card absent">
+            <span class="stat-num" th:text="${noElectiveCount}">0</span><span class="stat-label"> 未选课</span>
         </div>
     </div>
+
+    <!-- 学生表格 -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width:48px">序号</th>
+                <th>姓名</th>
+                <th style="width:60px">性别</th>
+                <th>学号</th>
+                <th>选修班</th>
+                <th style="width:190px">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="s, iter : ${students}">
+                <td>
+                    <div class="avatar-circle" th:text="${iter.count}"></div>
+                </td>
+                <td>
+                    <span style="font-weight:500;color:#2c3e50" th:text="${s.name}"></span>
+                </td>
+                <td>
+                    <span class="gender-badge"
+                          th:classappend="${'男'.equals(s.gender)} ? 'gender-male' : 'gender-female'"
+                          th:text="${s.gender ?: '-'}"></span>
+                </td>
+                <td>
+                    <span class="student-no-text" th:text="${s.studentNo ?: '-'}"></span>
+                </td>
+                <td>
+                    <span th:if="${s.electiveClass != null}"
+                          class="elective-tag has-class"
+                          th:text="${s.electiveClass}"></span>
+                    <span th:unless="${s.electiveClass != null}"
+                          class="elective-tag no-class">未选课</span>
+                </td>
+                <td>
+                    <div class="action-btns">
+                        <a th:href="@{/attendance/student/{id}(id=${s.id})}"
+                           class="btn btn-sm btn-primary">考勤记录</a>
+                        <button type="button" class="btn btn-sm btn-outline"
+                                th:data-id="${s.id}"
+                                th:data-name="${s.name}"
+                                th:data-elective="${s.electiveClass}"
+                                onclick="openElectiveModal(this)">
+                            修改选修班
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(students)}">
+                <td colspan="6" class="empty-state">暂无学生数据</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 修改选修班弹窗 -->
+<div id="electiveModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>修改选修班</h3>
+            <button class="modal-close" onclick="closeElectiveModal()">×</button>
+        </div>
+        <form id="electiveForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <input type="hidden" name="classId" th:value="${schoolClass.id}">
+            <div class="modal-body">
+                <div class="modal-student-info">
+                    <div class="avatar-circle" id="modalAvatar">?</div>
+                    <div>
+                        <div class="name" id="modalStudentName"></div>
+                        <div class="current">当前选修班：<span id="modalCurrentElective">未选课</span></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>选择新的选修班</label>
+                    <select name="electiveClass" id="electiveSelect">
+                        <option value="">— 不参加选修 —</option>
+                        <option th:each="ec : ${electiveClasses}"
+                                th:value="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"
+                                th:text="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"></option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn" onclick="closeElectiveModal()">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openElectiveModal(btn) {
+        var studentId   = btn.dataset.id;
+        var studentName = btn.dataset.name;
+        var current     = btn.dataset.elective || '';
+        document.getElementById('modalStudentName').textContent = studentName;
+        document.getElementById('modalAvatar').textContent = studentName.charAt(0);
+        document.getElementById('modalCurrentElective').textContent = current || '未选课';
+        document.getElementById('electiveForm').action = '/teacher/students/' + studentId + '/elective';
+        var sel = document.getElementById('electiveSelect');
+        sel.value = current;
+        document.getElementById('electiveModal').classList.add('active');
+    }
+    function closeElectiveModal() {
+        document.getElementById('electiveModal').classList.remove('active');
+    }
+    document.getElementById('electiveModal').addEventListener('click', function(e) {
+        if (e.target === this) closeElectiveModal();
+    });
+</script>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>
     <span>© 2026 陈胜松 版权所有</span>
 </footer>
 </body>
-
 </html>

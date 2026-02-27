@@ -39,8 +39,9 @@ public class AttendanceController {
         List<Student> students;
         List<Attendance> existing;
         if (isElective) {
-            students = studentService.findByElectiveClass(sc.getName());
-            existing = attendanceService.findByElectiveClassAndDate(sc.getName(), date);
+            String elName = electiveName(sc);
+            students = studentService.findByElectiveClass(elName);
+            existing = attendanceService.findByElectiveClassAndDate(elName, date);
         } else {
             students = studentService.findByClassId(classId);
             existing = attendanceService.findByClassAndDate(classId, date);
@@ -55,6 +56,11 @@ public class AttendanceController {
         model.addAttribute("statusMap", statusMap);
         model.addAttribute("date", date);
         return "teacher/attendance";
+    }
+
+    private static String electiveName(SchoolClass sc) {
+        if (sc.getGrade() == null) return sc.getName();
+        return sc.getGrade().getName() + "/" + sc.getName();
     }
 
     @GetMapping("/elective/{name}")

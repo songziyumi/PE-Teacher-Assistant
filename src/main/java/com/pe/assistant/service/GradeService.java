@@ -2,7 +2,12 @@ package com.pe.assistant.service;
 
 import com.pe.assistant.entity.Grade;
 import com.pe.assistant.entity.School;
+import com.pe.assistant.entity.SchoolClass;
+import com.pe.assistant.entity.Student;
+import com.pe.assistant.repository.AttendanceRepository;
 import com.pe.assistant.repository.GradeRepository;
+import com.pe.assistant.repository.SchoolClassRepository;
+import com.pe.assistant.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +18,9 @@ import java.util.List;
 public class GradeService {
 
     private final GradeRepository gradeRepository;
+    private final SchoolClassRepository classRepository;
+    private final StudentRepository studentRepository;
+    private final AttendanceRepository attendanceRepository;
 
     public List<Grade> findAll(School school) {
         return gradeRepository.findBySchool(school);
@@ -44,6 +52,12 @@ public class GradeService {
 
     @Transactional
     public void delete(Long id) {
+        List<SchoolClass> classes = classRepository.findByGradeId(id);
+        for (SchoolClass sc : classes) {
+            attendanceRepository.deleteAll(attendanceRepository.findByClassId(sc.getId()));
+            studentRepository.deleteAll(studentRepository.findBySchoolClassId(sc.getId()));
+        }
+        classRepository.deleteAll(classes);
         gradeRepository.deleteById(id);
     }
 }

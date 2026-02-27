@@ -417,29 +417,50 @@ public class AdminController {
             Row header = sheet.getRow(0);
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
-            int count = 0, skip = 0;
+            int count = 0, skipDup = 0;
             List<String> errors = new ArrayList<>();
+            List<String> dupList = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String name      = cellStr(row, col.getOrDefault("班级名称", -1));
                 String type      = cellStr(row, col.getOrDefault("类型", -1));
                 String gradeName = cellStr(row, col.getOrDefault("年级", -1));
-                if (name.isBlank()) { skip++; continue; }
+                if (name.isBlank()) continue;
                 if (type.isBlank()) type = "行政班";
                 try {
                     if ("选修课".equals(type)) {
                         Grade grade = gradeName.isBlank() ? null : gradeService.findByName(gradeName, school);
+                        if (grade == null && !gradeName.isBlank()) grade = gradeService.create(gradeName, school);
+                        boolean isDup = (grade != null)
+                                ? classService.existsByNameAndGrade(name, grade.getId(), school)
+                                : classService.existsByNameAndType(name, "选修课", school);
+                        if (isDup) {
+                            skipDup++;
+                            dupList.add((gradeName.isBlank() ? "选修课" : gradeName) + "/" + name);
+                            continue;
+                        }
                         classService.createElective(name, grade != null ? grade.getId() : null, school);
                     } else {
+                        if (gradeName.isBlank()) { errors.add("第" + (i+1) + "行「" + name + "」：行政班必须填写年级"); continue; }
                         Grade grade = gradeService.findByName(gradeName, school);
-                        if (grade == null) { errors.add("第" + (i+1) + "行：年级「" + gradeName + "」不存在"); skip++; continue; }
+                        if (grade == null) grade = gradeService.create(gradeName, school);
+                        if (classService.existsByNameAndGrade(name, grade.getId(), school)) {
+                            skipDup++;
+                            dupList.add(gradeName + "/" + name);
+                            continue;
+                        }
                         classService.create(name, grade.getId(), school);
                     }
                     count++;
-                } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
+                } catch (Exception e) { errors.add("第" + (i+1) + "行「" + name + "」：" + e.getMessage()); }
             }
-            String msg = "成功导入 " + count + " 个班级" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            String msg = "成功导入 " + count + " 个班级"
+                    + (skipDup > 0 ? "，已存在跳过 " + skipDup + " 条" : "")
+                    + (!errors.isEmpty() ? "，失败 " + errors.size() + " 条" : "");
+            if (!dupList.isEmpty()) {
+                msg += "\n已存在的班级（共" + dupList.size() + "条）：\n" + String.join("、", dupList);
+            }
             if (!errors.isEmpty()) {
                 ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
             } else {
@@ -479,7 +500,7 @@ public class AdminController {
             for (int i = 0; i < cols.length; i++) header.createCell(i).setCellValue(cols[i]);
             // 示例行
             Row example = sheet.createRow(1);
-            String[] sample = {"李老师", "13800138001", "123456", "高一1班,高一2班", "篮球,足球"};
+            String[] sample = {"李老师", "13800138001", "123456", "高一/1班,高一/2班", "高二/篮球,高三/足球"};
             for (int i = 0; i < sample.length; i++) example.createCell(i).setCellValue(sample[i]);
             wb.write(response.getOutputStream());
         }
@@ -518,10 +539,7 @@ public class AdminController {
                         for (String ac : adminClass.split("[,，]")) {
                             String acTrim = ac.trim();
                             allClasses.stream()
-                                .filter(c -> "行政班".equals(c.getType()) && (
-                                    acTrim.equals(c.getName()) ||
-                                    acTrim.equals((c.getGrade() != null ? c.getGrade().getName() : "") + c.getName())
-                                ))
+                                .filter(c -> "行政班".equals(c.getType()) && matchesClass(c, acTrim))
                                 .findFirst()
                                 .ifPresent(c -> classService.assignTeacher(c.getId(), t.getId()));
                         }
@@ -530,10 +548,7 @@ public class AdminController {
                         for (String ec : electiveClass.split("[,，]")) {
                             String ecTrim = ec.trim();
                             allClasses.stream()
-                                .filter(c -> "选修课".equals(c.getType()) && (
-                                    ecTrim.equals(c.getName()) ||
-                                    ecTrim.equals((c.getGrade() != null ? c.getGrade().getName() : "") + c.getName())
-                                ))
+                                .filter(c -> "选修课".equals(c.getType()) && matchesClass(c, ecTrim))
                                 .findFirst()
                                 .ifPresent(c -> classService.assignTeacher(c.getId(), t.getId()));
                         }
@@ -660,6 +675,29 @@ public class AdminController {
         return "redirect:/admin/import";
     }
 
+    // ===== 考勤数据清理 =====
+    @PostMapping("/attendance/delete-all")
+    public String deleteAllAttendance(RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
+        attendanceService.deleteAllBySchool(school);
+        ra.addFlashAttribute("success", "已清空全部考勤记录");
+        return "redirect:/admin/import";
+    }
+
+    /**
+     * 判断班级是否匹配输入字符串。
+     * 支持格式：班级名（如"篮球"）、年级+班级名（如"高二篮球"）、
+     * 年级/班级名（如"高二/篮球"）、年级 班级名（如"高二 篮球"）
+     */
+    private boolean matchesClass(SchoolClass c, String input) {
+        String grade = c.getGrade() != null ? c.getGrade().getName() : "";
+        String cname = c.getName();
+        return input.equals(cname)
+            || input.equals(grade + cname)
+            || input.equals(grade + "/" + cname)
+            || input.equals(grade + " " + cname);
+    }
+
     private String cellStr(Row row, int idx) {
         if (idx < 0 || row == null) return "";
         Cell cell = row.getCell(idx);
@@ -667,7 +705,12 @@ public class AdminController {
         return switch (cell.getCellType()) {
             case STRING  -> cell.getStringCellValue().trim();
             case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
-            default      -> "";
+            case FORMULA -> switch (cell.getCachedFormulaResultType()) {
+                case STRING  -> cell.getStringCellValue().trim();
+                case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
+                default      -> "";
+            };
+            default -> "";
         };
     }
 

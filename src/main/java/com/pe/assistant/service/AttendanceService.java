@@ -85,6 +85,10 @@ public class AttendanceService {
         return attendanceRepository.findByElectiveClassAndDate(name, date);
     }
 
+    public List<Attendance> findByElectiveClassInAndDate(List<String> names, LocalDate date) {
+        return attendanceRepository.findByElectiveClassInAndDate(names, date);
+    }
+
     public Map<String, Object> getElectiveClassStats(String name) {
         long total = attendanceRepository.countByElectiveClass(name);
         long present = attendanceRepository.countByElectiveClassAndStatus(name, "出勤");
@@ -105,5 +109,10 @@ public class AttendanceService {
 
     public List<Attendance> findAbsentOrLeaveBetween(School school, LocalDate start, LocalDate end) {
         return attendanceRepository.findAbsentOrLeaveBetween(school, start, end);
+    }
+
+    @Transactional
+    public void deleteAllBySchool(School school) {
+        attendanceRepository.deleteAllBySchool(school);
     }
 }

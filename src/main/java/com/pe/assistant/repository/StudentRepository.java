@@ -41,6 +41,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                                   Pageable pageable);
 
     List<Student> findByElectiveClass(String electiveClass);
+    List<Student> findByElectiveClassIn(List<String> names);
 
     @Query("SELECT DISTINCT s.electiveClass FROM Student s WHERE s.school = :school AND s.schoolClass.teacher = :teacher AND s.electiveClass IS NOT NULL AND s.electiveClass <> ''")
     List<String> findElectiveClassNamesByTeacher(@Param("school") School school, @Param("teacher") Teacher teacher);

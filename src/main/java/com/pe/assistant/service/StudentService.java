@@ -36,6 +36,10 @@ public class StudentService {
         return studentRepository.findByElectiveClass(electiveClass);
     }
 
+    public List<Student> findByElectiveClassIn(List<String> names) {
+        return studentRepository.findByElectiveClassIn(names);
+    }
+
     public List<String> findElectiveClassNamesByTeacher(School school, Teacher teacher) {
         return studentRepository.findElectiveClassNamesByTeacher(school, teacher);
     }
@@ -72,6 +76,13 @@ public class StudentService {
     }
 
     @Transactional
+    public void updateElective(Long id, String electiveClass) {
+        Student s = studentRepository.findById(id).orElseThrow();
+        s.setElectiveClass((electiveClass == null || electiveClass.isBlank()) ? null : electiveClass);
+        studentRepository.save(s);
+    }
+
+    @Transactional
     public void updateElectiveByStudentNo(String studentNo, String electiveClass) {
         Student s = studentRepository.findByStudentNo(studentNo)
             .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
@@ -81,7 +92,9 @@ public class StudentService {
 
     @Transactional
     public void delete(Long id) {
-        studentRepository.deleteById(id);
+        Student s = studentRepository.findById(id).orElseThrow();
+        attendanceRepository.deleteAll(attendanceRepository.findByStudentOrderByDateDesc(s));
+        studentRepository.delete(s);
     }
 
     @Transactional
