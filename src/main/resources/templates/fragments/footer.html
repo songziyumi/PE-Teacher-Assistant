@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="version">
+    <span th:text="'v' + ${@environment.getProperty('app.version')}">v1.3.0</span>
+</th:block>
+</body>
+</html>
