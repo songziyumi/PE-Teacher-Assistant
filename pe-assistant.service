@@ -1,0 +1,14 @@
+[Unit]
+Description=PE Teacher Assistant
+After=network.target mysqld.service
+
+[Service]
+User=root
+WorkingDirectory=/opt/pe-assistant
+ExecStart=/usr/bin/java -jar /opt/pe-assistant/app.jar --spring.config.location=/opt/pe-assistant/application.yml
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
