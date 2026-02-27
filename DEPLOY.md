@@ -39,24 +39,17 @@ server:
 ```
 
 ### 4. 配置 systemd 系统服务
+
+服务配置文件已保存在项目根目录 `pe-assistant.service`，直接上传到服务器：
+
 ```bash
-cat > /etc/systemd/system/pe-assistant.service << 'EOF'
-[Unit]
-Description=PE Teacher Assistant
-After=network.target mysqld.service
+# 本地执行（上传服务文件）
+scp pe-assistant.service root@175.24.131.74:/etc/systemd/system/pe-assistant.service
+```
 
-[Service]
-User=root
-WorkingDirectory=/opt/pe-assistant
-ExecStart=/usr/bin/java -jar /opt/pe-assistant/app.jar --spring.config.location=/opt/pe-assistant/application.yml
-SuccessExitStatus=143
-Restart=on-failure
-RestartSec=10
+然后在服务器上启用服务：
 
-[Install]
-WantedBy=multi-user.target
-EOF
-
+```bash
 systemctl daemon-reload
 systemctl enable pe-assistant
 systemctl start pe-assistant
