@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -74,9 +75,18 @@ public class SecurityConfig {
         return (HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) -> {
             String username = request.getParameter("username");
             if (username != null) {
-                loginAttemptService.loginFailed(username.trim());
+                username = username.trim();
+                if (!(exception instanceof LockedException || exception.getCause() instanceof LockedException)) {
+                    loginAttemptService.loginFailed(username);
+                }
+                if (loginAttemptService.isBlocked(username)) {
+                    request.getSession().setAttribute("LOCKED", true);
+                    response.sendRedirect("/login");
+                    return;
+                }
             }
-            response.sendRedirect("/login?error=true");
+            request.getSession().setAttribute("LOGIN_ERROR", true);
+            response.sendRedirect("/login");
         };
     }
 
