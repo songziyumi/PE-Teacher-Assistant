@@ -11,6 +11,10 @@ public class Grade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 50)
+    @Column(nullable = false, length = 50)
     private String name;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "school_id")
+    private School school;
 }

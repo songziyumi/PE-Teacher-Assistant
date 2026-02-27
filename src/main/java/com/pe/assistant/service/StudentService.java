@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class StudentService {
@@ -20,8 +21,11 @@ public class StudentService {
         return studentRepository.findBySchoolClassId(classId);
     }
 
-    public Page<Student> findWithFilters(Long classId, Long gradeId, String name, String studentNo, String idCard, String electiveClass, int page, int size) {
-        return studentRepository.findWithFilters(classId, gradeId, name, studentNo, idCard, electiveClass, PageRequest.of(page, size));
+    public Page<Student> findWithFilters(School school, Long classId, Long gradeId, String name,
+                                         String studentNo, String idCard, String electiveClass,
+                                         int page, int size) {
+        return studentRepository.findWithFilters(school, classId, gradeId, name, studentNo, idCard,
+                electiveClass, PageRequest.of(page, size));
     }
 
     public Student findById(Long id) {
@@ -32,17 +36,17 @@ public class StudentService {
         return studentRepository.findByElectiveClass(electiveClass);
     }
 
-    public List<String> findElectiveClassNamesByTeacher(Teacher teacher) {
-        return studentRepository.findElectiveClassNamesByTeacher(teacher);
+    public List<String> findElectiveClassNamesByTeacher(School school, Teacher teacher) {
+        return studentRepository.findElectiveClassNamesByTeacher(school, teacher);
     }
 
-    public List<String> findAllElectiveClassNames() {
-        return studentRepository.findAllElectiveClassNames();
+    public List<String> findAllElectiveClassNames(School school) {
+        return studentRepository.findAllElectiveClassNames(school);
     }
 
     @Transactional
     public Student create(String name, String gender, String studentNo, String idCard,
-                          String electiveClass, Long classId) {
+                          String electiveClass, Long classId, School school) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         Student s = new Student();
         s.setName(name);
@@ -51,6 +55,7 @@ public class StudentService {
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
         s.setSchoolClass(sc);
+        s.setSchool(school);
         return studentRepository.save(s);
     }
 

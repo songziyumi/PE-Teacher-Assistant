@@ -99,11 +99,11 @@ public class AttendanceService {
         return stats;
     }
 
-    public List<Attendance> findAbsentBetween(LocalDate start, LocalDate end) {
-        return attendanceRepository.findAbsentBetween(start, end);
+    public List<Attendance> findAbsentBetween(School school, LocalDate start, LocalDate end) {
+        return attendanceRepository.findAbsentBetween(school, start, end);
     }
 
-    public List<Attendance> findAbsentOrLeaveBetween(LocalDate start, LocalDate end) {
-        return attendanceRepository.findAbsentOrLeaveBetween(start, end);
+    public List<Attendance> findAbsentOrLeaveBetween(School school, LocalDate start, LocalDate end) {
+        return attendanceRepository.findAbsentOrLeaveBetween(school, start, end);
     }
 }

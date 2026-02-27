@@ -1,6 +1,7 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.Grade;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.repository.GradeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,23 +14,24 @@ public class GradeService {
 
     private final GradeRepository gradeRepository;
 
-    public List<Grade> findAll() {
-        return gradeRepository.findAll();
+    public List<Grade> findAll(School school) {
+        return gradeRepository.findBySchool(school);
     }
 
     public Grade findById(Long id) {
         return gradeRepository.findById(id).orElseThrow();
     }
 
-    public Grade findByName(String name) {
-        return gradeRepository.findByName(name).orElse(null);
+    public Grade findByName(String name, School school) {
+        return gradeRepository.findByNameAndSchool(name, school).orElse(null);
     }
 
     @Transactional
-    public Grade create(String name) {
-        if (gradeRepository.existsByName(name)) throw new IllegalArgumentException("年级已存在");
+    public Grade create(String name, School school) {
+        if (gradeRepository.existsByNameAndSchool(name, school)) throw new IllegalArgumentException("年级已存在");
         Grade g = new Grade();
         g.setName(name);
+        g.setSchool(school);
         return gradeRepository.save(g);
     }
 

@@ -12,7 +12,9 @@
     <div class="nav-brand">🏃 体育教师助手</div>
     <div class="nav-links">
         <span sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin}">管理后台</a></span>
-        <span class="nav-user">👤 <span th:text="${teacher.name}"></span></span>
+        <span class="nav-user">👤 <span th:text="${teacher.name}"></span>
+            <span th:if="${teacher.school != null}"> | <span th:text="${teacher.school.name}"></span></span>
+        </span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>

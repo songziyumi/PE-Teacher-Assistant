@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学校管理 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/super-admin/schools}">学校管理</a>
+        <span class="nav-user">超级管理员</span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="page-header">
+        <h2>学校管理</h2>
+        <a th:href="@{/super-admin/schools/add}" class="btn btn-primary">+ 新增学校</a>
+    </div>
+
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>学校名称</th>
+            <th>编码</th>
+            <th>联系电话</th>
+            <th>地址</th>
+            <th>管理员账号</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="school : ${schools}">
+            <td th:text="${school.name}"></td>
+            <td th:text="${school.code}"></td>
+            <td th:text="${school.contactPhone ?: '-'}"></td>
+            <td th:text="${school.address ?: '-'}"></td>
+            <td>
+                <span th:if="${adminMap[school.id] != null}" th:text="${adminMap[school.id].username}"></span>
+                <span th:unless="${adminMap[school.id] != null}" style="color:#999">未设置</span>
+            </td>
+            <td>
+                <span th:if="${school.enabled}" style="color:#27ae60">启用</span>
+                <span th:unless="${school.enabled}" style="color:#e74c3c">禁用</span>
+            </td>
+            <td>
+                <a th:href="@{/super-admin/schools/{id}/edit(id=${school.id})}" class="btn btn-sm">编辑</a>
+                <a th:href="@{/super-admin/schools/{id}/admin(id=${school.id})}" class="btn btn-sm">设置管理员</a>
+                <form th:action="@{/super-admin/schools/{id}/toggle(id=${school.id})}" method="post" style="display:inline">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-sm"
+                            th:text="${school.enabled} ? '禁用' : '启用'"
+                            th:style="${school.enabled} ? 'background:#e67e22;color:#fff' : 'background:#27ae60;color:#fff'"></button>
+                </form>
+                <form th:action="@{/super-admin/schools/{id}/delete(id=${school.id})}" method="post" style="display:inline"
+                      onsubmit="return confirm('确认删除学校「' + this.dataset.name + '」？此操作不可恢复！')"
+                      th:data-name="${school.name}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(schools)}">
+            <td colspan="7" style="text-align:center;color:#999">暂无学校数据</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<footer class="site-footer">
+    <th:block th:replace="~{fragments/footer :: version}"></th:block>
+    <span class="footer-sep">|</span>
+    <span>© 2026 陈胜松 版权所有</span>
+</footer>
+</body>
+</html>

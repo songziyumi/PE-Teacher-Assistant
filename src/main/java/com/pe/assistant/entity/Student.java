@@ -29,4 +29,8 @@ public class Student {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "class_id", nullable = false)
     private SchoolClass schoolClass;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "school_id")
+    private School school;
 }

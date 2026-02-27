@@ -1,5 +1,6 @@
 package com.pe.assistant.service;
 
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.SchoolClassRepository;
 import com.pe.assistant.repository.TeacherRepository;
@@ -20,16 +21,16 @@ public class TeacherService {
     private final PasswordEncoder passwordEncoder;
     private final SchoolClassRepository classRepository;
 
-    public List<Teacher> findAll() {
-        return teacherRepository.findAll();
+    public List<Teacher> findAll(School school) {
+        return teacherRepository.findBySchool(school);
     }
 
-    public Page<Teacher> findByFilters(String name, String username, String phone, int page, int size) {
+    public Page<Teacher> findByFilters(School school, String name, String username, String phone, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         String n = (name == null || name.isBlank()) ? null : name.trim();
         String u = (username == null || username.isBlank()) ? null : username.trim();
         String p = (phone == null || phone.isBlank()) ? null : phone.trim();
-        return teacherRepository.findByFilters(n, u, p, pageable);
+        return teacherRepository.findByFilters(school, n, u, p, pageable);
     }
 
     public Teacher findByUsername(String username) {
@@ -37,12 +38,7 @@ public class TeacherService {
     }
 
     @Transactional
-    public Teacher create(String username, String name, String rawPassword, String role) {
-        return create(username, name, rawPassword, role, null);
-    }
-
-    @Transactional
-    public Teacher create(String username, String name, String rawPassword, String role, String phone) {
+    public Teacher create(String username, String name, String rawPassword, String role, String phone, School school) {
         if (teacherRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("用户名已存在: " + username);
         }
@@ -52,6 +48,7 @@ public class TeacherService {
         t.setPassword(passwordEncoder.encode(rawPassword));
         t.setRole(role == null ? "TEACHER" : role);
         t.setPhone(phone);
+        t.setSchool(school);
         return teacherRepository.save(t);
     }
 
@@ -65,9 +62,7 @@ public class TeacherService {
     @Transactional
     public void delete(Long id) {
         Teacher teacher = teacherRepository.findById(id).orElseThrow();
-        // 先解除班级关联，避免外键约束报错
-        classRepository.findAll().stream()
-            .filter(c -> teacher.equals(c.getTeacher()))
+        classRepository.findByTeacher(teacher)
             .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
         teacherRepository.delete(teacher);
     }
@@ -75,29 +70,22 @@ public class TeacherService {
     @Transactional
     public void assignClasses(Long teacherId, List<Long> classIds) {
         Teacher teacher = teacherRepository.findById(teacherId).orElseThrow();
-        // 先解除该教师所有已有班级关联
-        classRepository.findAll().stream()
-            .filter(c -> teacher.equals(c.getTeacher()))
+        classRepository.findByTeacher(teacher)
             .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
-        // 重新分配
         if (classIds != null) {
-            classIds.forEach(cid -> {
-                classRepository.findById(cid).ifPresent(c -> {
-                    c.setTeacher(teacher);
-                    classRepository.save(c);
-                });
-            });
+            classIds.forEach(cid -> classRepository.findById(cid).ifPresent(c -> {
+                c.setTeacher(teacher);
+                classRepository.save(c);
+            }));
         }
     }
 
     @Transactional
-    public void deleteAll() {
-        // 只删除非管理员教师，先解除班级关联
-        List<Teacher> teachers = teacherRepository.findAll().stream()
+    public void deleteAll(School school) {
+        List<Teacher> teachers = teacherRepository.findBySchool(school).stream()
             .filter(t -> !"ADMIN".equals(t.getRole())).toList();
         teachers.forEach(t -> {
-            classRepository.findAll().stream()
-                .filter(c -> t.equals(c.getTeacher()))
+            classRepository.findByTeacher(t)
                 .forEach(c -> { c.setTeacher(null); classRepository.save(c); });
             teacherRepository.delete(t);
         });

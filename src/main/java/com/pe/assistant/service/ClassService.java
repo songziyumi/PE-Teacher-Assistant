@@ -19,16 +19,16 @@ public class ClassService {
     private final StudentRepository studentRepository;
     private final AttendanceRepository attendanceRepository;
 
-    public List<SchoolClass> findAll() {
-        return classRepository.findAll();
+    public List<SchoolClass> findAll(School school) {
+        return classRepository.findBySchool(school);
     }
 
-    public Page<SchoolClass> findByKeyword(String keyword, int page, int size) {
-        return classRepository.findByKeyword(keyword, PageRequest.of(page, size));
+    public Page<SchoolClass> findByKeyword(School school, String keyword, int page, int size) {
+        return classRepository.findByKeyword(school, keyword, PageRequest.of(page, size));
     }
 
-    public Page<SchoolClass> findByFilters(String type, Long gradeId, String name, int page, int size) {
-        return classRepository.findByFilters(type, gradeId, name, PageRequest.of(page, size));
+    public Page<SchoolClass> findByFilters(School school, String type, Long gradeId, String name, int page, int size) {
+        return classRepository.findByFilters(school, type, gradeId, name, PageRequest.of(page, size));
     }
 
     public List<SchoolClass> findByTeacher(Teacher teacher) {
@@ -48,20 +48,22 @@ public class ClassService {
     }
 
     @Transactional
-    public SchoolClass create(String name, Long gradeId) {
+    public SchoolClass create(String name, Long gradeId, School school) {
         Grade grade = gradeRepository.findById(gradeId).orElseThrow();
         SchoolClass sc = new SchoolClass();
         sc.setName(name);
         sc.setGrade(grade);
         sc.setType("行政班");
+        sc.setSchool(school);
         return classRepository.save(sc);
     }
 
     @Transactional
-    public SchoolClass createElective(String name, Long gradeId) {
+    public SchoolClass createElective(String name, Long gradeId, School school) {
         SchoolClass sc = new SchoolClass();
         sc.setName(name);
         sc.setType("选修课");
+        sc.setSchool(school);
         if (gradeId != null) sc.setGrade(gradeRepository.findById(gradeId).orElse(null));
         return classRepository.save(sc);
     }

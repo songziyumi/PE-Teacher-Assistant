@@ -18,11 +18,11 @@
 ```
 src/main/java/com/pe/assistant/
 ├── config/          # 配置类（Security、数据初始化）
-├── controller/      # 控制器（Admin、Attendance、Auth、Dashboard、Student）
-├── entity/          # 实体类（Teacher、Student、SchoolClass、Grade、Attendance）
+├── controller/      # 控制器（Admin、Attendance、Auth、Dashboard、Student、SuperAdmin）
+├── entity/          # 实体类（Teacher、Student、SchoolClass、Grade、Attendance、School）
 ├── repository/      # JPA Repository 接口
 ├── security/        # Spring Security 用户认证
-├── service/         # 业务逻辑（Attendance、Class、Grade、Student、Teacher）
+├── service/         # 业务逻辑（Attendance、Class、Grade、Student、Teacher、School、CurrentUser）
 └── PeTeacherAssistantApplication.java
 
 src/main/resources/
@@ -31,13 +31,15 @@ src/main/resources/
 └── templates/               # Thymeleaf 模板
     ├── admin/               # 管理员页面（班级、学生、教师、成绩、考勤、导入、统计）
     ├── auth/                # 登录页面
+    ├── super-admin/         # 超级管理员页面（学校管理、管理员设置）
     ├── teacher/             # 教师页面（考勤、学生列表）
+    ├── fragments/           # 公共片段（footer 版本号）
     ├── dashboard.html       # 首页仪表盘
     └── layout.html          # 公共布局
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v1.3.0
+- `main`：主分支（生产），当前版本 v1.4.0
 - `feature/attendance`：当前开发分支
 
 ## 常用命令
@@ -55,7 +57,7 @@ mvn test
 ## 注意事项
 - 数据库配置在 `src/main/resources/application.yml`
 - 使用 Spring Security，登录认证通过 `UserDetailsServiceImpl` 实现
-- 管理员和教师角色权限分离
+- 角色体系：SUPER_ADMIN（管理学校）→ ADMIN（管理本校数据）→ TEACHER（管理自己班级）
 - 支持 Excel/CSV 批量导入学生、班级、教师数据，以及批量修改学生选修课
 - 停止应用时用 `Ctrl+C`，避免 8080 端口残留；若端口仍被占用，用 `powershell -Command "Stop-Process -Name java -Force"` 清理
 - `SchoolClassRepository` 提供 `findByKeyword`（关键词搜索）和 `findByFilters`（多条件过滤）两个分页查询方法
@@ -65,8 +67,24 @@ mvn test
 - 考勤状态颜色规范：出勤=绿色(#27ae60)、缺勤=红色(#e74c3c)、请假=蓝色(#2980b9)
 - 导出缺勤/请假文件名格式：`考勤日期+缺勤、请假名单.csv`，使用 RFC 5987 编码中文文件名
 - Thymeleaf 模板中避免使用 `th:replace` 引用同页面 fragment，会导致内容重复渲染
+- `AdminController` 使用 `@ModelAttribute("currentSchool")` 自动向所有 admin 页面注入当前学校，模板用 `${currentSchool.name}` 显示
+- `AttendanceController`、`StudentController` 同样用 `@ModelAttribute("currentSchool")` 向教师页面注入学校；`dashboard.html` 直接用 `${teacher.school.name}`
+- `SchoolService.createOrResetAdmin`：用户名已存在时，仅允许重置**本学校**管理员密码，属于其他学校的账号一律拒绝并提示更换用户名
+- `SchoolRepository` 提供 `existsByNameAndIdNot` / `existsByCodeAndIdNot`，用于编辑学校时排除自身的唯一性校验
 
 ## 版本历史
+- `v1.4.0`：多学校管理平台（多租户架构）
+  - 新增 School 实体，所有数据（Teacher/Student/SchoolClass/Grade）关联 school_id 实现学校级隔离
+  - 新增 SUPER_ADMIN 角色：登录后跳转学校管理页，无法访问具体学校数据
+  - 超级管理员模块：新增/编辑/删除学校，启用/禁用学校，为学校创建/重置管理员账号
+  - 学校编辑：`SchoolRepository` 新增 `existsByNameAndIdNot`/`existsByCodeAndIdNot`，编辑时排除自身校验唯一性
+  - 管理员账号安全：`createOrResetAdmin` 校验用户名归属，已被其他学校占用的用户名拒绝创建，防止账号被劫持
+  - 学校名称展示：`AdminController` 用 `@ModelAttribute("currentSchool")` 自动注入，所有 admin 页面导航栏显示学校名；`AttendanceController`/`StudentController` 同样注入；`dashboard.html` 通过 `teacher.school.name` 显示
+  - 超级管理员页面 footer 统一为版本号 + 版权（`fragments/footer :: version`）
+  - CurrentUserService：从 SecurityContext 获取当前用户及所属学校，全局注入各控制器
+  - DataInitializer：初始化 superadmin 账号和默认学校，自动将历史 school=null 数据迁移到默认学校
+  - SecurityConfig：新增 `/super-admin/**` 路由权限，登录成功后按角色跳转不同首页
+  - application.yml：新增 `app.super-admin.default-password` 可配置超管初始密码
 - `v1.3.0`：安全加固
   - 登录防爆破：连续失败 5 次锁定 15 分钟（LoginAttemptService）
   - Session 安全：防 session fixation、最多 1 个并发会话、退出清除 JSESSIONID cookie

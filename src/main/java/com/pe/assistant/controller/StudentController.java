@@ -16,6 +16,12 @@ public class StudentController {
 
     private final StudentService studentService;
     private final ClassService classService;
+    private final CurrentUserService currentUserService;
+
+    @ModelAttribute("currentSchool")
+    public School currentSchool() {
+        return currentUserService.getCurrentSchool();
+    }
 
     @GetMapping("/class/{classId}")
     public String listStudents(@PathVariable Long classId, Model model) {

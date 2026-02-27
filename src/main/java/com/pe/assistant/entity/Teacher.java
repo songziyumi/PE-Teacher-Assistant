@@ -27,6 +27,10 @@ public class Teacher {
     @Column(length = 20)
     private String phone;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "school_id")
+    private School school; // SUPER_ADMIN 为 null
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

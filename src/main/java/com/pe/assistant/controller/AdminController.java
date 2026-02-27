@@ -29,26 +29,35 @@ public class AdminController {
     private final StudentService studentService;
     private final GradeService gradeService;
     private final AttendanceService attendanceService;
+    private final CurrentUserService currentUserService;
+
+    @ModelAttribute("currentSchool")
+    public School currentSchool() {
+        return currentUserService.getCurrentSchool();
+    }
 
     // ===== Dashboard =====
     @GetMapping
     public String adminDashboard(Model model) {
-        model.addAttribute("teacherCount", teacherService.findAll().size());
-        model.addAttribute("classCount", classService.findAll().size());
-        model.addAttribute("gradeCount", gradeService.findAll().size());
+        School school = currentUserService.getCurrentSchool();
+        model.addAttribute("teacherCount", teacherService.findAll(school).size());
+        model.addAttribute("classCount", classService.findAll(school).size());
+        model.addAttribute("gradeCount", gradeService.findAll(school).size());
         return "admin/dashboard";
     }
 
     // ===== 年级管理 =====
     @GetMapping("/grades")
     public String grades(Model model) {
-        model.addAttribute("grades", gradeService.findAll());
+        School school = currentUserService.getCurrentSchool();
+        model.addAttribute("grades", gradeService.findAll(school));
         return "admin/grades";
     }
 
     @PostMapping("/grades/add")
     public String addGrade(@RequestParam String name, RedirectAttributes ra) {
-        try { gradeService.create(name); ra.addFlashAttribute("success", "年级添加成功"); }
+        School school = currentUserService.getCurrentSchool();
+        try { gradeService.create(name, school); ra.addFlashAttribute("success", "年级添加成功"); }
         catch (Exception e) { ra.addFlashAttribute("error", e.getMessage()); }
         return "redirect:/admin/grades";
     }
@@ -74,24 +83,26 @@ public class AdminController {
                           @RequestParam(defaultValue = "") String name,
                           @RequestParam(defaultValue = "0") int page,
                           Model model) {
-        Page<SchoolClass> classPage = classService.findByFilters(type, gradeId, name, page, 15);
+        School school = currentUserService.getCurrentSchool();
+        Page<SchoolClass> classPage = classService.findByFilters(school, type, gradeId, name, page, 15);
         model.addAttribute("classPage", classPage);
         model.addAttribute("type", type);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("name", name);
-        model.addAttribute("grades", gradeService.findAll());
+        model.addAttribute("grades", gradeService.findAll(school));
         return "admin/classes";
     }
 
     @PostMapping("/classes/add")
     public String addClass(@RequestParam String name, @RequestParam String type,
                            @RequestParam(required = false) Long gradeId, RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
         try {
             if ("选修课".equals(type)) {
-                classService.createElective(name, gradeId);
+                classService.createElective(name, gradeId, school);
             } else {
                 if (gradeId == null) throw new IllegalArgumentException("行政班必须选择年级");
-                classService.create(name, gradeId);
+                classService.create(name, gradeId, school);
             }
             ra.addFlashAttribute("success", "班级添加成功");
         } catch (Exception e) { ra.addFlashAttribute("error", e.getMessage()); }
@@ -126,18 +137,17 @@ public class AdminController {
                            @RequestParam(required = false) String phone,
                            @RequestParam(defaultValue = "0") int page,
                            Model model) {
+        School school = currentUserService.getCurrentSchool();
         int pageSize = 15;
-        Page<Teacher> teacherPage = teacherService.findByFilters(name, username, phone, page, pageSize);
-        List<com.pe.assistant.entity.SchoolClass> allClasses = classService.findAll();
+        Page<Teacher> teacherPage = teacherService.findByFilters(school, name, username, phone, page, pageSize);
+        List<com.pe.assistant.entity.SchoolClass> allClasses = classService.findAll(school);
         model.addAttribute("teacherPage", teacherPage);
         model.addAttribute("teachers", teacherPage.getContent());
         model.addAttribute("searchName", name);
         model.addAttribute("searchUsername", username);
         model.addAttribute("searchPhone", phone);
         model.addAttribute("classes", allClasses);
-        // 每个教师已分配的班级名称列表（供表格显示）
         Map<Long, List<String>> teacherClassNames = new HashMap<>();
-        // 每个教师已分配的班级 id（String key，避免 Thymeleaf inline JS 序列化 Long 加 L 后缀）
         Map<String, List<Long>> teacherClassIds = new HashMap<>();
         for (com.pe.assistant.entity.SchoolClass c : allClasses) {
             if (c.getTeacher() != null) {
@@ -158,8 +168,9 @@ public class AdminController {
                              @RequestParam String phone,
                              @RequestParam(required = false) List<Long> classIds,
                              RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
         try {
-            Teacher newTeacher = teacherService.create(phone, name, password, "TEACHER", phone);
+            Teacher newTeacher = teacherService.create(phone, name, password, "TEACHER", phone, school);
             if (classIds != null) {
                 for (Long classId : classIds) {
                     classService.assignTeacher(classId, newTeacher.getId());
@@ -200,7 +211,8 @@ public class AdminController {
 
     @PostMapping("/teachers/delete-all")
     public String deleteAllTeachers(RedirectAttributes ra) {
-        teacherService.deleteAll();
+        School school = currentUserService.getCurrentSchool();
+        teacherService.deleteAll(school);
         ra.addFlashAttribute("success", "已删除全部教师数据");
         return "redirect:/admin/teachers";
     }
@@ -214,6 +226,7 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String idCard,
                            @RequestParam(defaultValue = "0") int page,
                            Model model) {
+        School school = currentUserService.getCurrentSchool();
         Long effectiveClassId = classId;
         String electiveClass = null;
         if (classId != null) {
@@ -223,16 +236,16 @@ public class AdminController {
                 electiveClass = sc.getName();
             }
         }
-        Page<Student> studentPage = studentService.findWithFilters(effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
+        Page<Student> studentPage = studentService.findWithFilters(school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
         model.addAttribute("studentPage", studentPage);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("classId", classId);
         model.addAttribute("name", name);
         model.addAttribute("studentNo", studentNo);
         model.addAttribute("idCard", idCard);
-        model.addAttribute("grades", gradeService.findAll());
-        model.addAttribute("classes", classService.findAll());
-        model.addAttribute("electiveClasses", classService.findAll().stream()
+        model.addAttribute("grades", gradeService.findAll(school));
+        model.addAttribute("classes", classService.findAll(school));
+        model.addAttribute("electiveClasses", classService.findAll(school).stream()
             .filter(c -> "选修课".equals(c.getType())).toList());
         return "admin/students";
     }
@@ -260,7 +273,8 @@ public class AdminController {
                              @RequestParam String studentNo, @RequestParam String idCard,
                              @RequestParam String electiveClass, @RequestParam Long classId,
                              RedirectAttributes ra) {
-        studentService.create(name, gender, studentNo, idCard, electiveClass, classId);
+        School school = currentUserService.getCurrentSchool();
+        studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school);
         ra.addFlashAttribute("success", "学生添加成功");
         return "redirect:/admin/students";
     }
@@ -291,6 +305,7 @@ public class AdminController {
                         @RequestParam(defaultValue = "") String idCard,
                         @RequestParam(defaultValue = "0") int page,
                         Model model) {
+        School school = currentUserService.getCurrentSchool();
         Long effectiveClassId = classId;
         String electiveClass = null;
         if (classId != null) {
@@ -300,7 +315,7 @@ public class AdminController {
                 electiveClass = sc.getName();
             }
         }
-        Page<Student> studentPage = studentService.findWithFilters(effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
+        Page<Student> studentPage = studentService.findWithFilters(school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
         List<Map<String, Object>> studentStats = new ArrayList<>();
         for (Student s : studentPage.getContent()) {
             Map<String, Object> stat = attendanceService.getStudentStats(s.getId());
@@ -320,8 +335,8 @@ public class AdminController {
         model.addAttribute("name", name);
         model.addAttribute("studentNo", studentNo);
         model.addAttribute("idCard", idCard);
-        model.addAttribute("grades", gradeService.findAll());
-        model.addAttribute("classes", classService.findAll());
+        model.addAttribute("grades", gradeService.findAll(school));
+        model.addAttribute("classes", classService.findAll(school));
         return "admin/stats";
     }
 
@@ -329,11 +344,12 @@ public class AdminController {
     public String absentQuery(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
                               Model model) {
+        School school = currentUserService.getCurrentSchool();
         if (start == null) start = LocalDate.now();
         if (end == null)   end   = LocalDate.now();
         model.addAttribute("start", start);
         model.addAttribute("end", end);
-        model.addAttribute("records", attendanceService.findAbsentOrLeaveBetween(start, end));
+        model.addAttribute("records", attendanceService.findAbsentOrLeaveBetween(school, start, end));
         return "admin/absent";
     }
 
@@ -341,13 +357,14 @@ public class AdminController {
     public void exportAbsent(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
                              HttpServletResponse response) throws IOException {
+        School school = currentUserService.getCurrentSchool();
         response.setContentType("text/csv;charset=UTF-8");
         String filename = start.equals(end)
             ? start + "缺勤、请假名单.csv"
             : start + "至" + end + "缺勤、请假名单.csv";
         response.setHeader("Content-Disposition",
             "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20"));
-        List<Attendance> records = attendanceService.findAbsentOrLeaveBetween(start, end);
+        List<Attendance> records = attendanceService.findAbsentOrLeaveBetween(school, start, end);
         try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
             writer.println("日期,姓名,班级,年级,状态");
             for (Attendance a : records) {
@@ -394,6 +411,7 @@ public class AdminController {
             ra.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/import";
         }
+        School school = currentUserService.getCurrentSchool();
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -411,12 +429,12 @@ public class AdminController {
                 if (type.isBlank()) type = "行政班";
                 try {
                     if ("选修课".equals(type)) {
-                        Grade grade = gradeName.isBlank() ? null : gradeService.findByName(gradeName);
-                        classService.createElective(name, grade != null ? grade.getId() : null);
+                        Grade grade = gradeName.isBlank() ? null : gradeService.findByName(gradeName, school);
+                        classService.createElective(name, grade != null ? grade.getId() : null, school);
                     } else {
-                        Grade grade = gradeService.findByName(gradeName);
+                        Grade grade = gradeService.findByName(gradeName, school);
                         if (grade == null) { errors.add("第" + (i+1) + "行：年级「" + gradeName + "」不存在"); skip++; continue; }
-                        classService.create(name, grade.getId());
+                        classService.create(name, grade.getId(), school);
                     }
                     count++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
@@ -475,12 +493,13 @@ public class AdminController {
             ra.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/import";
         }
+        School school = currentUserService.getCurrentSchool();
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
-            List<SchoolClass> allClasses = classService.findAll();
+            List<SchoolClass> allClasses = classService.findAll(school);
             int count = 0, skip = 0;
             List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -494,7 +513,7 @@ public class AdminController {
                 if (phone.isBlank()) { skip++; continue; }
                 if (password.isBlank()) password = "123456";
                 try {
-                    Teacher t = teacherService.create(phone, name, password, "TEACHER", phone);
+                    Teacher t = teacherService.create(phone, name, password, "TEACHER", phone, school);
                     if (!adminClass.isBlank()) {
                         for (String ac : adminClass.split("[,，]")) {
                             String acTrim = ac.trim();
@@ -542,12 +561,13 @@ public class AdminController {
             ra.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/import";
         }
+        School school = currentUserService.getCurrentSchool();
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
-            List<SchoolClass> classes = classService.findAll();
+            List<SchoolClass> classes = classService.findAll(school);
             int count = 0, skip = 0;
             List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -570,7 +590,7 @@ public class AdminController {
                     skip++; continue;
                 }
                 try {
-                    studentService.create(name, gender, studentNo, idCard, electiveClass, sc.getId());
+                    studentService.create(name, gender, studentNo, idCard, electiveClass, sc.getId(), school);
                     count++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }

@@ -15,6 +15,9 @@
         <span sec:authorize="hasRole('ADMIN')">
             <a th:href="@{/admin}">管理后台</a>
         </span>
+        <span sec:authorize="hasRole('SUPER_ADMIN')">
+            <a th:href="@{/super-admin/schools}">学校管理</a>
+        </span>
         <span class="nav-user" sec:authentication="name"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>

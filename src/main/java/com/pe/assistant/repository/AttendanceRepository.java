@@ -1,6 +1,7 @@
 package com.pe.assistant.repository;
 
 import com.pe.assistant.entity.Attendance;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,11 +20,11 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a WHERE a.student.schoolClass.id = :classId")
     List<Attendance> findByClassId(@Param("classId") Long classId);
 
-    @Query("SELECT a FROM Attendance a WHERE a.status = '缺勤' AND a.date BETWEEN :start AND :end")
-    List<Attendance> findAbsentBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    @Query("SELECT a FROM Attendance a WHERE a.student.school = :school AND a.status = '缺勤' AND a.date BETWEEN :start AND :end")
+    List<Attendance> findAbsentBetween(@Param("school") School school, @Param("start") LocalDate start, @Param("end") LocalDate end);
 
-    @Query("SELECT a FROM Attendance a WHERE a.status IN ('缺勤', '请假') AND a.date BETWEEN :start AND :end ORDER BY a.date, a.status")
-    List<Attendance> findAbsentOrLeaveBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    @Query("SELECT a FROM Attendance a WHERE a.student.school = :school AND a.status IN ('缺勤', '请假') AND a.date BETWEEN :start AND :end ORDER BY a.date, a.status")
+    List<Attendance> findAbsentOrLeaveBetween(@Param("school") School school, @Param("start") LocalDate start, @Param("end") LocalDate end);
 
     @Query("SELECT COUNT(a) FROM Attendance a WHERE a.student.id = :studentId AND a.status = :status")
     long countByStudentIdAndStatus(@Param("studentId") Long studentId, @Param("status") String status);

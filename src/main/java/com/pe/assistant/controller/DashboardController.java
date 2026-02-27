@@ -21,6 +21,9 @@ public class DashboardController {
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
         Teacher teacher = teacherService.findByUsername(userDetails.getUsername());
+        if ("SUPER_ADMIN".equals(teacher.getRole())) {
+            return "redirect:/super-admin/schools";
+        }
         model.addAttribute("teacher", teacher);
         model.addAttribute("classes", classService.findAdminClassesByTeacher(teacher));
         model.addAttribute("electiveClasses", classService.findElectiveClassesByTeacher(teacher));

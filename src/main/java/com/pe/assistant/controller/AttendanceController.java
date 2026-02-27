@@ -21,6 +21,12 @@ public class AttendanceController {
     private final AttendanceService attendanceService;
     private final ClassService classService;
     private final StudentService studentService;
+    private final CurrentUserService currentUserService;
+
+    @ModelAttribute("currentSchool")
+    public School currentSchool() {
+        return currentUserService.getCurrentSchool();
+    }
 
     @GetMapping("/class/{classId}")
     public String attendancePage(@PathVariable Long classId,

@@ -46,6 +46,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
@@ -93,7 +94,9 @@ public class SecurityConfig {
     private AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (HttpServletRequest request, HttpServletResponse response, Authentication authentication) -> {
             loginAttemptService.loginSucceeded(authentication.getName());
-            response.sendRedirect("/dashboard");
+            boolean isSuperAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+            response.sendRedirect(isSuperAdmin ? "/super-admin/schools" : "/dashboard");
         };
     }
 }
