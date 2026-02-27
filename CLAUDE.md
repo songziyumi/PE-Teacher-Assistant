@@ -40,7 +40,7 @@ src/main/resources/
 
 ## Git 分支
 - `main`：主分支（生产），当前版本 v1.4.0
-- `feature/attendance`：当前开发分支
+- `feature/v1.5`：当前开发分支
 
 ## 常用命令
 ```bash
@@ -71,8 +71,21 @@ mvn test
 - `AttendanceController`、`StudentController` 同样用 `@ModelAttribute("currentSchool")` 向教师页面注入学校；`dashboard.html` 直接用 `${teacher.school.name}`
 - `SchoolService.createOrResetAdmin`：用户名已存在时，仅允许重置**本学校**管理员密码，属于其他学校的账号一律拒绝并提示更换用户名
 - `SchoolRepository` 提供 `existsByNameAndIdNot` / `existsByCodeAndIdNot`，用于编辑学校时排除自身的唯一性校验
+- 选修课班级名称规范格式为 `"年级/班级名"`（如 `"高二/篮球"`），无年级时仅存班级名；`Student.electiveClass` 字段直接存储此格式字符串
+- `StudentController` 与 `AttendanceController` 均通过 `electiveName(sc)` 辅助方法（返回 `String`）做严格精确匹配，不使用 IN 范围查询，防止同名选修班跨年级数据污染
+- 批量导入班级时，若年级不存在会自动创建；Excel 中 FORMULA 类型单元格通过 `getCachedFormulaResultType()` 取实际值
+- 导入教师分配班级时，`AdminController.matchesClass()` 支持 4 种格式匹配：`"篮球"`、`"高二篮球"`、`"高二/篮球"`、`"高二 篮球"`
+- 批量导入反馈消息区分 `count`（新增）与 `skipDup`（已存在跳过），并列出前 20 条重复班级名称便于核查
+- 清空考勤：`AttendanceRepository` 提供 `@Modifying deleteAllBySchool(School)`，管理员可在导入页一键清空本校全部考勤记录
 
 ## 版本历史
+- `v1.5.0`（开发中）：选修班年级隔离与批量导入增强
+  - 选修班严格按 `"年级/班级名"` 精确匹配，`StudentController`/`AttendanceController` 从 IN 查询改为单值精确查询，修复跨年级同名选修班数据污染
+  - 修复教师修改学生选修班后列表不刷新的问题（根因同上）
+  - 批量导入班级：自动创建缺失年级；修复 FORMULA 单元格读取为空；选修课重复判断加入年级维度
+  - 批量导入教师班级分配：`matchesClass()` 支持多种年级+班级名格式，修复跨年级同名选修班分配错误
+  - 新增"清空全部考勤记录"功能（导入页，按学校隔离）
+  - 成绩管理页 `th:onsubmit` 改为 `data-*` + JS，修复 500 错误
 - `v1.4.0`：多学校管理平台（多租户架构）
   - 新增 School 实体，所有数据（Teacher/Student/SchoolClass/Grade）关联 school_id 实现学校级隔离
   - 新增 SUPER_ADMIN 角色：登录后跳转学校管理页，无法访问具体学校数据

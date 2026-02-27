@@ -25,12 +25,37 @@ public class StudentController {
 
     @GetMapping("/class/{classId}")
     public String listStudents(@PathVariable Long classId, Model model) {
+        School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students = "选修课".equals(sc.getType())
-                ? studentService.findByElectiveClass(sc.getName())
+                ? studentService.findByElectiveClass(electiveName(sc))
                 : studentService.findByClassId(classId);
+        List<SchoolClass> electiveClasses = classService.findAll(school).stream()
+                .filter(c -> "选修课".equals(c.getType())).toList();
+        long withElective = students.stream()
+                .filter(s -> s.getElectiveClass() != null && !s.getElectiveClass().isBlank())
+                .count();
         model.addAttribute("schoolClass", sc);
         model.addAttribute("students", students);
+        model.addAttribute("electiveClasses", electiveClasses);
+        model.addAttribute("withElectiveCount", (int) withElective);
+        model.addAttribute("noElectiveCount", students.size() - (int) withElective);
         return "teacher/students";
+    }
+
+    /** 返回选修课的规范名称（年级/班级名，无年级时仅班级名） */
+    private static String electiveName(SchoolClass sc) {
+        if (sc.getGrade() == null) return sc.getName();
+        return sc.getGrade().getName() + "/" + sc.getName();
+    }
+
+    @PostMapping("/{id}/elective")
+    public String updateElective(@PathVariable Long id,
+                                 @RequestParam(required = false) String electiveClass,
+                                 @RequestParam Long classId,
+                                 RedirectAttributes ra) {
+        studentService.updateElective(id, electiveClass);
+        ra.addFlashAttribute("success", "选修班已更新");
+        return "redirect:/teacher/students/class/" + classId;
     }
 }

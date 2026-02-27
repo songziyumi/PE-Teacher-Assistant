@@ -15,6 +15,8 @@ public interface SchoolClassRepository extends JpaRepository<SchoolClass, Long> 
     List<SchoolClass> findByTeacherAndType(Teacher teacher, String type);
     List<SchoolClass> findByGradeId(Long gradeId);
     boolean existsByNameAndGradeId(String name, Long gradeId);
+    boolean existsByNameAndGradeIdAndSchool(String name, Long gradeId, School school);
+    boolean existsByNameAndTypeAndSchool(String name, String type, School school);
 
     @Query("SELECT c FROM SchoolClass c LEFT JOIN c.grade g WHERE c.school = :school AND " +
            "(c.name LIKE CONCAT('%', :keyword, '%') OR g.name LIKE CONCAT('%', :keyword, '%'))")

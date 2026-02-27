@@ -47,6 +47,14 @@ public class ClassService {
         return classRepository.findById(id).orElseThrow();
     }
 
+    public boolean existsByNameAndGrade(String name, Long gradeId, School school) {
+        return classRepository.existsByNameAndGradeIdAndSchool(name, gradeId, school);
+    }
+
+    public boolean existsByNameAndType(String name, String type, School school) {
+        return classRepository.existsByNameAndTypeAndSchool(name, type, school);
+    }
+
     @Transactional
     public SchoolClass create(String name, Long gradeId, School school) {
         Grade grade = gradeRepository.findById(gradeId).orElseThrow();
@@ -78,6 +86,8 @@ public class ClassService {
 
     @Transactional
     public void delete(Long id) {
+        attendanceRepository.deleteAll(attendanceRepository.findByClassId(id));
+        studentRepository.deleteAll(studentRepository.findBySchoolClassId(id));
         classRepository.deleteById(id);
     }
 
