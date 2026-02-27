@@ -37,7 +37,7 @@ src/main/resources/
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v1.2.1
+- `main`：主分支（生产），当前版本 v1.3.0
 - `feature/attendance`：当前开发分支
 
 ## 常用命令
@@ -67,6 +67,15 @@ mvn test
 - Thymeleaf 模板中避免使用 `th:replace` 引用同页面 fragment，会导致内容重复渲染
 
 ## 版本历史
+- `v1.3.0`：安全加固
+  - 登录防爆破：连续失败 5 次锁定 15 分钟（LoginAttemptService）
+  - Session 安全：防 session fixation、最多 1 个并发会话、退出清除 JSESSIONID cookie
+  - 错误信息脱敏：登录失败不再区分"用户名不存在"与"密码错误"
+  - 全局异常处理：GlobalExceptionHandler 统一处理 403/500，新增对应错误页面
+  - 文件上传校验：验证 xlsx 魔数（PK 文件头），防止伪造文件上传
+  - 密码复杂度校验：重置密码要求 8 位以上且同时含字母和数字
+  - 初始化安全：移除默认 teacher 账号；admin 初始密码改为可配置（`app.admin.default-password`）
+  - JPQL 修复：LIKE 查询改用 `CONCAT('%', :param, '%')` 语法，修复部分数据库参数绑定问题
 - `v1.2.1`：修复学生管理按选修班搜索无结果
   - `StudentRepository.findWithFilters` 新增 `electiveClass` 过滤条件
   - `AdminController` `/students` 和 `/stats` 接口：选中选修课类型班级时自动转换为 `electiveClass` 字符串查询

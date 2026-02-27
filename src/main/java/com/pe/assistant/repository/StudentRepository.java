@@ -17,16 +17,16 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query(value = "SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
            "(:classId IS NULL OR sc.id = :classId) AND " +
            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
-           "(:name IS NULL OR :name = '' OR s.name LIKE %:name%) AND " +
-           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE %:studentNo%) AND " +
-           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE %:idCard%) AND " +
+           "(:name IS NULL OR :name = '' OR s.name LIKE CONCAT('%', :name, '%')) AND " +
+           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE CONCAT('%', :studentNo, '%')) AND " +
+           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE CONCAT('%', :idCard, '%')) AND " +
            "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass = :electiveClass)",
            countQuery = "SELECT COUNT(DISTINCT s) FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
            "(:classId IS NULL OR sc.id = :classId) AND " +
            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
-           "(:name IS NULL OR :name = '' OR s.name LIKE %:name%) AND " +
-           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE %:studentNo%) AND " +
-           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE %:idCard%) AND " +
+           "(:name IS NULL OR :name = '' OR s.name LIKE CONCAT('%', :name, '%')) AND " +
+           "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE CONCAT('%', :studentNo, '%')) AND " +
+           "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE CONCAT('%', :idCard, '%')) AND " +
            "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass = :electiveClass)")
     Page<Student> findWithFilters(@Param("classId") Long classId,
                                   @Param("gradeId") Long gradeId,

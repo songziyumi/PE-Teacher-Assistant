@@ -172,8 +172,13 @@ public class AdminController {
 
     @PostMapping("/teachers/reset-password/{id}")
     public String resetPassword(@PathVariable Long id, @RequestParam String newPassword, RedirectAttributes ra) {
-        teacherService.resetPassword(id, newPassword);
-        ra.addFlashAttribute("success", "密码重置成功");
+        try {
+            validatePassword(newPassword);
+            teacherService.resetPassword(id, newPassword);
+            ra.addFlashAttribute("success", "密码重置成功");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/admin/teachers";
     }
 
@@ -383,6 +388,12 @@ public class AdminController {
 
     @PostMapping("/import/classes")
     public String importClasses(@RequestParam MultipartFile file, RedirectAttributes ra) {
+        try {
+            validateExcelFile(file);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/import";
+        }
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -458,6 +469,12 @@ public class AdminController {
 
     @PostMapping("/import/teachers")
     public String importTeachers(@RequestParam MultipartFile file, RedirectAttributes ra) {
+        try {
+            validateExcelFile(file);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/import";
+        }
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -519,6 +536,12 @@ public class AdminController {
 
     @PostMapping("/import/students")
     public String importStudents(@RequestParam MultipartFile file, RedirectAttributes ra) {
+        try {
+            validateExcelFile(file);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/import";
+        }
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -581,6 +604,12 @@ public class AdminController {
 
     @PostMapping("/import/elective")
     public String importElective(@RequestParam MultipartFile file, RedirectAttributes ra) {
+        try {
+            validateExcelFile(file);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/import";
+        }
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -620,5 +649,29 @@ public class AdminController {
             case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
             default      -> "";
         };
+    }
+
+    /** 验证上传文件是否为合法 Excel（.xlsx），检查文件头魔数 */
+    private void validateExcelFile(MultipartFile file) throws IllegalArgumentException, java.io.IOException {
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("请选择要上传的文件");
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
+            throw new IllegalArgumentException("仅支持 .xlsx 格式文件");
+        }
+        // OOXML (xlsx) 文件头：PK (0x50 0x4B)
+        byte[] header = file.getBytes();
+        if (header.length < 4 || header[0] != 0x50 || header[1] != 0x4B) {
+            throw new IllegalArgumentException("文件内容与扩展名不符，请上传真实的 xlsx 文件");
+        }
+    }
+
+    /** 验证密码复杂度：至少 8 位，包含字母和数字 */
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8) {
+            throw new IllegalArgumentException("密码长度不能少于 8 位");
+        }
+        if (!password.matches(".*[A-Za-z].*") || !password.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("密码必须同时包含字母和数字");
+        }
     }
 }
