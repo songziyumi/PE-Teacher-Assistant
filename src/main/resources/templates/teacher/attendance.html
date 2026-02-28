@@ -50,6 +50,8 @@
                     <span class="student-no" th:text="${iter.count}"></span>
                     <span class="student-name" th:text="${student.name}"></span>
                     <span class="student-gender text-muted" th:text="${student.gender}"></span>
+                    <span class="text-muted" style="font-family:monospace;font-size:13px"
+                          th:if="${student.studentNo != null}" th:text="${student.studentNo}"></span>
                     <span th:if="${mode == 'elective'}" class="text-muted"
                           th:text="'(' + ${student.schoolClass.grade != null ? student.schoolClass.grade.name : ''} + ${student.schoolClass.name} + ')'"></span>
                 </div>

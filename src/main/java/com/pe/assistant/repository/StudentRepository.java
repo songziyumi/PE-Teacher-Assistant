@@ -11,9 +11,10 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
-    List<Student> findBySchoolClassId(Long classId);
+    List<Student> findBySchoolClassIdOrderByStudentNo(Long classId);
     long countBySchoolClassId(Long classId);
     java.util.Optional<Student> findByStudentNo(String studentNo);
+    java.util.Optional<Student> findByStudentNoAndSchool(String studentNo, School school);
 
     @Query(value = "SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
            "s.school = :school AND " +
@@ -40,8 +41,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                                   @Param("electiveClass") String electiveClass,
                                   Pageable pageable);
 
-    List<Student> findByElectiveClass(String electiveClass);
-    List<Student> findByElectiveClassIn(List<String> names);
+    List<Student> findByElectiveClassOrderByStudentNo(String electiveClass);
+    List<Student> findByElectiveClassInOrderByStudentNo(List<String> names);
 
     @Query("SELECT DISTINCT s.electiveClass FROM Student s WHERE s.school = :school AND s.schoolClass.teacher = :teacher AND s.electiveClass IS NOT NULL AND s.electiveClass <> ''")
     List<String> findElectiveClassNamesByTeacher(@Param("school") School school, @Param("teacher") Teacher teacher);

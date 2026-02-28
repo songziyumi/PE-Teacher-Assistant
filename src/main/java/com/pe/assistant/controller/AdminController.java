@@ -284,7 +284,7 @@ public class AdminController {
                               @RequestParam String gender, @RequestParam String studentNo,
                               @RequestParam String idCard, @RequestParam String electiveClass,
                               @RequestParam Long classId, RedirectAttributes ra) {
-        studentService.update(id, name, gender, studentNo, idCard, electiveClass);
+        studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId);
         ra.addFlashAttribute("success", "修改成功");
         return "redirect:/admin/students";
     }
@@ -583,7 +583,9 @@ public class AdminController {
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
             List<SchoolClass> classes = classService.findAll(school);
-            int count = 0, skip = 0;
+            List<SchoolClass> electiveClasses = classes.stream()
+                    .filter(c -> "选修课".equals(c.getType())).toList();
+            int count = 0, updated = 0, skip = 0;
             List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -594,7 +596,15 @@ public class AdminController {
                 String gender       = cellStr(row, col.getOrDefault("性别", -1));
                 String studentNo    = cellStr(row, col.getOrDefault("学号", -1));
                 String idCard       = cellStr(row, col.getOrDefault("身份证号", -1));
-                String electiveClass= cellStr(row, col.getOrDefault("选修课", -1));
+                String rawElective  = cellStr(row, col.getOrDefault("选修课", -1));
+                // 将 Excel 中的选修班名称规范化为 "年级/班级名" 格式
+                String electiveClass = electiveClasses.stream()
+                        .filter(ec -> matchesClass(ec, rawElective))
+                        .findFirst()
+                        .map(ec -> ec.getGrade() != null
+                                ? ec.getGrade().getName() + "/" + ec.getName()
+                                : ec.getName())
+                        .orElse(rawElective.isBlank() ? null : rawElective);
                 SchoolClass sc = classes.stream()
                     .filter(c -> c.getName().equals(className)
                             && c.getGrade() != null
@@ -605,11 +615,13 @@ public class AdminController {
                     skip++; continue;
                 }
                 try {
-                    studentService.create(name, gender, studentNo, idCard, electiveClass, sc.getId(), school);
-                    count++;
+                    boolean created = studentService.importCreateOrUpdate(name, gender, studentNo, idCard, electiveClass, sc.getId(), school);
+                    if (created) count++; else updated++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }
-            String msg = "成功导入 " + count + " 名学生" + (skip > 0 ? "，跳过 " + skip + " 条" : "");
+            StringBuilder msg = new StringBuilder("成功导入 ").append(count).append(" 名学生");
+            if (updated > 0) msg.append("，更新 ").append(updated).append(" 名已有学生");
+            if (skip > 0) msg.append("，跳过 ").append(skip).append(" 条");
             if (!errors.isEmpty()) {
                 ra.addFlashAttribute("error", msg + "\n失败原因：\n" + String.join("\n", errors));
             } else {
@@ -650,16 +662,27 @@ public class AdminController {
             Row header = sheet.getRow(0);
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
+            School school = currentUserService.getCurrentSchool();
+            List<SchoolClass> electiveClasses = classService.findAll(school).stream()
+                    .filter(c -> "选修课".equals(c.getType())).toList();
             int count = 0, skip = 0;
             List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String studentNo   = cellStr(row, col.getOrDefault("学号", -1));
-                String electiveClass = cellStr(row, col.getOrDefault("选修课", -1));
+                String rawElective = cellStr(row, col.getOrDefault("选修课", -1));
                 if (studentNo.isBlank()) { skip++; continue; }
+                // 规范化为 "年级/班级名" 格式
+                String electiveClass = electiveClasses.stream()
+                        .filter(ec -> matchesClass(ec, rawElective))
+                        .findFirst()
+                        .map(ec -> ec.getGrade() != null
+                                ? ec.getGrade().getName() + "/" + ec.getName()
+                                : ec.getName())
+                        .orElse(rawElective.isBlank() ? null : rawElective);
                 try {
-                    studentService.updateElectiveByStudentNo(studentNo, electiveClass.isBlank() ? null : electiveClass);
+                    studentService.updateElectiveByStudentNo(studentNo, electiveClass);
                     count++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }

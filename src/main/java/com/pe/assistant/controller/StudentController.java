@@ -26,18 +26,22 @@ public class StudentController {
     @GetMapping("/class/{classId}")
     public String listStudents(@PathVariable Long classId, Model model) {
         School school = currentUserService.getCurrentSchool();
+        Teacher teacher = currentUserService.getCurrentTeacher();
         SchoolClass sc = classService.findById(classId);
         List<Student> students = "选修课".equals(sc.getType())
                 ? studentService.findByElectiveClass(electiveName(sc))
                 : studentService.findByClassId(classId);
         List<SchoolClass> electiveClasses = classService.findAll(school).stream()
                 .filter(c -> "选修课".equals(c.getType())).toList();
+        List<SchoolClass> adminClasses = classService.findAll(school).stream()
+                .filter(c -> "行政班".equals(c.getType())).toList();
         long withElective = students.stream()
                 .filter(s -> s.getElectiveClass() != null && !s.getElectiveClass().isBlank())
                 .count();
         model.addAttribute("schoolClass", sc);
         model.addAttribute("students", students);
         model.addAttribute("electiveClasses", electiveClasses);
+        model.addAttribute("adminClasses", adminClasses);
         model.addAttribute("withElectiveCount", (int) withElective);
         model.addAttribute("noElectiveCount", students.size() - (int) withElective);
         return "teacher/students";
@@ -56,6 +60,22 @@ public class StudentController {
                                  RedirectAttributes ra) {
         studentService.updateElective(id, electiveClass);
         ra.addFlashAttribute("success", "选修班已更新");
+        return "redirect:/teacher/students/class/" + classId;
+    }
+
+    @PostMapping("/{id}/class")
+    public String updateClass(@PathVariable Long id,
+                              @RequestParam Long newClassId,
+                              @RequestParam Long classId,
+                              RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
+        SchoolClass target = classService.findById(newClassId);
+        if (!school.getId().equals(target.getSchool().getId())) {
+            ra.addFlashAttribute("error", "无权将学生移至该班级");
+            return "redirect:/teacher/students/class/" + classId;
+        }
+        studentService.updateClass(id, newClassId);
+        ra.addFlashAttribute("success", "班级已更新");
         return "redirect:/teacher/students/class/" + classId;
     }
 }
