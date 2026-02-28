@@ -55,7 +55,7 @@ public class GradeService {
         List<SchoolClass> classes = classRepository.findByGradeId(id);
         for (SchoolClass sc : classes) {
             attendanceRepository.deleteAll(attendanceRepository.findByClassId(sc.getId()));
-            studentRepository.deleteAll(studentRepository.findBySchoolClassId(sc.getId()));
+            studentRepository.deleteAll(studentRepository.findBySchoolClassIdOrderByStudentNo(sc.getId()));
         }
         classRepository.deleteAll(classes);
         gradeRepository.deleteById(id);

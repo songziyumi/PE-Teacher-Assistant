@@ -87,7 +87,7 @@ public class ClassService {
     @Transactional
     public void delete(Long id) {
         attendanceRepository.deleteAll(attendanceRepository.findByClassId(id));
-        studentRepository.deleteAll(studentRepository.findBySchoolClassId(id));
+        studentRepository.deleteAll(studentRepository.findBySchoolClassIdOrderByStudentNo(id));
         classRepository.deleteById(id);
     }
 
