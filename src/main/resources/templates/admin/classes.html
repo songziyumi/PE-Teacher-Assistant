@@ -93,10 +93,11 @@
         <button type="submit" class="btn btn-secondary">搜索</button>
         <a th:href="@{/admin/classes}" class="btn btn-outline">重置</a>
         <button type="button" class="btn btn-primary" onclick="openModal()">＋ 添加班级</button>
-        <form th:action="@{/admin/classes/delete-all}" method="post" style="display:inline"
-              onsubmit="return confirm('确认删除全部班级数据？此操作不可恢复！')">
-            <button type="submit" class="btn btn-danger">删除全部</button>
-        </form>
+    </form>
+    <form th:action="@{/admin/classes/delete-all}" method="post" style="display:inline"
+          onsubmit="return confirm('确认删除全部班级数据？此操作不可恢复！')">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <button type="submit" class="btn btn-danger">删除全部</button>
     </form>
     <table class="table">
         <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>操作</th></tr></thead>
