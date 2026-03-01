@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>新增体质健康测试记录</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <a th:href="@{/v2/health-test/record/{id}(id=${record.student.id})}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> 返回
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        学生信息
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">学生姓名</label>
+                                <input type="text" class="form-control" th:value="${record.student.name}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">班级</label>
+                                <input type="text" class="form-control" th:value="${record.student.schoolClass.name}" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">学号</label>
+                                <input type="text" class="form-control" th:value="${record.student.studentNumber}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">性别</label>
+                                <input type="text" class="form-control" th:value="${record.student.gender == 'MALE' ? '男' : '女'}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        测试数据录入
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/v2/health-test/save}" th:object="${record}" method="post">
+                            <input type="hidden" th:field="*{id}" />
+                            <input type="hidden" th:field="*{student.id}" />
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">测试日期</label>
+                                    <input type="date" class="form-control" th:field="*{testDate}" required>
+                                </div>
+                            </div>
+                            
+                            <h6 class="border-bottom pb-2 mb-3">身体形态指标</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">身高 (cm)</label>
+                                    <input type="number" class="form-control" th:field="*{height}" step="0.1" min="100" max="250">
+                                    <small class="text-muted">单位：厘米</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">体重 (kg)</label>
+                                    <input type="number" class="form-control" th:field="*{weight}" step="0.1" min="20" max="150">
+                                    <small class="text-muted">单位：千克</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">BMI 指数</label>
+                                    <input type="text" class="form-control" th:field="*{bmi}" readonly>
+                                    <small class="text-muted">自动计算</small>
+                                </div>
+                            </div>
+                            
+                            <h6 class="border-bottom pb-2 mb-3">身体机能指标</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">肺活量 (ml)</label>
+                                    <input type="number" class="form-control" th:field="*{lungCapacity}" min="1000" max="10000">
+                                    <small class="text-muted">单位：毫升</small>
+                                </div>
+                            </div>
+                            
+                            <h6 class="border-bottom pb-2 mb-3">身体素质指标</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">50米跑 (秒)</label>
+                                    <input type="number" class="form-control" th:field="*{run50m}" step="0.1" min="5" max="20">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">坐位体前屈 (cm)</label>
+                                    <input type="number" class="form-control" th:field="*{sitAndReach}" step="0.1" min="-20" max="30">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">立定跳远 (m)</label>
+                                    <input type="number" class="form-control" th:field="*{standingLongJump}" step="0.01" min="1" max="3">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" th:if="${record.student.gender == 'MALE'}">引体向上 (次)</label>
+                                    <label class="form-label" th:unless="${record.student.gender == 'MALE'}">仰卧起坐 (次)</label>
+                                    <input type="number" class="form-control" 
+                                           th:field="${record.student.gender == 'MALE'} ? *{pullUps} : *{sitUps}" 
+                                           min="0" max="100">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" th:if="${record.student.gender == 'MALE'}">1000米跑 (秒)</label>
+                                    <label class="form-label" th:unless="${record.student.gender == 'MALE'}">800米跑 (秒)</label>
+                                    <input type="number" class="form-control" 
+                                           th:field="${record.student.gender == 'MALE'} ? *{run1000m} : *{run800m}" 
+                                           min="120" max="600">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">总分</label>
+                                    <input type="number" class="form-control" th:field="*{totalScore}" min="0" max="120">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">等级评定</label>
+                                    <select class="form-select" th:field="*{gradeLevel}">
+                                        <option value="">请选择等级</option>
+                                        <option value="优秀">优秀</option>
+                                        <option value="良好">良好</option>
+                                        <option value="及格">及格</option>
+                                        <option value="不及格">不及格</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a th:href="@{/v2/health-test/record/{id}(id=${record.student.id})}" class="btn btn-secondary">
+                                    取消
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save me-2"></i> 保存记录
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        测试标准参考
+                    </div>
+                    <div class="card-body">
+                        <h6>BMI 标准：</h6>
+                        <ul class="small">
+                            <li>偏瘦：&lt; 18.5</li>
+                            <li>正常：18.5 - 23.9</li>
+                            <li>超重：24.0 - 27.9</li>
+                            <li>肥胖：≥ 28.0</li>
+                        </ul>
+                        
+                        <h6 class="mt-3">50米跑标准（男生）：</h6>
+                        <ul class="small">
+                            <li>优秀：≤ 7.1秒</li>
+                            <li>良好：7.2 - 7.8秒</li>
+                            <li>及格：7.9 - 9.0秒</li>
+                            <li>不及格：&gt; 9.0秒</li>
+                        </ul>
+                        
+                        <h6 class="mt-3">肺活量标准（男生）：</h6>
+                        <ul class="small">
+                            <li>优秀：≥ 4800ml</li>
+                            <li>良好：4000 - 4799ml</li>
+                            <li>及格：3100 - 3999ml</li>
+                            <li>不及格：&lt; 3100ml</li>
+                        </ul>
+                        
+                        <div class="alert alert-info mt-3">
+                            <small>
+                                <i class="bi bi-info-circle"></i>
+                                注：以上为标准参考值，具体以教育部最新标准为准。
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        快速计算工具
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">计算BMI</label>
+                            <div class="input-group">
+                                <input type="number" id="calcHeight" class="form-control" placeholder="身高(cm)">
+                                <span class="input-group-text">/</span>
+                                <input type="number" id="calcWeight" class="form-control" placeholder="体重(kg)">
+                                <button class="btn btn-outline-secondary" type="button" onclick="calculateBMI()">
+                                    计算
+                                </button>
+                            </div>
+                            <div id="bmiResult" class="mt-2"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">成绩转换</label>
+                            <select class="form-select" id="scoreConverter">
+                                <option value="">选择项目</option>
+                                <option value="run50m">50米跑(秒 → 分)</option>
+                                <option value="longJump">立定跳远(m → 分)</option>
+                                <option value="pullUps">引体向上(次 → 分)</option>
+                            </select>
+                            <input type="number" id="scoreInput" class="form-control mt-2" placeholder="输入成绩">
+                            <button class="btn btn-outline-secondary w-100 mt-2" onclick="convertScore()">
+                                转换分数
+                            </button>
+                            <div id="scoreResult" class="mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function calculateBMI() {
+                var height = document.getElementById('calcHeight').value;
+                var weight = document.getElementById('calcWeight').value;
+                
+                if (height && weight && height > 0) {
+                    var heightInMeter = height / 100;
+                    var bmi = (weight / (heightInMeter * heightInMeter)).toFixed(1);
+                    
+                    var level = '';
+                    if (bmi < 18.5) level = '偏瘦';
+                    else if (bmi < 24) level = '正常';
+                    else if (bmi < 28) level = '超重';
+                    else level = '肥胖';
+                    
+                    document.getElementById('bmiResult').innerHTML = 
+                        '<div class="alert alert-success">BMI: ' + bmi + ' (' + level + ')</div>';
+                }
+            }
+            
+            function convertScore() {
+                var project = document.getElementById('scoreConverter').value;
+                var score = document.getElementById('scoreInput').value;
+                var result = '';
+                
+                if (project && score) {
+                    if (project === 'run50m') {
+                        // 50米跑转换逻辑
+                        if (score <= 7.1) result = '100分 (优秀)';
+                        else if (score <= 7.8) result = '85分 (良好)';
+                        else if (score <= 9.0) result = '60分 (及格)';
+                        else result = '40分 (不及格)';
+                    } else if (project === 'longJump') {
+                        // 立定跳远转换逻辑
+                        if (score >= 2.5) result = '100分 (优秀)';
+                        else if (score >= 2.2) result = '85分 (良好)';
+                        else if (score >= 1.9) result = '60分 (及格)';
+                        else result = '40分 (不及格)';
+                    }
+                    
+                    document.getElementById('scoreResult').innerHTML = 
+                        '<div class="alert alert-info">转换结果: ' + result + '</div>';
+                }
+            }
+            
+            // 自动计算BMI
+            document.addEventListener('DOMContentLoaded', function() {
+                var heightInput = document.querySelector('input[th\\:field="*{height}"]');
+                var weightInput = document.querySelector('input[th\\:field="*{weight}"]');
+                var bmiInput = document.querySelector('input[th\\:field="*{bmi}"]');
+                
+                function updateBMI() {
+                    var height = parseFloat(heightInput.value);
+                    var weight = parseFloat(weightInput.value);
+                    
+                    if (height && weight && height > 0) {
+                        var heightInMeter = height / 100;
+                        var bmi = (weight / (heightInMeter * heightInMeter)).toFixed(1);
+                        bmiInput.value = bmi;
+                    }
+                }
+                
+                if (heightInput && weightInput && bmiInput) {
+                    heightInput.addEventListener('input', updateBMI);
+                    weightInput.addEventListener('input', updateBMI);
+                }
+            });
+        </script>
+    </th:block>
+</body>
+</html>

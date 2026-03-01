@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(git config:*)",
+      "Bash(winget install:*)",
+      "Bash(gh:*)",
+      "Bash(cat:*)",
+      "Bash(tail:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(cd /c/Users/28970/Desktop/code/PE_TEACHER_ASSISTANT_JAVA && mvn compile -q 2>&1)",
+      "Bash(tasklist:*)",
+      "Bash(echo OK:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(cd C:\\\\Users\\\\28970\\\\Desktop\\\\code\\\\PE_TEACHER_ASSISTANT_JAVA:*)",
+      "Bash(python:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "WebFetch(domain:175.24.131.74)",
+      "Bash(ls:*)"
+    ]
+  }
+}

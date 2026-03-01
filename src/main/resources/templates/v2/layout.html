@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体育教师助手 v2.0 | <th:block th:text="${pageTitle} ?: '教学管理平台'"></th:block></title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- ECharts for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --accent-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+        }
+        
+        .sidebar {
+            background-color: var(--dark-bg);
+            color: white;
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary-color);
+        }
+        
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-left-color: var(--secondary-color);
+        }
+        
+        .main-content {
+            padding: 20px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 2px solid var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-success {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .btn-danger {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card.blue {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        
+        .stat-card.green {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        
+        .stat-card.orange {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+        
+        .stat-card.purple {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .badge-excellent {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .badge-good {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .badge-pass {
+            background-color: #f39c12;
+            color: white;
+        }
+        
+        .badge-fail {
+            background-color: #e74c3c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">体育教师助手</h4>
+                        <small class="text-muted">v2.0 教学管理平台</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/dashboard}">
+                                <i class="bi bi-house-door me-2"></i>
+                                工作台首页
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item mt-3">
+                            <small class="text-muted ps-3">教学管理</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/v2/health-test}" th:classappend="${#httpServletRequest.requestURI.contains('health-test')} ? 'active'">
+                                <i class="bi bi-heart-pulse me-2"></i>
+                                体质健康测试
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/v2/exam}" th:classappend="${#httpServletRequest.requestURI.contains('exam')} ? 'active'">
+                                <i class="bi bi-clipboard-data me-2"></i>
+                                期末成绩管理
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item mt-3">
+                            <small class="text-muted ps-3">教学资源</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/v2/resources}" th:classappend="${#httpServletRequest.requestURI.contains('resources')} ? 'active'">
+                                <i class="bi bi-folder me-2"></i>
+                                备课资源库
+                            </a>
+                        </li>
+                        
+                        <li class="nav-item mt-3">
+                            <small class="text-muted ps-3">系统管理</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" th:href="@{/admin/dashboard}">
+                                <i class="bi bi-gear me-2"></i>
+                                系统设置
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <div class="position-absolute bottom-0 start-0 end-0 p-3 border-top">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-person-circle fs-4 text-white"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="text-white" th:text="${teacher?.name} ?: '教师'"></div>
+                                <small class="text-muted" th:text="${teacher?.role == 'SUPER_ADMIN' ? '超级管理员' : '教师'}"></small>
+                            </div>
+                            <div>
+                                <a href="/logout" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- 页面标题 -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2" th:text="${pageTitle} ?: '教学管理平台'"></h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <th:block th:insert="${pageActions} ?: ''"></th:block>
+                    </div>
+                </div>
+                
+                <!-- 消息提示 -->
+                <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <span th:text="${success}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <span th:text="${error}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <!-- 页面内容 -->
+                <th:block th:insert="${content}"></th:block>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // 初始化工具提示
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+</body>
+</html>

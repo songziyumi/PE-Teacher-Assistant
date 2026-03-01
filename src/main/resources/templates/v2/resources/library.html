@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>备课资源库</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <a th:href="@{/v2/resources/add}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> 上传资源
+        </a>
+        <a th:href="@{/v2/resources/my}" class="btn btn-sm btn-outline-secondary ms-2">
+            <i class="bi bi-folder me-1"></i> 我的资源
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <h3><i class="bi bi-file-earmark"></i></h3>
+                    <h4 th:text="${totalResources} ?: '0'">0</h4>
+                    <p>资源总数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <h3><i class="bi bi-cloud-arrow-down"></i></h3>
+                    <h4 th:text="${totalDownloads} ?: '0'">0</h4>
+                    <p>总下载次数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <h3><i class="bi bi-eye"></i></h3>
+                    <h4 th:text="${totalViews} ?: '0'">0</h4>
+                    <p>总查看次数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card purple">
+                    <h3><i class="bi bi-share"></i></h3>
+                    <h4 th:text="${publicResources} ?: '0'">0</h4>
+                    <p>公开资源</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        资源分类
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center active">
+                                全部资源
+                                <span class="badge bg-primary rounded-pill" th:text="${totalResources} ?: '0'">0</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                教案
+                                <span class="badge bg-secondary rounded-pill">25</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                课件
+                                <span class="badge bg-secondary rounded-pill">18</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                训练计划
+                                <span class="badge bg-secondary rounded-pill">12</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                微课视频
+                                <span class="badge bg-secondary rounded-pill">8</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                教学视频
+                                <span class="badge bg-secondary rounded-pill">15</span>
+                            </a>
+                            <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                测试题
+                                <span class="badge bg-secondary rounded-pill">10</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        科目筛选
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="subject1" checked>
+                            <label class="form-check-label" for="subject1">篮球</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="subject2" checked>
+                            <label class="form-check-label" for="subject2">足球</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="subject3">
+                            <label class="form-check-label" for="subject3">排球</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="subject4">
+                            <label class="form-check-label" for="subject4">乒乓球</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="subject5">
+                            <label class="form-check-label" for="subject5">田径</label>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary w-100 mt-2">应用筛选</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <span>资源列表</span>
+                            <small class="text-muted ms-2">共 <span th:text="${resources.size()}">0</span> 个资源</small>
+                        </div>
+                        <div class="d-flex">
+                            <input type="text" class="form-control form-control-sm me-2" placeholder="搜索资源..." style="width: 200px;">
+                            <select class="form-select form-select-sm me-2" style="width: 120px;">
+                                <option>最新上传</option>
+                                <option>最多下载</option>
+                                <option>最多查看</option>
+                                <option>按名称</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div th:each="resource : ${resources}" class="col-md-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start mb-3">
+                                            <div class="flex-shrink-0">
+                                                <span th:class="${'badge bg-' + (resource.fileType == 'pdf' ? 'danger' : 
+                                                                              resource.fileType == 'word' ? 'primary' : 
+                                                                              resource.fileType == 'ppt' ? 'warning' : 
+                                                                              resource.fileType == 'video' ? 'success' : 'secondary')}">
+                                                    <i th:class="${'bi bi-' + (resource.fileType == 'pdf' ? 'file-earmark-pdf' : 
+                                                                             resource.fileType == 'word' ? 'file-earmark-word' : 
+                                                                             resource.fileType == 'ppt' ? 'file-earmark-ppt' : 
+                                                                             resource.fileType == 'video' ? 'play-circle' : 'file-earmark')}"></i>
+                                                </span>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <h6 class="card-title mb-1" th:text="${resource.title}">篮球基础教学教案</h6>
+                                                <small class="text-muted" th:text="${resource.category}">教案</small>
+                                            </div>
+                                        </div>
+                                        
+                                        <p class="card-text small text-muted mb-3" th:text="${resource.description} ?: '暂无描述'">
+                                            篮球基础动作教学，包含运球、投篮、传球等基本技术。
+                                        </p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-person"></i>
+                                                    <span th:text="${resource.uploader.name}">张老师</span>
+                                                </small>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted me-2">
+                                                    <i class="bi bi-eye"></i>
+                                                    <span th:text="${resource.viewCount}">125</span>
+                                                </small>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-download"></i>
+                                                    <span th:text="${resource.downloadCount}">45</span>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-transparent border-top-0 pt-0">
+                                        <div class="d-flex justify-content-between">
+                                            <a th:href="@{/v2/resources/view/{id}(id=${resource.id})}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> 查看
+                                            </a>
+                                            <a th:href="@{/v2/resources/download/{id}(id=${resource.id})}" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-download"></i> 下载
+                                            </a>
+                                            <span th:if="${resource.isPublic}" class="badge bg-success">
+                                                <i class="bi bi-globe"></i> 公开
+                                            </span>
+                                            <span th:unless="${resource.isPublic}" class="badge bg-secondary">
+                                                <i class="bi bi-lock"></i> 私有
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <nav aria-label="资源分页" th:if="${resources.size() > 0}">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                </li>
+                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                <li class="page-item">
+                                    <a class="page-link" href="#">下一页</a>
+                                </li>
+                            </ul>
+                        </nav>
+                        
+                        <!-- 空状态 -->
+                        <div th:if="${resources.size() == 0}" class="text-center py-5">
+                            <i class="bi bi-folder-x display-1 text-muted"></i>
+                            <h5 class="mt-3">暂无资源</h5>
+                            <p class="text-muted">还没有上传任何教学资源</p>
+                            <a th:href="@{/v2/resources/add}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i> 上传第一个资源
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        热门资源
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-danger p-2">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">体育健康知识手册</h6>
+                                        <small class="text-muted">PDF · 下载 128 次</small>
+                                    </div>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">下载</a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-primary p-2">
+                                            <i class="bi bi-file-earmark-word"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">篮球教学年度计划</h6>
+                                        <small class="text-muted">Word · 下载 95 次</small>
+                                    </div>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">下载</a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-success p-2">
+                                            <i class="bi bi-play-circle"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">足球基础技术教学</h6>
+                                        <small class="text-muted">视频 · 查看 210 次</small>
+                                    </div>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">观看</a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-warning p-2">
+                                            <i class="bi bi-file-earmark-ppt"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">田径训练课件</h6>
+                                        <small class="text-muted">PPT · 下载 76 次</small>
+                                    </div>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">下载</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // 资源分类点击事件
+            document.addEventListener('DOMContentLoaded', function() {
+                var categoryLinks = document.querySelectorAll('.list-group-item');
+                categoryLinks.forEach(function(link) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        categoryLinks.forEach(function(item) {
+                            item.classList.remove('active');
+                        });
+                        this.classList.add('active');
+                        // 这里可以加载对应分类的资源
+                        console.log('选择分类:', this.textContent.trim());
+                    });
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

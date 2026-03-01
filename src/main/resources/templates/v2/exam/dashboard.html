@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>期末成绩管理</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-plus-circle me-1"></i> 新增考试
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">期末考试成绩</a></li>
+                <li><a class="dropdown-item" href="#">期中考试成绩</a></li>
+                <li><a class="dropdown-item" href="#">模拟考试成绩</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#">自定义考试</a></li>
+            </ul>
+        </div>
+        <a th:href="@{/v2/exam/import}" class="btn btn-sm btn-primary">
+            <i class="bi bi-upload me-1"></i> 批量导入
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <h3><i class="bi bi-journal-text"></i></h3>
+                    <h4 th:text="${examCount} ?: '0'">0</h4>
+                    <p>考试场次</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <h3><i class="bi bi-trophy"></i></h3>
+                    <h4 th:text="${excellentCount} ?: '0'">0</h4>
+                    <p>优秀人数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <h3><i class="bi bi-exclamation-triangle"></i></h3>
+                    <h4 th:text="${failCount} ?: '0'">0</h4>
+                    <p>不及格人数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card purple">
+                    <h3><i class="bi bi-graph-up"></i></h3>
+                    <h4 th:text="${avgScore} ?: '0'">0</h4>
+                    <p>平均分</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>成绩分布分析</span>
+                        <select class="form-select form-select-sm w-auto" id="examSelect">
+                            <option>2024年期末考试</option>
+                            <option>2024年期中考试</option>
+                            <option>2023年期末考试</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div id="scoreDistributionChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        快速操作
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a th:href="@{/v2/exam/add}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i> 录入单科成绩
+                            </a>
+                            <a th:href="@{/v2/exam/import}" class="btn btn-outline-primary">
+                                <i class="bi bi-upload me-2"></i> Excel批量导入
+                            </a>
+                            <a th:href="@{/v2/exam/statistics/1}" class="btn btn-outline-success">
+                                <i class="bi bi-bar-chart me-2"></i> 查看统计分析
+                            </a>
+                            <a href="#" class="btn btn-outline-info">
+                                <i class="bi bi-printer me-2"></i> 打印成绩单
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        考试项目权重
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>篮球技能</span>
+                                <span>30%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-primary" style="width: 30%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>田径项目</span>
+                                <span>25%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success" style="width: 25%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>理论知识</span>
+                                <span>20%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-warning" style="width: 20%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>平时表现</span>
+                                <span>15%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-info" style="width: 15%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>出勤情况</span>
+                                <span>10%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-danger" style="width: 10%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>最近考试成绩</span>
+                <div class="d-flex">
+                    <select class="form-select form-select-sm me-2" style="width: 150px;">
+                        <option>全部班级</option>
+                        <option>高一(1)班</option>
+                        <option>高一(2)班</option>
+                    </select>
+                    <a th:href="@{/v2/exam/class/1}" class="btn btn-sm btn-outline-primary">
+                        查看全部 <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>班级</th>
+                                <th>考试名称</th>
+                                <th>考试日期</th>
+                                <th>篮球技能</th>
+                                <th>田径项目</th>
+                                <th>理论知识</th>
+                                <th>总分</th>
+                                <th>班级排名</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="record : ${recentRecords}">
+                                <td th:text="${record.student.name}">李四</td>
+                                <td th:text="${record.student.schoolClass.name}">高一(1)班</td>
+                                <td th:text="${record.examName}">2024年期末考试</td>
+                                <td th:text="${#dates.format(record.examDate, 'yyyy-MM-dd')}">2024-01-15</td>
+                                <td th:text="${record.project1Score}">85</td>
+                                <td th:text="${record.project2Score}">90</td>
+                                <td th:text="${record.project3Score}">88</td>
+                                <td>
+                                    <strong th:text="${record.totalScore}">263</strong>
+                                </td>
+                                <td>
+                                    <span th:if="${record.classRank <= 3}" class="badge bg-warning">
+                                        <i class="bi bi-trophy"></i> 第<span th:text="${record.classRank}">1</span>名
+                                    </span>
+                                    <span th:unless="${record.classRank <= 3}" th:text="${record.classRank}">5</span>
+                                </td>
+                                <td>
+                                    <a th:href="@{/v2/exam/edit/{id}(id=${record.id})}" class="btn btn-sm btn-outline-primary me-1">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a th:href="@{/v2/exam/statistics/1}" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-graph-up"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // 初始化ECharts图表 - 成绩分布
+            document.addEventListener('DOMContentLoaded', function() {
+                var chartDom = document.getElementById('scoreDistributionChart');
+                var myChart = echarts.init(chartDom);
+                
+                var option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'cross'
+                        }
+                    },
+                    legend: {
+                        data: ['人数分布']
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['0-59', '60-69', '70-79', '80-89', '90-100'],
+                        name: '分数段'
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '人数'
+                    },
+                    series: [
+                        {
+                            name: '人数分布',
+                            type: 'bar',
+                            data: [5, 12, 25, 30, 18],
+                            itemStyle: {
+                                color: function(params) {
+                                    var colorList = ['#e74c3c', '#f39c12', '#3498db', '#2ecc71', '#27ae60'];
+                                    return colorList[params.dataIndex];
+                                }
+                            }
+                        }
+                    ]
+                };
+                
+                myChart.setOption(option);
+                
+                // 响应窗口大小变化
+                window.addEventListener('resize', function() {
+                    myChart.resize();
+                });
+                
+                // 考试选择变化
+                document.getElementById('examSelect').addEventListener('change', function() {
+                    // 这里可以加载不同考试的数据
+                    console.log('考试选择变化:', this.value);
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

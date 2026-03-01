@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>v2.0 工作台</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <a th:href="@{/v2/overview}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-info-circle me-1"></i> 平台介绍
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row">
+            <!-- 统计卡片 -->
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <h2 th:text="${healthTestCount ?: 0}">0</h2>
+                    <p>体质测试记录</p>
+                    <i class="bi bi-heart-pulse fs-4"></i>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <h2 th:text="${examRecordCount ?: 0}">0</h2>
+                    <p>成绩记录</p>
+                    <i class="bi bi-clipboard-data fs-4"></i>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <h2 th:text="${resourceCount ?: 0}">0</h2>
+                    <p>教学资源</p>
+                    <i class="bi bi-folder fs-4"></i>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card purple">
+                    <h2 th:text="${studentCount ?: 0}">0</h2>
+                    <p>学生人数</p>
+                    <i class="bi bi-people fs-4"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <!-- 左边：最近活动和快速入口 -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-clock-history me-2"></i> 最近活动</span>
+                        <a href="#" class="btn btn-sm btn-outline-primary">查看更多</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">新增体质测试记录</h6>
+                                    <small class="text-muted">刚刚</small>
+                                </div>
+                                <p class="mb-1">张三 - 高一(1)班 - BMI: 21.5</p>
+                                <small class="text-muted">等级：优秀</small>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">录入期末考试成绩</h6>
+                                    <small class="text-muted">1小时前</small>
+                                </div>
+                                <p class="mb-1">李四 - 高一(2)班 - 总分：85.5分</p>
+                                <small class="text-muted">排名：班级第3名</small>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">上传教学资源</h6>
+                                    <small class="text-muted">今天</small>
+                                </div>
+                                <p class="mb-1">《篮球基础训练教案》 - 王老师</p>
+                                <small class="text-muted">已下载：12次</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-lightning-charge me-2"></i> 快速入口
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <a th:href="@{/v2/health-test/add}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-plus-circle d-block fs-2 mb-2"></i>
+                                    新增测试
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a th:href="@{/v2/exam/add}" class="btn btn-outline-success w-100">
+                                    <i class="bi bi-plus-circle d-block fs-2 mb-2"></i>
+                                    录入成绩
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a th:href="@{/v2/resources/add}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-upload d-block fs-2 mb-2"></i>
+                                    上传资源
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a th:href="@{/v2/health-test/import}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-file-earmark-excel d-block fs-2 mb-2"></i>
+                                    批量导入
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右边：系统公告和常用功能 -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-megaphone me-2"></i> 系统公告
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6>v2.0 平台已上线！</h6>
+                            <p class="small">欢迎使用全新的教学管理平台，更多功能持续开发中。</p>
+                        </div>
+                        <div class="alert alert-warning">
+                            <h6>数据备份提醒</h6>
+                            <p class="small">建议定期导出重要数据，防止意外丢失。</p>
+                        </div>
+                        <div class="alert alert-success">
+                            <h6>Excel模板更新</h6>
+                            <p class="small">体质测试Excel模板已更新，支持更多字段。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-star me-2"></i> 常用功能
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a th:href="@{/v2/health-test}" class="btn btn-outline-primary">
+                                <i class="bi bi-heart-pulse me-2"></i> 体质健康测试管理
+                            </a>
+                            <a th:href="@{/v2/exam}" class="btn btn-outline-success">
+                                <i class="bi bi-clipboard-data me-2"></i> 期末成绩管理
+                            </a>
+                            <a th:href="@{/v2/resources}" class="btn btn-outline-info">
+                                <i class="bi bi-folder me-2"></i> 备课资源库
+                            </a>
+                            <a href="#" class="btn btn-outline-secondary">
+                                <i class="bi bi-download me-2"></i> 数据报表导出
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-check me-2"></i> 今日待办
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="task1">
+                            <label class="form-check-label small" for="task1">
+                                录入高一(1)班体质测试数据
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="task2">
+                            <label class="form-check-label small" for="task2">
+                                整理期末考试成绩排名
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="task3">
+                            <label class="form-check-label small" for="task3">
+                                上传篮球教学课件
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="task4">
+                            <label class="form-check-label small" for="task4">
+                                分析班级BMI数据
+                            </label>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary w-100 mt-2">添加待办事项</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 图表区域 -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-bar-chart me-2"></i> 体质测试成绩分布
+                    </div>
+                    <div class="card-body">
+                        <div id="healthTestChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-pie-chart me-2"></i> 班级及格率统计
+                    </div>
+                    <div class="card-body">
+                        <div id="passRateChart" style="height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // 体质测试成绩分布图表
+                var healthTestChart = echarts.init(document.getElementById('healthTestChart'));
+                var healthTestOption = {
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['优秀', '良好', '及格', '不及格']
+                    },
+                    yAxis: {
+                        type: 'value'
+                    },
+                    series: [{
+                        data: [25, 40, 30, 5],
+                        type: 'bar',
+                        itemStyle: {
+                            color: function(params) {
+                                var colors = ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'];
+                                return colors[params.dataIndex];
+                            }
+                        }
+                    }]
+                };
+                healthTestChart.setOption(healthTestOption);
+                
+                // 班级及格率图表
+                var passRateChart = echarts.init(document.getElementById('passRateChart'));
+                var passRateOption = {
+                    tooltip: {
+                        trigger: 'item'
+                    },
+                    legend: {
+                        orient: 'vertical',
+                        left: 'right'
+                    },
+                    series: [
+                        {
+                            name: '及格率',
+                            type: 'pie',
+                            radius: '50%',
+                            data: [
+                                {value: 85, name: '高一(1)班'},
+                                {value: 78, name: '高一(2)班'},
+                                {value: 92, name: '高一(3)班'},
+                                {value: 65, name: '高一(4)班'}
+                            ],
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 10,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                }
+                            }
+                        }
+                    ]
+                };
+                passRateChart.setOption(passRateOption);
+                
+                // 窗口大小变化时重绘图表
+                window.addEventListener('resize', function() {
+                    healthTestChart.resize();
+                    passRateChart.resize();
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

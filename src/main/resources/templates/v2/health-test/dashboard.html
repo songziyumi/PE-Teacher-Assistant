@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>体质健康测试管理</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-download me-1"></i> 导出数据
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">导出为Excel</a></li>
+                <li><a class="dropdown-item" href="#">导出为PDF</a></li>
+            </ul>
+        </div>
+        <a th:href="@{/v2/health-test/import}" class="btn btn-sm btn-primary">
+            <i class="bi bi-upload me-1"></i> 批量导入
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <h3><i class="bi bi-people"></i></h3>
+                    <h4 th:text="${totalStudents} ?: '0'">0</h4>
+                    <p>测试学生总数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <h3><i class="bi bi-check-circle"></i></h3>
+                    <h4 th:text="${excellentCount} ?: '0'">0</h4>
+                    <p>优秀等级</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <h3><i class="bi bi-exclamation-triangle"></i></h3>
+                    <h4 th:text="${failCount} ?: '0'">0</h4>
+                    <p>不及格人数</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card purple">
+                    <h3><i class="bi bi-calendar-check"></i></h3>
+                    <h4 th:text="${latestTestDate} ?: '暂无'">暂无</h4>
+                    <p>最近测试日期</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>各班级测试情况</span>
+                        <select class="form-select form-select-sm w-auto">
+                            <option>本学期</option>
+                            <option>上学年</option>
+                            <option>全部</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div id="classChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        快速操作
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a th:href="@{/v2/health-test/add}" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i> 新增测试记录
+                            </a>
+                            <a th:href="@{/v2/health-test/import}" class="btn btn-outline-primary">
+                                <i class="bi bi-upload me-2"></i> Excel批量导入
+                            </a>
+                            <a href="#" class="btn btn-outline-success">
+                                <i class="bi bi-bar-chart me-2"></i> 查看统计分析
+                            </a>
+                            <a href="#" class="btn btn-outline-info">
+                                <i class="bi bi-printer me-2"></i> 打印测试报告
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        测试项目说明
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="bi bi-rulers text-primary me-2"></i>
+                                <strong>身高体重</strong> - 计算BMI指数
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-wind text-success me-2"></i>
+                                <strong>肺活量</strong> - 呼吸系统功能
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-speedometer2 text-warning me-2"></i>
+                                <strong>50米跑</strong> - 速度素质
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-arrow-left-right text-info me-2"></i>
+                                <strong>坐位体前屈</strong> - 柔韧素质
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-arrow-up-right text-danger me-2"></i>
+                                <strong>立定跳远</strong> - 爆发力
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>最近测试记录</span>
+                <a th:href="@{/v2/health-test/class/1}" class="btn btn-sm btn-outline-primary">
+                    查看全部 <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>班级</th>
+                                <th>测试日期</th>
+                                <th>BMI</th>
+                                <th>肺活量</th>
+                                <th>50米跑</th>
+                                <th>总分</th>
+                                <th>等级</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="record : ${recentRecords}">
+                                <td th:text="${record.student.name}">张三</td>
+                                <td th:text="${record.student.schoolClass.name}">高一(1)班</td>
+                                <td th:text="${#dates.format(record.testDate, 'yyyy-MM-dd')}">2024-03-01</td>
+                                <td th:text="${record.bmi}">21.5</td>
+                                <td th:text="${record.lungCapacity}">3500</td>
+                                <td th:text="${record.run50m}">7.5</td>
+                                <td th:text="${record.totalScore}">85</td>
+                                <td>
+                                    <span th:class="${'badge badge-' + (record.gradeLevel == '优秀' ? 'excellent' : 
+                                                                    record.gradeLevel == '良好' ? 'good' : 
+                                                                    record.gradeLevel == '及格' ? 'pass' : 'fail')}"
+                                          th:text="${record.gradeLevel}">良好</span>
+                                </td>
+                                <td>
+                                    <a th:href="@{/v2/health-test/edit/{id}(id=${record.id})}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // 初始化ECharts图表
+            document.addEventListener('DOMContentLoaded', function() {
+                var chartDom = document.getElementById('classChart');
+                var myChart = echarts.init(chartDom);
+                
+                var option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        }
+                    },
+                    legend: {
+                        data: ['优秀率', '及格率', '平均分']
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['高一(1)班', '高一(2)班', '高一(3)班', '高一(4)班', '高二(1)班', '高二(2)班']
+                    },
+                    yAxis: {
+                        type: 'value',
+                        max: 100
+                    },
+                    series: [
+                        {
+                            name: '优秀率',
+                            type: 'bar',
+                            data: [45, 52, 38, 60, 48, 55],
+                            itemStyle: {
+                                color: '#2ecc71'
+                            }
+                        },
+                        {
+                            name: '及格率',
+                            type: 'bar',
+                            data: [92, 88, 85, 95, 90, 93],
+                            itemStyle: {
+                                color: '#3498db'
+                            }
+                        },
+                        {
+                            name: '平均分',
+                            type: 'line',
+                            data: [78, 82, 75, 85, 80, 83],
+                            itemStyle: {
+                                color: '#e74c3c'
+                            }
+                        }
+                    ]
+                };
+                
+                myChart.setOption(option);
+                
+                // 响应窗口大小变化
+                window.addEventListener('resize', function() {
+                    myChart.resize();
+                });
+            });
+        </script>
+    </th:block>
+</body>
+</html>

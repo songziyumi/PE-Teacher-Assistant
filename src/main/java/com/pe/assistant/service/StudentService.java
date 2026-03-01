@@ -23,8 +23,8 @@ public class StudentService {
     }
 
     public Page<Student> findWithFilters(School school, Long classId, Long gradeId, String name,
-                                         String studentNo, String idCard, String electiveClass,
-                                         int page, int size) {
+            String studentNo, String idCard, String electiveClass,
+            int page, int size) {
         return studentRepository.findWithFilters(school, classId, gradeId, name, studentNo, idCard,
                 electiveClass, PageRequest.of(page, size, Sort.by("studentNo")));
     }
@@ -51,7 +51,7 @@ public class StudentService {
 
     @Transactional
     public Student create(String name, String gender, String studentNo, String idCard,
-                          String electiveClass, Long classId, School school) {
+            String electiveClass, Long classId, School school) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         Student s = new Student();
         s.setName(name);
@@ -66,39 +66,40 @@ public class StudentService {
 
     /**
      * 导入时：学号已存在则更新（含选修班），不存在则新建。
+     * 
      * @return true=新建，false=更新
      */
     @Transactional
     public boolean importCreateOrUpdate(String name, String gender, String studentNo, String idCard,
-                                        String electiveClass, Long classId, School school) {
+            String electiveClass, Long classId, School school) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         return studentRepository.findByStudentNoAndSchool(studentNo, school)
-            .map(s -> {
-                s.setName(name);
-                s.setGender(gender);
-                s.setIdCard(idCard);
-                s.setElectiveClass(electiveClass);
-                s.setSchoolClass(sc);
-                studentRepository.save(s);
-                return false;
-            })
-            .orElseGet(() -> {
-                Student s = new Student();
-                s.setName(name);
-                s.setGender(gender);
-                s.setStudentNo(studentNo);
-                s.setIdCard(idCard);
-                s.setElectiveClass(electiveClass);
-                s.setSchoolClass(sc);
-                s.setSchool(school);
-                studentRepository.save(s);
-                return true;
-            });
+                .map(s -> {
+                    s.setName(name);
+                    s.setGender(gender);
+                    s.setIdCard(idCard);
+                    s.setElectiveClass(electiveClass);
+                    s.setSchoolClass(sc);
+                    studentRepository.save(s);
+                    return false;
+                })
+                .orElseGet(() -> {
+                    Student s = new Student();
+                    s.setName(name);
+                    s.setGender(gender);
+                    s.setStudentNo(studentNo);
+                    s.setIdCard(idCard);
+                    s.setElectiveClass(electiveClass);
+                    s.setSchoolClass(sc);
+                    s.setSchool(school);
+                    studentRepository.save(s);
+                    return true;
+                });
     }
 
     @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
-                          String idCard, String electiveClass, Long classId) {
+            String idCard, String electiveClass, Long classId) {
         Student s = studentRepository.findById(id).orElseThrow();
         s.setName(name);
         s.setGender(gender);
@@ -130,7 +131,7 @@ public class StudentService {
     @Transactional
     public void updateElectiveByStudentNo(String studentNo, String electiveClass) {
         Student s = studentRepository.findByStudentNo(studentNo)
-            .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
+                .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
         s.setElectiveClass(electiveClass);
         studentRepository.save(s);
     }
@@ -146,5 +147,15 @@ public class StudentService {
     public void deleteAll() {
         attendanceRepository.deleteAll();
         studentRepository.deleteAll();
+    }
+
+    // 统计教师相关的学生数量
+    public Long countByTeacher(Teacher teacher) {
+        // 这里简化实现：获取教师所在学校的所有学生
+        // 实际应用中应该根据教师管理的班级来统计
+        if (teacher.getSchool() != null) {
+            return studentRepository.countBySchool(teacher.getSchool());
+        }
+        return studentRepository.count();
     }
 }

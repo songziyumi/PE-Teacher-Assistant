@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="v2/layout :: layout(~{::title}, ~{::pageActions}, ~{::content})">
+<head>
+    <title>平台概览</title>
+</head>
+<body>
+    <th:block th:fragment="pageActions">
+        <a th:href="@{/dashboard}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> 返回旧版
+        </a>
+    </th:block>
+    
+    <th:block th:fragment="content">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-info-circle me-2"></i> v2.0 教学管理平台介绍
+                    </div>
+                    <div class="card-body">
+                        <h5>欢迎使用体育教师助手 v2.0 教学管理平台！</h5>
+                        <p class="text-muted">
+                            本平台是基于原有v1.x版本的全新升级，专注于体育教学管理的核心功能，
+                            提供更专业、更高效的教学管理工具。
+                        </p>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-header bg-primary text-white">
+                                        <i class="bi bi-heart-pulse me-2"></i> 体质健康测试
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title">全面管理学生体质健康</h6>
+                                        <p class="card-text small">
+                                            • 支持教育部标准测试项目<br>
+                                            • 自动计算BMI和等级评定<br>
+                                            • Excel批量导入导出<br>
+                                            • 学生成长曲线分析
+                                        </p>
+                                        <a th:href="@{/v2/health-test}" class="btn btn-sm btn-outline-primary">
+                                            开始使用 <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card border-success mb-3">
+                                    <div class="card-header bg-success text-white">
+                                        <i class="bi bi-clipboard-data me-2"></i> 期末成绩管理
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title">智能化成绩管理系统</h6>
+                                        <p class="card-text small">
+                                            • 自定义考试项目和权重<br>
+                                            • 自动排名和统计分析<br>
+                                            • 不及格预警系统<br>
+                                            • 成绩分布可视化
+                                        </p>
+                                        <a th:href="@{/v2/exam}" class="btn btn-sm btn-outline-success">
+                                            开始使用 <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card border-info mb-3">
+                                    <div class="card-header bg-info text-white">
+                                        <i class="bi bi-folder me-2"></i> 备课资源库
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title">共享教学资源平台</h6>
+                                        <p class="card-text small">
+                                            • 教案、课件、视频资源管理<br>
+                                            • 分类存储和快速检索<br>
+                                            • 公开/私有权限控制<br>
+                                            • 资源下载统计
+                                        </p>
+                                        <a th:href="@{/v2/resources}" class="btn btn-sm btn-outline-info">
+                                            开始使用 <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card border-warning mb-3">
+                                    <div class="card-header bg-warning text-white">
+                                        <i class="bi bi-bar-chart me-2"></i> 成绩统计分析
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title">数据驱动的教学分析</h6>
+                                        <p class="card-text small">
+                                            • ECharts可视化图表<br>
+                                            • 班级/年级对比分析<br>
+                                            • 教学效果评估<br>
+                                            • 学期报告生成
+                                        </p>
+                                        <a href="#" class="btn btn-sm btn-outline-warning">
+                                            即将上线 <i class="bi bi-clock"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-lightning-charge me-2"></i> 快速开始
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <a th:href="@{/v2/health-test/add}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">录入体质测试数据</h6>
+                                    <small class="text-muted">3分钟</small>
+                                </div>
+                                <p class="mb-1 small text-muted">为单个学生录入体质健康测试数据</p>
+                            </a>
+                            <a th:href="@{/v2/health-test/import}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">批量导入Excel数据</h6>
+                                    <small class="text-muted">5分钟</small>
+                                </div>
+                                <p class="mb-1 small text-muted">通过Excel模板批量导入测试数据</p>
+                            </a>
+                            <a th:href="@{/v2/exam/add}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">录入期末考试成绩</h6>
+                                    <small class="text-muted">2分钟</small>
+                                </div>
+                                <p class="mb-1 small text-muted">为单个学生录入期末考试成绩</p>
+                            </a>
+                            <a th:href="@{/v2/resources/add}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">上传教学资源</h6>
+                                    <small class="text-muted">2分钟</small>
+                                </div>
+                                <p class="mb-1 small text-muted">上传教案、课件等教学资源</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-check me-2"></i> 开发路线图
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline">
+                            <div class="timeline-item completed">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">v1.x 基础平台</h6>
+                                    <small class="text-muted">已完成 · 多租户管理、考勤系统</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item current">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">v2.0 教学管理</h6>
+                                    <small class="text-muted">进行中 · 体质测试、成绩管理、资源库</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">v3.0 学生互动</h6>
+                                    <small class="text-muted">规划中 · 选修课抢课、作业系统</small>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">v4.0 活动管理</h6>
+                                    <small class="text-muted">规划中 · 运动会、校内比赛管理</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <i class="bi bi-question-circle me-2"></i> 需要帮助？
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="#" class="btn btn-outline-primary">
+                                <i class="bi bi-book me-2"></i> 使用文档
+                            </a>
+                            <a href="#" class="btn btn-outline-success">
+                                <i class="bi bi-download me-2"></i> 下载Excel模板
+                            </a>
+                            <a href="#" class="btn btn-outline-info">
+                                <i class="bi bi-chat-dots me-2"></i> 联系技术支持
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            .timeline {
+                position: relative;
+                padding-left: 30px;
+            }
+            
+            .timeline::before {
+                content: '';
+                position: absolute;
+                left: 15px;
+                top: 0;
+                bottom: 0;
+                width: 2px;
+                background-color: #e9ecef;
+            }
+            
+            .timeline-item {
+                position: relative;
+                margin-bottom: 20px;
+            }
+            
+            .timeline-marker {
+                position: absolute;
+                left: -30px;
+                top: 5px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background-color: #6c757d;
+                border: 3px solid white;
+            }
+            
+            .timeline-item.completed .timeline-marker {
+                background-color: #2ecc71;
+            }
+            
+            .timeline-item.current .timeline-marker {
+                background-color: #3498db;
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(52, 152, 219, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0); }
+            }
+        </style>
+    </th:block>
+</body>
+</html>
