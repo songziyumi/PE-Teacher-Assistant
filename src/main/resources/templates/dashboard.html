@@ -44,6 +44,8 @@
             <div class="class-card-actions">
                 <a th:href="@{/attendance/class/{id}(id=${cls.id})}" class="btn btn-primary">考勤登记</a>
                 <a th:href="@{/teacher/students/class/{id}(id=${cls.id})}" class="btn btn-secondary">学生列表</a>
+                <a th:href="@{/teacher/physical-tests(classId=${cls.id})}" class="btn btn-secondary">体质测试</a>
+                <a th:href="@{/teacher/term-grades(classId=${cls.id})}" class="btn btn-secondary">成绩录入</a>
             </div>
         </div>
     </div>
@@ -62,6 +64,8 @@
             <div class="class-card-actions">
                 <a th:href="@{/attendance/class/{id}(id=${ec.id})}" class="btn btn-primary">考勤登记</a>
                 <a th:href="@{/teacher/students/class/{id}(id=${ec.id})}" class="btn btn-secondary">学生列表</a>
+                <a th:href="@{/teacher/physical-tests(classId=${ec.id})}" class="btn btn-secondary">体质测试</a>
+                <a th:href="@{/teacher/term-grades(classId=${ec.id})}" class="btn btn-secondary">成绩录入</a>
             </div>
         </div>
     </div>

@@ -18,29 +18,33 @@
 ```
 src/main/java/com/pe/assistant/
 ├── config/          # 配置类（Security、数据初始化）
-├── controller/      # 控制器（Admin、Attendance、Auth、Dashboard、Student、SuperAdmin）
-├── entity/          # 实体类（Teacher、Student、SchoolClass、Grade、Attendance、School）
+├── controller/      # 控制器（Admin、Attendance、Auth、Dashboard、Student、SuperAdmin、
+│                    #         PhysicalTest、TeacherPhysicalTest、TermGrade、TeacherTermGrade）
+├── entity/          # 实体类（Teacher、Student、SchoolClass、Grade、Attendance、School、
+│                    #         PhysicalTest、TermGrade）
 ├── repository/      # JPA Repository 接口
 ├── security/        # Spring Security 用户认证
-├── service/         # 业务逻辑（Attendance、Class、Grade、Student、Teacher、School、CurrentUser）
+├── service/         # 业务逻辑（Attendance、Class、Grade、Student、Teacher、School、CurrentUser、
+│                    #           PhysicalTest、PhysicalScoring、TermGrade）
 └── PeTeacherAssistantApplication.java
 
 src/main/resources/
 ├── application.yml          # 应用配置
 ├── static/css/style.css     # 样式文件
 └── templates/               # Thymeleaf 模板
-    ├── admin/               # 管理员页面（班级、学生、教师、成绩、考勤、导入、统计）
+    ├── admin/               # 管理员页面（班级、学生、教师、成绩、考勤、导入、统计、
+    │                        #             体质健康测试、期末成绩管理）
     ├── auth/                # 登录页面
     ├── super-admin/         # 超级管理员页面（学校管理、管理员设置）
-    ├── teacher/             # 教师页面（考勤、学生列表）
+    ├── teacher/             # 教师页面（考勤、学生列表、体质测试录入、成绩录入）
     ├── fragments/           # 公共片段（footer 版本号）
     ├── dashboard.html       # 首页仪表盘
     └── layout.html          # 公共布局
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v1.4.0
-- `feature/v1.5`：当前开发分支
+- `main`：主分支（生产），当前版本 v2.0
+- `explore-1.5.2`：当前开发分支
 
 ## 常用命令
 ```bash
@@ -77,9 +81,18 @@ mvn test
 - 导入教师分配班级时，`AdminController.matchesClass()` 支持 4 种格式匹配：`"篮球"`、`"高二篮球"`、`"高二/篮球"`、`"高二 篮球"`
 - 批量导入反馈消息区分 `count`（新增）与 `skipDup`（已存在跳过），并列出前 20 条重复班级名称便于核查
 - 清空考勤：`AttendanceRepository` 提供 `@Modifying deleteAllBySchool(School)`，管理员可在导入页一键清空本校全部考勤记录
+- **体质健康测试**：`PhysicalTest` 实体唯一约束 `(student_id, academic_year, semester)`；`PhysicalScoringService` 按教育部2014标准评分（高中段，BMI 15% + 肺活量 15% + 50米跑 20% + 坐位体前屈 10% + 立定跳远 10% + 引体向上/仰卧起坐 10% + 1000m/800m 20%）；管理员路由 `/admin/physical-tests/**`，教师路由 `/teacher/physical-tests/**`（按班级批量录入）；录入页 JS 按性别禁用不适用字段（男→仰卧起坐/800m 禁用，女→引体向上/1000m 禁用），使用 `readOnly` 而非 `disabled` 以保持并行数组对齐
+- **期末成绩管理**：`TermGrade` 实体唯一约束 `(student_id, academic_year, semester)`；综合分 = 出勤40% + 技能40% + 理论20%（空项按权重比例重分配）；管理员路由 `/admin/term-grades/**`，教师路由 `/teacher/term-grades/**`（按班级批量录入）
+- **redirect URL 规范**：教师录入页 save-batch 使用 `URLEncoder.encode(semester, UTF_8)` 编码中文参数后再拼入 redirect，避免 HTTP Location 头含裸 UTF-8 导致浏览器停在 POST URL；所有 saveBatch 控制器方法均包 try-catch，确保无论成功失败都执行重定向
+- **教师录入页学年默认值**：必须在学生查询 `if (classId != null)` 块**之前**计算，否则首次进入时 `academicYear` 为空导致学生列表不加载
 
 ## 版本历史
-- `v1.5.0`（开发中）：选修班年级隔离与批量导入增强
+- `v2.0`：教学管理功能层
+  - 新增**体质健康测试**模块：管理员列表/导入/导出，教师按班级批量录入；内置教育部2014标准评分（高中段全项目）；录入页按性别自动禁用不适用字段
+  - 新增**期末成绩管理**模块：管理员列表/编辑/导入/导出，教师按班级批量录入；综合分自动计算（出勤40% + 技能40% + 理论20%）；等级自动判定（优秀/良好/及格/不及格）
+  - 教师首页班级卡片新增「体质测试」「成绩录入」快捷入口
+  - 修复 redirect URL 含中文学期名称导致浏览器停留在 POST URL 的问题
+- `v1.5.1`（原 explore-1.5.2 分支）：学生管理增强与UI优化
   - 选修班严格按 `"年级/班级名"` 精确匹配，`StudentController`/`AttendanceController` 从 IN 查询改为单值精确查询，修复跨年级同名选修班数据污染
   - 修复教师修改学生选修班后列表不刷新的问题（根因同上）
   - 批量导入班级：自动创建缺失年级；修复 FORMULA 单元格读取为空；选修课重复判断加入年级维度

@@ -49,6 +49,10 @@ public class StudentService {
         return studentRepository.findAllElectiveClassNames(school);
     }
 
+    public List<Student> findBySchool(School school) {
+        return studentRepository.findBySchoolOrderByStudentNo(school);
+    }
+
     @Transactional
     public Student create(String name, String gender, String studentNo, String idCard,
                           String electiveClass, Long classId, School school) {
