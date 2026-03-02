@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, pageActions, content)">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -155,13 +155,13 @@
                             <small class="text-muted ps-3">教学管理</small>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" th:href="@{/v2/health-test}" th:classappend="${#httpServletRequest.requestURI.contains('health-test')} ? 'active'">
+                            <a class="nav-link" th:href="@{/v2/health-test}" th:classappend="${#request.requestURI.contains('health-test')} ? 'active'">
                                 <i class="bi bi-heart-pulse me-2"></i>
                                 体质健康测试
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" th:href="@{/v2/exam}" th:classappend="${#httpServletRequest.requestURI.contains('exam')} ? 'active'">
+                            <a class="nav-link" th:href="@{/v2/exam}" th:classappend="${#request.requestURI.contains('exam')} ? 'active'">
                                 <i class="bi bi-clipboard-data me-2"></i>
                                 期末成绩管理
                             </a>
@@ -171,7 +171,7 @@
                             <small class="text-muted ps-3">教学资源</small>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" th:href="@{/v2/resources}" th:classappend="${#httpServletRequest.requestURI.contains('resources')} ? 'active'">
+                            <a class="nav-link" th:href="@{/v2/resources}" th:classappend="${#request.requestURI.contains('resources')} ? 'active'">
                                 <i class="bi bi-folder me-2"></i>
                                 备课资源库
                             </a>
@@ -213,7 +213,7 @@
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2" th:text="${pageTitle} ?: '教学管理平台'"></h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
-                        <th:block th:insert="${pageActions} ?: ''"></th:block>
+                        <th:block th:replace="${pageActions}"></th:block>
                     </div>
                 </div>
                 
@@ -230,7 +230,7 @@
                 </div>
                 
                 <!-- 页面内容 -->
-                <th:block th:insert="${content}"></th:block>
+                <th:block th:replace="${content}"></th:block>
             </main>
         </div>
     </div>

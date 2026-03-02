@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 体育教师助手</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="login-page">
+<div class="login-container">
+    <div class="login-header">
+        <div class="login-icon">🏃</div>
+        <h1>体育教师助手</h1>
+        <p>PE Teacher Assistant</p>
+    </div>
+    
+    
+    
+    <form action="/login" method="post" class="login-form"><input type="hidden" name="_csrf" value="Q_sFGSYS4hOeCm8kpKBV7NvLv1SF6yvTNQAAxaldwmWb0xOId55geBd21HezaF4clY1h1bj_km3g0h3-BjIyoJFr8gH-43a_"/>
+        <div class="form-group">
+            <label>用户名</label>
+            <input type="text" name="username" placeholder="请输入用户名" required autofocus>
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" name="password" placeholder="请输入密码" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">登 录</button>
+    </form>
+    <div class="login-hint">
+        <small>教师登录用户名为手机号码</small>
+    </div>
+</div>
+<footer class="site-footer">
+    
+    <span>v1.5.1</span>
+
+    <span class="footer-sep">|</span>
+    <span>© 2026 陈胜松 版权所有</span>
+</footer>
+</body>
+</html>

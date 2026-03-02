@@ -23,7 +23,15 @@ public class V2DashboardController {
 
     @GetMapping("/dashboard")
     public String v2Dashboard(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        if (userDetails == null) {
+            return "redirect:/login";
+        }
+
         Teacher teacher = teacherService.findByUsername(userDetails.getUsername());
+        if (teacher == null) {
+            return "redirect:/login";
+        }
+
         if ("SUPER_ADMIN".equals(teacher.getRole())) {
             return "redirect:/super-admin/schools";
         }
@@ -36,17 +44,25 @@ public class V2DashboardController {
 
         model.addAttribute("teacher", teacher);
         model.addAttribute("pageTitle", "v2.0 教学管理平台");
-        model.addAttribute("healthTestCount", healthTestCount);
-        model.addAttribute("examRecordCount", examRecordCount);
-        model.addAttribute("resourceCount", resourceCount);
-        model.addAttribute("studentCount", studentCount);
+        model.addAttribute("healthTestCount", healthTestCount != null ? healthTestCount : 0L);
+        model.addAttribute("examRecordCount", examRecordCount != null ? examRecordCount : 0L);
+        model.addAttribute("resourceCount", resourceCount != null ? resourceCount : 0L);
+        model.addAttribute("studentCount", studentCount != null ? studentCount : 0L);
 
         return "v2/dashboard";
     }
 
     @GetMapping("/overview")
     public String overview(@AuthenticationPrincipal UserDetails userDetails, Model model) {
+        if (userDetails == null) {
+            return "redirect:/login";
+        }
+
         Teacher teacher = teacherService.findByUsername(userDetails.getUsername());
+        if (teacher == null) {
+            return "redirect:/login";
+        }
+
         model.addAttribute("teacher", teacher);
         model.addAttribute("pageTitle", "平台概览");
 
