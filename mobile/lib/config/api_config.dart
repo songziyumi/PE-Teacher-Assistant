@@ -3,7 +3,8 @@
 // 生产环境换成域名，如 https://your-domain.com
 
 class ApiConfig {
-  static String baseUrl = 'http://10.0.2.2:8080'; // Android 模拟器默认指向 PC localhost
+  // 修改为你的公网服务器地址
+  static String baseUrl = 'http://175.24.131.74:8080'; // 你的公网服务器
 
   static String get apiBase => '$baseUrl/api';
   static String get loginUrl => '$apiBase/auth/login';

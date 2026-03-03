@@ -13,13 +13,16 @@ import 'screens/admin/physical_list.dart';
 import 'screens/admin/grade_list.dart';
 
 GoRouter buildRouter(AuthProvider auth) => GoRouter(
+      initialLocation: '/login',
       refreshListenable: auth,
       redirect: (context, state) {
         if (auth.loading) return null;
         final loggedIn = auth.isLoggedIn;
-        final onLogin = state.matchedLocation == '/login';
+        final loc = state.matchedLocation;
+        final onLogin = loc == '/login';
         if (!loggedIn && !onLogin) return '/login';
         if (loggedIn && onLogin) return auth.isAdmin ? '/admin' : '/teacher';
+        if (loggedIn && loc == '/') return auth.isAdmin ? '/admin' : '/teacher';
         return null;
       },
       routes: [

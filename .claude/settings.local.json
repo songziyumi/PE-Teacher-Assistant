@@ -6,7 +6,15 @@
       "Bash(python:*)",
       "Bash(powershell:*)",
       "Bash(flutter create:*)",
-      "Bash(where flutter:*)"
+      "Bash(where flutter:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(/tmp/install_flutter.ps1:*)",
+      "Bash(/tmp/check.ps1:*)",
+      "Bash(/tmp/dl_flutter.ps1:*)",
+      "Bash(/tmp/prog.ps1:*)",
+      "Bash(/tmp/setpath.ps1:*)",
+      "Bash(\"D:/flutter/bin/cache/dart-sdk/bin/dart.exe\":*)"
     ]
   }
 }
