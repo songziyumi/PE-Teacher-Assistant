@@ -1,5 +1,8 @@
 app:
-  version: 1.5.1
+  version: 1.5.3
+  jwt:
+    secret: pe-teacher-assistant-jwt-secret-key-2026-change-in-production
+    expiration: 86400000
 
 spring:
   jpa:

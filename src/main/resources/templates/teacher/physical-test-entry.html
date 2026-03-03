@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体质健康测试录入 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .filter-bar {
+            background: #f8f9fa; padding: 1rem; border-radius: 8px;
+            margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;
+        }
+        .filter-bar .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+        .filter-bar label { font-size: 0.85rem; font-weight: 600; color: #555; }
+        .filter-bar select, .filter-bar input[type=text] {
+            padding: 0.4rem 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;
+        }
+        .table-scroll { overflow-x: auto; }
+        .entry-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+        .entry-table th {
+            background: #2c3e50; color: #fff; padding: 0.5rem 0.4rem;
+            text-align: center; white-space: nowrap; position: sticky; top: 0; z-index: 1;
+        }
+        .entry-table td { padding: 0.3rem 0.3rem; border-bottom: 1px solid #eee; vertical-align: middle; }
+        .entry-table tr:hover { background: #f8f9fa; }
+        .entry-table input[type=number] {
+            width: 75px; padding: 0.28rem 0.3rem; border: 1px solid #ccc; border-radius: 3px;
+            font-size: 0.82rem; text-align: center;
+        }
+        .entry-table input[type=date] {
+            width: 120px; padding: 0.28rem 0.3rem; border: 1px solid #ccc; border-radius: 3px; font-size: 0.82rem;
+        }
+        .entry-table input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,.2); }
+        .col-male { background: #eaf4ff; }
+        .col-female { background: #fff0f5; }
+        .col-name { font-weight: 600; min-width: 70px; }
+        .col-no { font-family: monospace; font-size: 0.78rem; color: #666; }
+        .level-badge {
+            display: inline-block; font-size: 0.7rem; padding: 1px 5px;
+            border-radius: 3px; color: #fff; white-space: nowrap;
+        }
+        .level-优秀 { background: #27ae60; }
+        .level-良好 { background: #2980b9; }
+        .level-及格 { background: #f39c12; }
+        .level-不及格 { background: #e74c3c; }
+        .save-bar {
+            position: sticky; bottom: 0; background: #fff; padding: 0.8rem 1rem;
+            border-top: 2px solid #e9ecef; display: flex; gap: 1rem; align-items: center;
+            box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+        }
+        .info-tip { font-size: 0.82rem; color: #888; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/dashboard}">首页</a>
+        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header">
+        <h2>体质健康测试录入</h2>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <!-- 班级 / 学年 / 学期 选择 -->
+    <form method="get" th:action="@{/teacher/physical-tests}" class="filter-bar">
+        <div class="form-group">
+            <label>班级</label>
+            <select name="classId" onchange="this.form.submit()">
+                <option value="">-- 选择班级 --</option>
+                <option th:each="cls : ${myClasses}"
+                        th:value="${cls.id}"
+                        th:text="${(cls.grade != null ? cls.grade.name + ' ' : '') + cls.name}"
+                        th:selected="${classId != null and classId == cls.id}"></option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>学年</label>
+            <input type="text" name="academicYear" th:value="${academicYear}" placeholder="如 2025-2026" style="width:120px">
+        </div>
+        <div class="form-group">
+            <label>学期</label>
+            <select name="semester">
+                <option value="上学期" th:selected="${semester == '上学期'}">上学期</option>
+                <option value="下学期" th:selected="${semester == '下学期'}">下学期</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">查询</button>
+    </form>
+
+    <!-- 录入表格 -->
+    <th:block th:if="${classId != null and not #lists.isEmpty(students)}">
+        <form method="post" th:action="@{/teacher/physical-tests/save-batch}">
+            <input type="hidden" name="classId" th:value="${classId}">
+            <input type="hidden" name="academicYear" th:value="${academicYear}">
+            <input type="hidden" name="semester" th:value="${semester}">
+
+            <div class="table-scroll">
+                <table class="entry-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>姓名</th>
+                            <th>学号</th>
+                            <th>性别</th>
+                            <th>测试日期</th>
+                            <th>身高(cm)</th>
+                            <th>体重(kg)</th>
+                            <th>肺活量(mL)</th>
+                            <th>50米跑(秒)</th>
+                            <th>坐位体前屈(cm)</th>
+                            <th>立定跳远(cm)</th>
+                            <th class="col-male">引体向上(个)<br><small style="font-weight:normal">男</small></th>
+                            <th class="col-female">仰卧起坐(个/min)<br><small style="font-weight:normal">女</small></th>
+                            <th class="col-male">1000米跑(秒)<br><small style="font-weight:normal">男</small></th>
+                            <th class="col-female">800米跑(秒)<br><small style="font-weight:normal">女</small></th>
+                            <th>评级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="stu, iter : ${students}" th:data-gender="${stu.gender}">
+                            <td style="text-align:center;color:#aaa;font-size:0.78rem"
+                                th:text="${iter.count}"></td>
+                            <td class="col-name">
+                                <input type="hidden" name="studentIds" th:value="${stu.id}">
+                                <span th:text="${stu.name}"></span>
+                            </td>
+                            <td class="col-no" th:text="${stu.studentNo}"></td>
+                            <td style="text-align:center" th:text="${stu.gender}"></td>
+                            <td>
+                                <input type="date" name="testDateList"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].testDate : ''}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.1" min="100" max="250" name="heightList"
+                                       placeholder="cm"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].height : ''}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.1" min="20" max="200" name="weightList"
+                                       placeholder="kg"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].weight : ''}">
+                            </td>
+                            <td>
+                                <input type="number" min="500" max="9999" name="lungList"
+                                       placeholder="mL"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].lungCapacity : ''}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" min="4" max="20" name="sprint50mList"
+                                       placeholder="秒"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].sprint50m : ''}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.1" min="-20" max="60" name="sitReachList"
+                                       placeholder="cm"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].sitReach : ''}">
+                            </td>
+                            <td>
+                                <input type="number" step="0.1" min="50" max="400" name="jumpList"
+                                       placeholder="cm"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].standingJump : ''}">
+                            </td>
+                            <td class="col-male">
+                                <input type="number" min="0" max="50" name="pullUpsList"
+                                       placeholder="个"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].pullUps : ''}">
+                            </td>
+                            <td class="col-female">
+                                <input type="number" min="0" max="100" name="sitUpsList"
+                                       placeholder="个/min"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].sitUps : ''}">
+                            </td>
+                            <td class="col-male">
+                                <input type="number" step="0.1" min="100" max="600" name="run1000mList"
+                                       placeholder="秒"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].run1000m : ''}">
+                            </td>
+                            <td class="col-female">
+                                <input type="number" step="0.1" min="100" max="500" name="run800mList"
+                                       placeholder="秒"
+                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].run800m : ''}">
+                            </td>
+                            <td style="text-align:center">
+                                <span th:if="${existingMap[stu.id] != null}"
+                                      th:text="${existingMap[stu.id].level}"
+                                      th:class="'level-badge level-' + ${existingMap[stu.id].level}"></span>
+                                <span th:unless="${existingMap[stu.id] != null}"
+                                      style="color:#ddd;font-size:0.78rem">—</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="save-bar">
+                <button type="submit" class="btn btn-primary">💾 保存全班记录</button>
+                <span class="info-tip">
+                    共 <strong th:text="${#lists.size(students)}"></strong> 名学生 &nbsp;·&nbsp;
+                    学年 <strong th:text="${academicYear}"></strong> &nbsp;·&nbsp;
+                    <strong th:text="${semester}"></strong>
+                    &nbsp;·&nbsp; 空白项保持不变，已填项将覆盖原记录
+                </span>
+            </div>
+        </form>
+    </th:block>
+
+    <div th:if="${classId == null}" class="empty-state" style="margin-top:2rem">
+        <p>请先选择班级、填写学年后点击"查询"</p>
+    </div>
+    <div th:if="${classId != null and #lists.isEmpty(students)}" class="empty-state" style="margin-top:2rem">
+        <p>该班级暂无学生</p>
+    </div>
+</div>
+<footer class="site-footer">
+    <th:block th:replace="~{fragments/footer :: version}"></th:block>
+    <span class="footer-sep">|</span>
+    <span>© 2026 陈胜松 版权所有</span>
+</footer>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('tbody tr[data-gender]').forEach(function (tr) {
+        const gender = tr.dataset.gender;
+        // 男生禁用 col-female（仰卧起坐、800m），女生禁用 col-male（引体向上、1000m）
+        const blockCells = gender === '男'
+            ? tr.querySelectorAll('td.col-female')
+            : gender === '女'
+                ? tr.querySelectorAll('td.col-male')
+                : [];
+        blockCells.forEach(function (td) {
+            td.style.background = '#f0f0f0';
+            const inp = td.querySelector('input');
+            if (inp) {
+                inp.value = '';
+                inp.readOnly = true;
+                inp.placeholder = '—';
+                inp.style.cssText = 'background:#f0f0f0;color:#bbb;cursor:not-allowed';
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>

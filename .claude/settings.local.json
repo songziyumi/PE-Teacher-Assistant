@@ -21,7 +21,19 @@
       "Bash(ssh:*)",
       "Bash(scp:*)",
       "WebFetch(domain:175.24.131.74)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mvn compile:*)",
+      "Bash(python3:*)",
+      "Bash(flutter create:*)",
+      "Bash(where flutter:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(/tmp/install_flutter.ps1:*)",
+      "Bash(/tmp/check.ps1:*)",
+      "Bash(/tmp/dl_flutter.ps1:*)",
+      "Bash(/tmp/prog.ps1:*)",
+      "Bash(/tmp/setpath.ps1:*)",
+      "Bash(\"D:/flutter/bin/cache/dart-sdk/bin/dart.exe\":*)"
     ]
   }
 }

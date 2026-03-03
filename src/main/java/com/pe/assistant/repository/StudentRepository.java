@@ -55,4 +55,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     List<String> findAllElectiveClassNames(@Param("school") School school);
 
     long countBySchool(School school);
+
+    List<Student> findBySchoolOrderByStudentNo(School school);
 }

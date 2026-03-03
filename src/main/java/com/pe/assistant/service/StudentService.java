@@ -9,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,10 @@ public class StudentService {
         return studentRepository.findById(id).orElseThrow();
     }
 
+    public Optional<Student> findByIdOptional(Long id) {
+        return studentRepository.findById(id);
+    }
+
     public List<Student> findByElectiveClass(String electiveClass) {
         return studentRepository.findByElectiveClassOrderByStudentNo(electiveClass);
     }
@@ -47,6 +52,10 @@ public class StudentService {
 
     public List<String> findAllElectiveClassNames(School school) {
         return studentRepository.findAllElectiveClassNames(school);
+    }
+
+    public List<Student> findBySchool(School school) {
+        return studentRepository.findBySchoolOrderByStudentNo(school);
     }
 
     @Transactional
