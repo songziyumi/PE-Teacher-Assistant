@@ -15,7 +15,7 @@ import java.util.Optional;
 
 public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
 
-    @Query(value = "SELECT DISTINCT t FROM TermGrade t " +
+    @Query(value = "SELECT t FROM TermGrade t " +
                    "LEFT JOIN t.student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g " +
                    "WHERE t.school = :school " +
                    "AND (:classId IS NULL OR sc.id = :classId) " +
@@ -25,7 +25,7 @@ public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
                    "AND (:keyword = '' OR s.name LIKE CONCAT('%',:keyword,'%') " +
                    "  OR s.studentNo LIKE CONCAT('%',:keyword,'%')) " +
                    "ORDER BY g.name, sc.name, s.studentNo",
-           countQuery = "SELECT COUNT(DISTINCT t) FROM TermGrade t " +
+           countQuery = "SELECT COUNT(t) FROM TermGrade t " +
                         "LEFT JOIN t.student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g " +
                         "WHERE t.school = :school " +
                         "AND (:classId IS NULL OR sc.id = :classId) " +
