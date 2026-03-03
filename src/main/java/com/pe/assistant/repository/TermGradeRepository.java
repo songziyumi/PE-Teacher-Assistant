@@ -16,21 +16,24 @@ import java.util.Optional;
 public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
 
     @Query(value = "SELECT DISTINCT t FROM TermGrade t " +
+                   "LEFT JOIN t.student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g " +
                    "WHERE t.school = :school " +
-                   "AND (:classId IS NULL OR t.student.schoolClass.id = :classId) " +
-                   "AND (:gradeId IS NULL OR t.student.schoolClass.grade.id = :gradeId) " +
+                   "AND (:classId IS NULL OR sc.id = :classId) " +
+                   "AND (:gradeId IS NULL OR g.id = :gradeId) " +
                    "AND (:academicYear = '' OR t.academicYear = :academicYear) " +
                    "AND (:semester = '' OR t.semester = :semester) " +
-                   "AND (:keyword = '' OR t.student.name LIKE CONCAT('%',:keyword,'%') " +
-                   "  OR t.student.studentNo LIKE CONCAT('%',:keyword,'%'))",
+                   "AND (:keyword = '' OR s.name LIKE CONCAT('%',:keyword,'%') " +
+                   "  OR s.studentNo LIKE CONCAT('%',:keyword,'%')) " +
+                   "ORDER BY g.name, sc.name, s.studentNo",
            countQuery = "SELECT COUNT(DISTINCT t) FROM TermGrade t " +
+                        "LEFT JOIN t.student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g " +
                         "WHERE t.school = :school " +
-                        "AND (:classId IS NULL OR t.student.schoolClass.id = :classId) " +
-                        "AND (:gradeId IS NULL OR t.student.schoolClass.grade.id = :gradeId) " +
+                        "AND (:classId IS NULL OR sc.id = :classId) " +
+                        "AND (:gradeId IS NULL OR g.id = :gradeId) " +
                         "AND (:academicYear = '' OR t.academicYear = :academicYear) " +
                         "AND (:semester = '' OR t.semester = :semester) " +
-                        "AND (:keyword = '' OR t.student.name LIKE CONCAT('%',:keyword,'%') " +
-                        "  OR t.student.studentNo LIKE CONCAT('%',:keyword,'%'))")
+                        "AND (:keyword = '' OR s.name LIKE CONCAT('%',:keyword,'%') " +
+                        "  OR s.studentNo LIKE CONCAT('%',:keyword,'%'))")
     Page<TermGrade> findWithFilters(@Param("school") School school,
                                     @Param("classId") Long classId,
                                     @Param("gradeId") Long gradeId,

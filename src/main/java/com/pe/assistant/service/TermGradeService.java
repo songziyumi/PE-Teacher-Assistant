@@ -28,10 +28,7 @@ public class TermGradeService {
                                            String keyword, int page, int size) {
         return termGradeRepository.findWithFilters(
                 school, classId, gradeId, academicYear, semester, keyword,
-                PageRequest.of(page, size, Sort.by(
-                        "student.schoolClass.grade.name",
-                        "student.schoolClass.name",
-                        "student.studentNo")));
+                PageRequest.of(page, size));
     }
 
     public Optional<TermGrade> findById(Long id) {
