@@ -84,10 +84,17 @@ public class SchoolService {
         admin.setPassword(passwordEncoder.encode(rawPassword));
         admin.setSchool(school);
         admin.setRole("ADMIN");
+        // 将该校其他管理员账号降级，避免同校出现多个 ADMIN 导致 findBySchoolAndRole 返回多条结果
+        teacherRepository.findBySchoolAndRole(school, "ADMIN").forEach(old -> {
+            if (!old.getUsername().equals(username)) {
+                old.setRole("TEACHER");
+                teacherRepository.save(old);
+            }
+        });
         return teacherRepository.save(admin);
     }
 
     public Teacher findAdminBySchool(School school) {
-        return teacherRepository.findBySchoolAndRole(school, "ADMIN").orElse(null);
+        return teacherRepository.findBySchoolAndRole(school, "ADMIN").stream().findFirst().orElse(null);
     }
 }

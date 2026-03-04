@@ -25,5 +25,5 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
                                 Pageable pageable);
 
     List<Teacher> findBySchool(School school);
-    Optional<Teacher> findBySchoolAndRole(School school, String role);
+    List<Teacher> findBySchoolAndRole(School school, String role);
 }
