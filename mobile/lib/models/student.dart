@@ -5,6 +5,8 @@ class Student {
   final String? gender;
   final String? className;
   final String? gradeName;
+  final int? classId;
+  final String? electiveClass;
 
   const Student({
     required this.id,
@@ -13,6 +15,8 @@ class Student {
     this.gender,
     this.className,
     this.gradeName,
+    this.classId,
+    this.electiveClass,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -22,8 +26,17 @@ class Student {
         gender: json['gender'],
         className: json['schoolClass'] != null ? json['schoolClass']['name'] : null,
         gradeName: json['schoolClass']?['grade']?['name'],
+        classId: json['schoolClass']?['id'],
+        electiveClass: json['electiveClass'],
       );
 
   bool get isMale => gender == '男';
   bool get isFemale => gender == '女';
+
+  String get displayClass {
+    final parts = <String>[];
+    if (gradeName != null) parts.add(gradeName!);
+    if (className != null) parts.add(className!);
+    return parts.join(' ');
+  }
 }

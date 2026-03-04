@@ -23,6 +23,57 @@ public class TeacherApiController {
     private final PhysicalTestService physicalTestService;
     private final TermGradeService termGradeService;
     private final CurrentUserService currentUserService;
+    private final GradeService gradeService;
+
+    // ===== 年级列表 =====
+
+    @GetMapping("/grades")
+    public ApiResponse<List<Grade>> grades() {
+        School school = currentUserService.getCurrentSchool();
+        return ApiResponse.ok(gradeService.findAll(school));
+    }
+
+    // ===== 全校行政班（用于学生班级修改） =====
+
+    @GetMapping("/school-classes")
+    public ApiResponse<List<Map<String, Object>>> schoolClasses() {
+        School school = currentUserService.getCurrentSchool();
+        List<Map<String, Object>> result = classService.findAll(school).stream()
+                .filter(c -> !"选修课".equals(c.getType()))
+                .map(c -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", c.getId());
+                    m.put("name", c.getName());
+                    m.put("type", c.getType());
+                    m.put("gradeName", c.getGrade() != null ? c.getGrade().getName() : null);
+                    m.put("gradeId", c.getGrade() != null ? c.getGrade().getId() : null);
+                    return m;
+                }).collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
+
+    // ===== 全校选修班（用于学生选修班修改） =====
+
+    @GetMapping("/elective-classes")
+    public ApiResponse<List<Map<String, Object>>> electiveClasses() {
+        School school = currentUserService.getCurrentSchool();
+        List<Map<String, Object>> result = classService.findAll(school).stream()
+                .filter(c -> "选修课".equals(c.getType()))
+                .map(c -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", c.getId());
+                    m.put("name", c.getName());
+                    m.put("gradeName", c.getGrade() != null ? c.getGrade().getName() : null);
+                    m.put("gradeId", c.getGrade() != null ? c.getGrade().getId() : null);
+                    // 存储格式: "年级/班级名" 或 "班级名"
+                    String storedName = c.getGrade() != null
+                            ? c.getGrade().getName() + "/" + c.getName()
+                            : c.getName();
+                    m.put("storedName", storedName);
+                    return m;
+                }).collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
 
     // ===== 班级列表 =====
 
@@ -41,7 +92,20 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 班级学生列表 =====
+    // ===== 学生班级修改（教师权限） =====
+
+    @PutMapping("/students/{id}")
+    public ApiResponse<String> updateStudentClass(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
+        String electiveClass = (String) body.get("electiveClass");
+        if (classId != null) studentService.updateClass(id, classId);
+        studentService.updateElective(id, electiveClass);
+        return ApiResponse.ok("修改成功", null);
+    }
+
+    // ===== 班级学生列表（含选修班信息） =====
 
     @GetMapping("/classes/{classId}/students")
     public ApiResponse<List<Map<String, Object>>> students(@PathVariable Long classId) {
@@ -59,6 +123,17 @@ public class TeacherApiController {
             m.put("name", s.getName());
             m.put("studentNo", s.getStudentNo());
             m.put("gender", s.getGender());
+            m.put("electiveClass", s.getElectiveClass());
+            if (s.getSchoolClass() != null) {
+                Map<String, Object> classMap = new LinkedHashMap<>();
+                classMap.put("id", s.getSchoolClass().getId());
+                classMap.put("name", s.getSchoolClass().getName());
+                if (s.getSchoolClass().getGrade() != null) {
+                    classMap.put("grade", Map.of("id", s.getSchoolClass().getGrade().getId(),
+                            "name", s.getSchoolClass().getGrade().getName()));
+                }
+                m.put("schoolClass", classMap);
+            }
             return m;
         }).collect(Collectors.toList());
         return ApiResponse.ok(result);

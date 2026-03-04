@@ -2,6 +2,7 @@ import '../models/school_class.dart';
 import '../models/student.dart';
 import '../models/physical_test.dart';
 import '../models/term_grade.dart';
+import '../models/elective_class.dart';
 import 'api_service.dart';
 
 class AdminService {
@@ -43,6 +44,35 @@ class AdminService {
     if (gradeId != null) q.write('&gradeId=$gradeId');
     return (await ApiService.get(q.toString())) as Map<String, dynamic>;
   }
+
+  // 选修班列表
+  static Future<List<ElectiveClass>> getElectiveClasses() async {
+    final data = await ApiService.get('/admin/elective-classes') as List;
+    return data.map((e) => ElectiveClass.fromJson(e)).toList();
+  }
+
+  // 保存学生（新建/编辑）
+  static Future<void> saveStudent({
+    int? id,
+    required String name,
+    required String gender,
+    required String studentNo,
+    String? idCard,
+    String? electiveClass,
+    required int classId,
+  }) async {
+    await ApiService.post('/admin/students/save', {
+      if (id != null) 'id': id,
+      'name': name,
+      'gender': gender,
+      'studentNo': studentNo,
+      if (idCard != null) 'idCard': idCard,
+      if (electiveClass != null && electiveClass.isNotEmpty) 'electiveClass': electiveClass,
+      'classId': classId,
+    });
+  }
+
+  static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');
 
   // 体测列表（分页）
   static Future<Map<String, dynamic>> getPhysicalTests({

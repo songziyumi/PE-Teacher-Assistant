@@ -109,6 +109,14 @@ class _ClassCard extends StatelessWidget {
             Row(
               children: [
                 _ActionButton(
+                  icon: Icons.people,
+                  label: '学生列表',
+                  color: const Color(0xFF8e44ad),
+                  onTap: () => context.push(
+                      '/teacher/students/${cls.id}?name=${Uri.encodeComponent(cls.displayName)}'),
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
                   icon: Icons.how_to_reg,
                   label: '考勤录入',
                   color: const Color(0xFF27ae60),

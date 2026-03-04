@@ -3,12 +3,14 @@ class SchoolClass {
   final String name;
   final String type;
   final String? gradeName;
+  final int? gradeId;
 
   const SchoolClass({
     required this.id,
     required this.name,
     required this.type,
     this.gradeName,
+    this.gradeId,
   });
 
   factory SchoolClass.fromJson(Map<String, dynamic> json) => SchoolClass(
@@ -16,6 +18,7 @@ class SchoolClass {
         name: json['name'] ?? '',
         type: json['type'] ?? '行政班',
         gradeName: json['gradeName'],
+        gradeId: json['gradeId'],
       );
 
   String get displayName => gradeName != null ? '$gradeName $name' : name;

@@ -2,6 +2,7 @@ import '../models/school_class.dart';
 import '../models/student.dart';
 import '../models/physical_test.dart';
 import '../models/term_grade.dart';
+import '../models/elective_class.dart';
 import 'api_service.dart';
 
 class TeacherService {
@@ -9,6 +10,32 @@ class TeacherService {
   static Future<List<SchoolClass>> getClasses() async {
     final data = await ApiService.get('/teacher/classes') as List;
     return data.map((e) => SchoolClass.fromJson(e)).toList();
+  }
+
+  // 年级列表
+  static Future<List<Grade>> getGrades() async {
+    final data = await ApiService.get('/teacher/grades') as List;
+    return data.map((e) => Grade.fromJson(e)).toList();
+  }
+
+  // 全校行政班（用于学生班级修改）
+  static Future<List<SchoolClass>> getSchoolClasses() async {
+    final data = await ApiService.get('/teacher/school-classes') as List;
+    return data.map((e) => SchoolClass.fromJson(e)).toList();
+  }
+
+  // 全校选修班
+  static Future<List<ElectiveClass>> getElectiveClasses() async {
+    final data = await ApiService.get('/teacher/elective-classes') as List;
+    return data.map((e) => ElectiveClass.fromJson(e)).toList();
+  }
+
+  // 修改学生班级/选修班
+  static Future<void> updateStudentClass(int studentId, {int? classId, String? electiveClass}) async {
+    await ApiService.put('/teacher/students/$studentId', {
+      if (classId != null) 'classId': classId,
+      'electiveClass': electiveClass,
+    });
   }
 
   // 班级学生

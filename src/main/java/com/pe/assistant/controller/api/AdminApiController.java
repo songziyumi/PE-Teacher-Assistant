@@ -67,7 +67,27 @@ public class AdminApiController {
         return ApiResponse.ok(termGradeService.findDistinctAcademicYears(school));
     }
 
-    // ===== 学生列表 =====
+    @GetMapping("/elective-classes")
+    public ApiResponse<List<Map<String, Object>>> electiveClasses() {
+        School school = currentUserService.getCurrentSchool();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (SchoolClass c : classService.findAll(school)) {
+            if (!"选修课".equals(c.getType())) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", c.getId());
+            m.put("name", c.getName());
+            m.put("gradeName", c.getGrade() != null ? c.getGrade().getName() : null);
+            m.put("gradeId", c.getGrade() != null ? c.getGrade().getId() : null);
+            String storedName = c.getGrade() != null
+                    ? c.getGrade().getName() + "/" + c.getName()
+                    : c.getName();
+            m.put("storedName", storedName);
+            result.add(m);
+        }
+        return ApiResponse.ok(result);
+    }
+
+    // ===== 学生 CRUD =====
 
     @GetMapping("/students")
     public ApiResponse<PageDto<Student>> students(
@@ -80,6 +100,30 @@ public class AdminApiController {
         String kw = keyword.isBlank() ? null : keyword;
         return ApiResponse.ok(PageDto.of(
                 studentService.findWithFilters(school, classId, gradeId, kw, kw, null, null, page, size)));
+    }
+
+    @PostMapping("/students/save")
+    public ApiResponse<String> saveStudent(@RequestBody Map<String, Object> body) {
+        School school = currentUserService.getCurrentSchool();
+        Long id = body.get("id") != null ? Long.valueOf(body.get("id").toString()) : null;
+        String name = (String) body.get("name");
+        String gender = (String) body.get("gender");
+        String studentNo = (String) body.get("studentNo");
+        String idCard = (String) body.get("idCard");
+        String electiveClass = (String) body.get("electiveClass");
+        Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
+        if (id == null) {
+            studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school);
+        } else {
+            studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId);
+        }
+        return ApiResponse.ok("保存成功", null);
+    }
+
+    @DeleteMapping("/students/{id}")
+    public ApiResponse<String> deleteStudent(@PathVariable Long id) {
+        studentService.delete(id);
+        return ApiResponse.ok("删除成功", null);
     }
 
     // ===== 体测管理 =====

@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/teacher/teacher_home.dart';
 import 'screens/teacher/attendance_screen.dart';
+import 'screens/teacher/teacher_student_list.dart';
 import 'screens/teacher/physical_entry.dart';
 import 'screens/teacher/grade_entry.dart';
 import 'screens/admin/admin_home.dart';
@@ -29,6 +30,13 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         // 教师路由
         GoRoute(path: '/teacher', builder: (_, __) => const TeacherHome()),
+        GoRoute(
+          path: '/teacher/students/:classId',
+          builder: (_, state) => TeacherStudentListScreen(
+            classId: int.parse(state.pathParameters['classId']!),
+            className: state.uri.queryParameters['name'] ?? '',
+          ),
+        ),
         GoRoute(
           path: '/teacher/attendance/:classId',
           builder: (_, state) => AttendanceScreen(
