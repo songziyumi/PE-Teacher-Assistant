@@ -6,13 +6,14 @@
 ## 技术栈
 - Java 17
 - Spring Boot 3.2.3
-- Spring Security
+- Spring Security + JWT（jjwt 0.12.3，移动端无状态认证）
 - Spring Data JPA
 - MySQL
 - Thymeleaf 模板引擎
 - Lombok
 - Apache POI（Excel 导入导出）
 - Apache Commons CSV
+- **Flutter 3.x**（移动端 App，`mobile/` 子目录）
 
 ## 项目结构
 ```
@@ -20,10 +21,12 @@ src/main/java/com/pe/assistant/
 ├── config/          # 配置类（Security、数据初始化）
 ├── controller/      # 控制器（Admin、Attendance、Auth、Dashboard、Student、SuperAdmin、
 │                    #         PhysicalTest、TeacherPhysicalTest、TermGrade、TeacherTermGrade）
+│   └── api/         # REST API 控制器（AuthApi、TeacherApi、AdminApi）
+├── dto/             # 数据传输对象（ApiResponse、PageDto、LoginRequest、LoginResponse）
 ├── entity/          # 实体类（Teacher、Student、SchoolClass、Grade、Attendance、School、
 │                    #         PhysicalTest、TermGrade）
 ├── repository/      # JPA Repository 接口
-├── security/        # Spring Security 用户认证
+├── security/        # Spring Security 用户认证 + JwtUtil + JwtAuthFilter
 ├── service/         # 业务逻辑（Attendance、Class、Grade、Student、Teacher、School、CurrentUser、
 │                    #           PhysicalTest、PhysicalScoring、TermGrade）
 └── PeTeacherAssistantApplication.java
@@ -40,11 +43,29 @@ src/main/resources/
     ├── fragments/           # 公共片段（footer 版本号）
     ├── dashboard.html       # 首页仪表盘
     └── layout.html          # 公共布局
+
+mobile/                      # Flutter 移动端 App
+├── pubspec.yaml
+├── android/                 # Android 构建配置（gradle 使用腾讯云镜像）
+├── ios/
+└── lib/
+    ├── main.dart            # 入口
+    ├── app.dart             # GoRouter 路由（含角色守卫，initialLocation: '/login'）
+    ├── config/api_config.dart   # 服务器地址配置（baseUrl）
+    ├── models/              # 数据模型（User、SchoolClass、Grade、Student、
+    │                        #           ElectiveClass、PhysicalTest、TermGrade）
+    ├── services/            # API 调用（ApiService、AuthService、TeacherService、AdminService）
+    ├── providers/           # 全局状态（AuthProvider）
+    └── screens/
+        ├── auth/            # 登录页
+        ├── teacher/         # 教师端（首页、考勤、体测录入、成绩录入、学生列表）
+        └── admin/           # 管理端（首页、学生列表、体测列表、成绩列表）
 ```
 
 ## Git 分支
-- `main`：主分支（生产），当前版本 v2.0
-- `explore-1.5.2`：当前开发分支
+- `main`：主分支（生产），当前版本 v2.1
+- `flutter-mobile-app`：Flutter 移动端 App 分支（与 main 保持同步）
+- `explore-1.5.2`：历史开发分支
 
 ## 常用命令
 ```bash
@@ -56,6 +77,12 @@ mvn clean package -DskipTests
 
 # 运行测试
 mvn test
+
+# Flutter 移动端
+cd mobile
+flutter run                        # 调试运行（需连接设备）
+flutter build apk --release        # 构建 Android 正式 APK
+# APK 输出路径：mobile/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ## 注意事项
@@ -85,8 +112,25 @@ mvn test
 - **期末成绩管理**：`TermGrade` 实体唯一约束 `(student_id, academic_year, semester)`；综合分 = 出勤40% + 技能40% + 理论20%（空项按权重比例重分配）；管理员路由 `/admin/term-grades/**`，教师路由 `/teacher/term-grades/**`（按班级批量录入）
 - **redirect URL 规范**：教师录入页 save-batch 使用 `URLEncoder.encode(semester, UTF_8)` 编码中文参数后再拼入 redirect，避免 HTTP Location 头含裸 UTF-8 导致浏览器停在 POST URL；所有 saveBatch 控制器方法均包 try-catch，确保无论成功失败都执行重定向
 - **教师录入页学年默认值**：必须在学生查询 `if (classId != null)` 块**之前**计算，否则首次进入时 `academicYear` 为空导致学生列表不加载
+- **Flutter REST API（双 FilterChain）**：`SecurityConfig` 中 `@Order(1)` FilterChain 处理 `/api/**`（无状态 JWT），`@Order(2)` 保留原 Session FilterChain；两者并存互不影响
+- **JWT 认证**：`JwtUtil` 生成/验证 token，`JwtAuthFilter`（OncePerRequestFilter）仅处理 `/api/**`；token 存储于客户端 `flutter_secure_storage`；`/api/auth/**` 无需认证，`/api/teacher/**` 需 TEACHER/ADMIN，`/api/admin/**` 需 ADMIN
+- **REST API 响应格式**：统一 `ApiResponse<T>{ code, message, data }`；分页用 `PageDto<T>{ content, totalElements, totalPages, page, size }`
+- **移动端服务器地址**：`mobile/lib/config/api_config.dart` 中 `baseUrl` 配置；手机测试用局域网 IP，生产用公网 IP（当前已配置公网 175.24.131.74:8080）
+- **Flutter 中国镜像**：系统环境变量 `PUB_HOSTED_URL=https://pub.flutter-io.cn`，`FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn`；Gradle 使用腾讯云镜像（`gradle-wrapper.properties`）
+- **Flutter 路由守卫**：`app.dart` 中 GoRouter 设置 `initialLocation: '/login'`，redirect 中处理 `loc == '/'` 情况，防止登录后路由到未定义的 `/`
+- **ElectiveClass 模型**：`storedName` 字段存储 `"年级/班级名"` 格式（与 `Student.electiveClass` 一致）；`displayName` getter 返回 `"年级 / 班级名"` 用于 UI 展示
+- **年级联动下拉**：Web 端（`teacher/students.html`）和移动端（Flutter）的选修班修改弹窗均实现年级→选修班联动；修改行政班同样按年级过滤；均为纯前端实现，后端返回全量数据带 `gradeId` 字段
+- **iOS 构建限制**：iOS App 必须在 Mac 上用 Xcode 构建，Windows 无法直接编译；iPhone 用户可用 Safari 访问 Web 端并「添加到主屏幕」作为替代
 
 ## 版本历史
+- `v2.1`：Flutter 移动端 App + 学生管理增强
+  - 新增 **Flutter 原生 App**（`mobile/` 目录，Android + iOS），教师端：班级列表、学生列表、考勤录入、体测录入、成绩录入；管理端：仪表盘、学生增删改查、体测/成绩列表
+  - 新增 **REST API**（`/api/**`）：JWT 无状态认证，与原 Session/Thymeleaf 路由并存；`AuthApiController`、`TeacherApiController`、`AdminApiController`
+  - 管理端学生 CRUD：新增 `POST /api/admin/students/save`、`DELETE /api/admin/students/{id}`
+  - 教师端学生班级修改：新增 `PUT /api/teacher/students/{id}`，支持同时修改行政班和选修班
+  - 新增 `GET /api/teacher/grades`、`/school-classes`、`/elective-classes` 支持年级联动
+  - **Web 端**教师学生列表（`teacher/students.html`）修改选修班弹窗新增年级筛选联动
+  - 修复 Flutter GoRouter 路由到未定义 `/` 导致的 GoException
 - `v2.0`：教学管理功能层
   - 新增**体质健康测试**模块：管理员列表/导入/导出，教师按班级批量录入；内置教育部2014标准评分（高中段全项目）；录入页按性别自动禁用不适用字段
   - 新增**期末成绩管理**模块：管理员列表/编辑/导入/导出，教师按班级批量录入；综合分自动计算（出勤40% + 技能40% + 理论20%）；等级自动判定（优秀/良好/及格/不及格）

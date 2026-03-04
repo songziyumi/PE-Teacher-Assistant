@@ -331,11 +331,19 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>选择年级</label>
+                    <select id="electiveGradeSelect" onchange="filterElectiveClasses()">
+                        <option value="">— 全部年级 —</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>选择新的选修班</label>
                     <select name="electiveClass" id="electiveSelect">
                         <option value="">— 不参加选修 —</option>
                         <option th:each="ec : ${electiveClasses}"
                                 th:value="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"
+                                th:data-gradeid="${ec.grade != null ? ec.grade.id : ''}"
+                                th:data-gradename="${ec.grade != null ? ec.grade.name : ''}"
                                 th:text="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"></option>
                     </select>
                 </div>
@@ -385,6 +393,41 @@
 </div>
 
 <script>
+    // 初始化年级下拉：从选修班选项中提取唯一年级
+    function initElectiveGradeFilter() {
+        var gradeSelect = document.getElementById('electiveGradeSelect');
+        var electiveSel = document.getElementById('electiveSelect');
+        var seen = {}, grades = [];
+        Array.from(electiveSel.options).forEach(function(opt) {
+            var gid = opt.dataset.gradeid;
+            var gname = opt.dataset.gradename;
+            if (gid && !seen[gid]) {
+                seen[gid] = true;
+                grades.push({ id: gid, name: gname });
+            }
+        });
+        grades.forEach(function(g) {
+            var o = document.createElement('option');
+            o.value = g.id;
+            o.textContent = g.name;
+            gradeSelect.appendChild(o);
+        });
+    }
+
+    // 按年级过滤选修班选项
+    function filterElectiveClasses() {
+        var gradeId = document.getElementById('electiveGradeSelect').value;
+        var sel = document.getElementById('electiveSelect');
+        Array.from(sel.options).forEach(function(opt) {
+            if (!opt.value) { opt.hidden = false; return; } // 保留"不参加选修"
+            opt.hidden = gradeId ? opt.dataset.gradeid !== gradeId : false;
+        });
+        // 如果当前选中项被隐藏，重置为空
+        if (sel.selectedIndex >= 0 && sel.options[sel.selectedIndex].hidden) {
+            sel.value = '';
+        }
+    }
+
     function openElectiveModal(btn) {
         var studentId   = btn.dataset.id;
         var studentName = btn.dataset.name;
@@ -393,8 +436,19 @@
         document.getElementById('modalAvatar').textContent = studentName.charAt(0);
         document.getElementById('modalCurrentElective').textContent = current || '未选课';
         document.getElementById('electiveForm').action = '/teacher/students/' + studentId + '/elective';
+
         var sel = document.getElementById('electiveSelect');
+        // 自动选中当前选修班对应的年级
+        var matchGradeId = '';
+        if (current) {
+            Array.from(sel.options).forEach(function(opt) {
+                if (opt.value === current) matchGradeId = opt.dataset.gradeid || '';
+            });
+        }
+        document.getElementById('electiveGradeSelect').value = matchGradeId;
+        filterElectiveClasses();
         sel.value = current;
+
         document.getElementById('electiveModal').classList.add('active');
     }
     function closeElectiveModal() {
@@ -403,6 +457,9 @@
     document.getElementById('electiveModal').addEventListener('click', function(e) {
         if (e.target === this) closeElectiveModal();
     });
+
+    // 页面加载后初始化年级过滤器
+    initElectiveGradeFilter();
 
     function openClassModal(btn) {
         var studentId   = btn.dataset.id;
