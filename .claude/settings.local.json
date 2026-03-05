@@ -33,7 +33,8 @@
       "Bash(/tmp/dl_flutter.ps1:*)",
       "Bash(/tmp/prog.ps1:*)",
       "Bash(/tmp/setpath.ps1:*)",
-      "Bash(\"D:/flutter/bin/cache/dart-sdk/bin/dart.exe\":*)"
+      "Bash(\"D:/flutter/bin/cache/dart-sdk/bin/dart.exe\":*)",
+      "Bash(mvn clean:*)"
     ]
   }
 }
