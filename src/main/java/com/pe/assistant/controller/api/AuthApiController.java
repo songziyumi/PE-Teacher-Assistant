@@ -3,7 +3,9 @@ package com.pe.assistant.controller.api;
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.dto.LoginRequest;
 import com.pe.assistant.dto.LoginResponse;
+import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.repository.StudentRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.security.JwtUtil;
 import com.pe.assistant.service.CurrentUserService;
@@ -23,19 +25,29 @@ public class AuthApiController {
     private final JwtUtil jwtUtil;
     private final CurrentUserService currentUserService;
     private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
-            // UserDetailsServiceImpl returns Spring Security User, load Teacher separately
-            Teacher teacher = teacherRepository.findByUsername(auth.getName()).orElseThrow();
-            Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
-            String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
-            String token = jwtUtil.generateToken(teacher.getUsername(), teacher.getRole(), schoolId);
-            return ApiResponse.ok(new LoginResponse(token, teacher.getUsername(),
-                    teacher.getName(), teacher.getRole(), schoolId, schoolName));
+            // 先尝试教师账号
+            Teacher teacher = teacherRepository.findByUsername(auth.getName()).orElse(null);
+            if (teacher != null) {
+                Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
+                String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
+                String token = jwtUtil.generateToken(teacher.getUsername(), teacher.getRole(), schoolId);
+                return ApiResponse.ok(new LoginResponse(token, teacher.getUsername(),
+                        teacher.getName(), teacher.getRole(), schoolId, schoolName));
+            }
+            // 学生账号（用学号登录）
+            Student student = studentRepository.findByStudentNo(auth.getName()).orElseThrow();
+            Long schoolId = student.getSchool() != null ? student.getSchool().getId() : null;
+            String schoolName = student.getSchool() != null ? student.getSchool().getName() : null;
+            String token = jwtUtil.generateToken(student.getStudentNo(), "STUDENT", schoolId);
+            return ApiResponse.ok(new LoginResponse(token, student.getStudentNo(),
+                    student.getName(), "STUDENT", schoolId, schoolName));
         } catch (BadCredentialsException e) {
             return ApiResponse.error(401, "用户名或密码错误");
         } catch (Exception e) {

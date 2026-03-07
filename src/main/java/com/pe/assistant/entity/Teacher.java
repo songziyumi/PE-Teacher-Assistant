@@ -2,6 +2,7 @@ package com.pe.assistant.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -33,4 +34,24 @@ public class Teacher {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // ===== 个人主页字段 =====
+
+    @Column(length = 10)
+    private String gender;           // 男/女
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;     // 前端计算年龄展示
+
+    @Column(length = 100)
+    private String specialty;        // 专业特长
+
+    @Column(length = 100)
+    private String email;
+
+    @Column(name = "photo_url", length = 200)
+    private String photoUrl;         // 如 /uploads/teachers/3.jpg
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;              // 个人简介
 }

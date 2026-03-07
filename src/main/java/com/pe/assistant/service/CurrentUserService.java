@@ -1,7 +1,9 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.School;
+import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.repository.StudentRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 public class CurrentUserService {
 
     private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
 
     public Teacher getCurrentTeacher() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -20,5 +23,10 @@ public class CurrentUserService {
 
     public School getCurrentSchool() {
         return getCurrentTeacher().getSchool();
+    }
+
+    public Student getCurrentStudent() {
+        String studentNo = SecurityContextHolder.getContext().getAuthentication().getName();
+        return studentRepository.findByStudentNo(studentNo).orElseThrow();
     }
 }

@@ -63,6 +63,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/student/**").hasRole("STUDENT")
                 .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
@@ -103,9 +104,12 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/manifest.json", "/sw.js", "/offline.html").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/manifest.json", "/sw.js", "/offline.html", "/uploads/**").permitAll()
                 .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/student/**").hasRole("STUDENT")
+                .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN")
+                .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -154,7 +158,15 @@ public class SecurityConfig {
             loginAttemptService.loginSucceeded(authentication.getName());
             boolean isSuperAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
-            response.sendRedirect(isSuperAdmin ? "/super-admin/schools" : "/dashboard");
+            boolean isStudent = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+            if (isSuperAdmin) {
+                response.sendRedirect("/super-admin/schools");
+            } else if (isStudent) {
+                response.sendRedirect("/student/courses");
+            } else {
+                response.sendRedirect("/dashboard");
+            }
         };
     }
 }

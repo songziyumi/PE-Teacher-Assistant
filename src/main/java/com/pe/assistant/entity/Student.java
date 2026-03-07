@@ -26,6 +26,12 @@ public class Student {
     @Column(name = "elective_class", length = 100)
     private String electiveClass;
 
+    @Column(length = 200)
+    private String password;
+
+    @Column(nullable = false)
+    private Boolean enabled = true;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "class_id", nullable = false)
     private SchoolClass schoolClass;

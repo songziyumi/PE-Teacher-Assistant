@@ -13,6 +13,8 @@
     <div class="nav-brand">🏃 体育教师助手</div>
     <div class="nav-links">
         <span sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin}">管理后台</a></span>
+        <a th:href="@{/teacher/profile}">个人主页</a>
+        <a th:href="@{/teacher/messages}">消息</a>
         <span class="nav-user">👤 <span th:text="${teacher.name}"></span>
             <span th:if="${teacher.school != null}"> | <span th:text="${teacher.school.name}"></span></span>
         </span>
