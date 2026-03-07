@@ -183,9 +183,12 @@ public class StudentService {
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId, String studentStatus) {
         Student s = studentRepository.findById(id).orElseThrow();
+        String normalizedStudentNo = (studentNo == null) ? null : studentNo.trim();
+        ensureStudentNoUnique(s, normalizedStudentNo);
+
         s.setName(name);
         s.setGender(gender);
-        s.setStudentNo(studentNo);
+        s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
         if (studentStatus != null) {
@@ -321,5 +324,13 @@ public class StudentService {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
         return LEGACY_STATUS_ALIASES.getOrDefault(normalized, normalized);
+    }
+
+    private void ensureStudentNoUnique(Student current, String studentNo) {
+        if (studentNo == null || studentNo.isBlank()) return;
+        if (current.getSchool() == null) return;
+        if (studentRepository.existsByStudentNoAndSchoolAndIdNot(studentNo, current.getSchool(), current.getId())) {
+            throw new IllegalArgumentException("学号已存在");
+        }
     }
 }

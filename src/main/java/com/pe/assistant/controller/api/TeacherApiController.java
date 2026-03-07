@@ -5,6 +5,7 @@ import com.pe.assistant.entity.*;
 import com.pe.assistant.service.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -95,14 +96,25 @@ public class TeacherApiController {
     // ===== 学生班级修改（教师权限） =====
 
     @PutMapping("/students/{id}")
-    public ApiResponse<String> updateStudentClass(
+    public ResponseEntity<ApiResponse<String>> updateStudentClass(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body) {
+        Student current = studentService.findById(id);
+        String name = body.get("name") != null ? String.valueOf(body.get("name")) : current.getName();
+        String gender = body.get("gender") != null ? String.valueOf(body.get("gender")) : current.getGender();
+        String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
+        String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
-        String electiveClass = (String) body.get("electiveClass");
-        if (classId != null) studentService.updateClass(id, classId);
-        studentService.updateElective(id, electiveClass);
-        return ApiResponse.ok("修改成功", null);
+        String electiveClass = body.containsKey("electiveClass")
+                ? (String) body.get("electiveClass")
+                : current.getElectiveClass();
+        try {
+            studentService.update(id, name, gender, studentNo, current.getIdCard(),
+                    electiveClass, classId, studentStatus);
+            return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
     }
 
     // ===== 班级学生列表（含选修班信息） =====

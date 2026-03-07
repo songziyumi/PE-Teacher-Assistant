@@ -3,6 +3,7 @@ class Student {
   final String name;
   final String? studentNo;
   final String? gender;
+  final String? studentStatus;
   final String? className;
   final String? gradeName;
   final int? classId;
@@ -13,6 +14,7 @@ class Student {
     required this.name,
     this.studentNo,
     this.gender,
+    this.studentStatus,
     this.className,
     this.gradeName,
     this.classId,
@@ -24,7 +26,9 @@ class Student {
         name: json['name'] ?? '',
         studentNo: json['studentNo'],
         gender: json['gender'],
-        className: json['schoolClass'] != null ? json['schoolClass']['name'] : null,
+        studentStatus: json['studentStatus'],
+        className:
+            json['schoolClass'] != null ? json['schoolClass']['name'] : null,
         gradeName: json['schoolClass']?['grade']?['name'],
         classId: json['schoolClass']?['id'],
         electiveClass: json['electiveClass'],
