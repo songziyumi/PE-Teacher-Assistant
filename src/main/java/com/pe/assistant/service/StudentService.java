@@ -20,8 +20,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StudentService {
 
-    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "毕业", "外出借读", "外校借读");
+    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "毕业", "在外借读", "借读");
     private static final Set<String> AVAILABLE_STATUS_SET = Set.copyOf(AVAILABLE_STATUSES);
+    private static final Map<String, String> LEGACY_STATUS_ALIASES = Map.of(
+            "外出借读", "在外借读",
+            "外校借读", "借读");
 
     private final StudentRepository studentRepository;
     private final SchoolClassRepository classRepository;
@@ -105,7 +108,7 @@ public class StudentService {
         for (Student student : students) {
             String status = normalizeStatusForDisplay(student.getStudentStatus());
             if (!showSuspended && "休学".equals(status)) continue;
-            if (!showOutgoingBorrow && "外出借读".equals(status)) continue;
+            if (!showOutgoingBorrow && "在外借读".equals(status)) continue;
             result.add(student);
         }
         return result;
@@ -307,6 +310,7 @@ public class StudentService {
     private String normalizeStatusForSave(String status) {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
+        normalized = LEGACY_STATUS_ALIASES.getOrDefault(normalized, normalized);
         if (!AVAILABLE_STATUS_SET.contains(normalized)) {
             throw new IllegalArgumentException("学籍状态不合法");
         }
@@ -314,6 +318,8 @@ public class StudentService {
     }
 
     private String normalizeStatusForDisplay(String status) {
-        return (status == null || status.isBlank()) ? "在籍" : status.trim();
+        if (status == null || status.isBlank()) return "在籍";
+        String normalized = status.trim();
+        return LEGACY_STATUS_ALIASES.getOrDefault(normalized, normalized);
     }
 }
