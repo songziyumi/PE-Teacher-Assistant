@@ -19,6 +19,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   List<Grade> _grades = [];
   List<SchoolClass> _adminClasses = [];
   List<ElectiveClass> _electiveClasses = [];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -53,6 +54,31 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reloadKeepPosition() async {
+    final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    try {
+      final students = await TeacherService.getStudents(widget.classId);
+      if (!mounted) return;
+      setState(() => _students = students);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        final max = _scrollController.position.maxScrollExtent;
+        final target = offset.clamp(0.0, max).toDouble();
+        _scrollController.jumpTo(target);
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Load failed: $e')));
+      }
+    }
+  }
+
   void _showEditDialog(Student s) async {
     // 行政班年级初始值
     int? adminGradeId = _adminClasses
@@ -70,6 +96,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         .where((c) => c.storedName == s.electiveClass)
         .map((c) => c.gradeId)
         .firstOrNull;
+    // Default elective grade follows the student's current grade.
+    electiveGradeId ??= adminGradeId;
     electiveGradeId ??= _grades.isNotEmpty ? _grades.first.id : null;
 
     String? selectedElective = s.electiveClass;
@@ -100,6 +128,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                     adminGradeId = v;
                     filteredAdminClasses = _adminClasses.where((c) => c.gradeId == v).toList();
                     selectedClassId = filteredAdminClasses.isNotEmpty ? filteredAdminClasses.first.id : null;
+                    // Keep elective grade linked with the student's grade.
+                    electiveGradeId = v;
+                    filteredElective = _electiveClasses.where((c) => c.gradeId == electiveGradeId).toList();
+                    if (!filteredElective.any((c) => c.storedName == selectedElective)) {
+                      selectedElective = null;
+                    }
                   }),
                 ),
                 const SizedBox(height: 8),
@@ -156,7 +190,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('修改成功')));
-          _load();
+          _reloadKeepPosition();
         }
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('修改失败: $e')));
@@ -183,8 +217,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           : _students.isEmpty
               ? const Center(child: Text('暂无学生'))
               : RefreshIndicator(
-                  onRefresh: _load,
+                  onRefresh: _reloadKeepPosition,
                   child: ListView.builder(
+                    controller: _scrollController,
                     itemCount: _students.length,
                     itemBuilder: (_, i) {
                       final s = _students[i];
