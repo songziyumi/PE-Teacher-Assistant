@@ -26,6 +26,13 @@ public class Student {
     @Column(name = "elective_class", length = 100)
     private String electiveClass;
 
+    @Column(name = "enrollment_status", length = 20)
+    private String enrollmentStatus;
+
+    public String getEnrollmentStatus() {
+        return (enrollmentStatus == null || enrollmentStatus.isBlank()) ? "\u5728\u8BFB" : enrollmentStatus;
+    }
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "class_id", nullable = false)
     private SchoolClass schoolClass;
@@ -33,4 +40,12 @@ public class Student {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "school_id")
     private School school;
+
+    @PrePersist
+    @PreUpdate
+    private void ensureEnrollmentStatus() {
+        if (enrollmentStatus == null || enrollmentStatus.isBlank()) {
+            enrollmentStatus = "\u5728\u8BFB";
+        }
+    }
 }

@@ -111,11 +111,12 @@ public class AdminApiController {
         String studentNo = (String) body.get("studentNo");
         String idCard = (String) body.get("idCard");
         String electiveClass = (String) body.get("electiveClass");
+        String enrollmentStatus = (String) body.get("enrollmentStatus");
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
         if (id == null) {
-            studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school);
+            studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school, enrollmentStatus);
         } else {
-            studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId);
+            studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId, enrollmentStatus);
         }
         return ApiResponse.ok("保存成功", null);
     }

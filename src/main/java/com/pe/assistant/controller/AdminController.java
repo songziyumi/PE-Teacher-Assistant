@@ -225,8 +225,10 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String studentNo,
                            @RequestParam(defaultValue = "") String idCard,
                            @RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "15") int size,
                            Model model) {
         School school = currentUserService.getCurrentSchool();
+        int pageSize = Math.max(1, Math.min(size, 200));
         Long effectiveClassId = classId;
         String electiveClass = null;
         if (classId != null) {
@@ -236,8 +238,10 @@ public class AdminController {
                 electiveClass = sc.getName();
             }
         }
-        Page<Student> studentPage = studentService.findWithFilters(school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
+        Page<Student> studentPage = studentService.findWithFilters(
+                school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, pageSize);
         model.addAttribute("studentPage", studentPage);
+        model.addAttribute("size", pageSize);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("classId", classId);
         model.addAttribute("name", name);
@@ -256,9 +260,10 @@ public class AdminController {
                                   @RequestParam(defaultValue = "") String studentNo,
                                   @RequestParam(defaultValue = "") String idCard,
                                   @RequestParam(defaultValue = "0") int page,
+                                  @RequestParam(defaultValue = "15") int size,
                                   Model model) {
         return "redirect:/admin/students?classId=" + classId +
-               "&name=" + name + "&studentNo=" + studentNo + "&idCard=" + idCard + "&page=" + page;
+               "&name=" + name + "&studentNo=" + studentNo + "&idCard=" + idCard + "&page=" + page + "&size=" + size;
     }
 
     @PostMapping("/students/delete-all")
@@ -272,9 +277,10 @@ public class AdminController {
     public String addStudent(@RequestParam String name, @RequestParam String gender,
                              @RequestParam String studentNo, @RequestParam String idCard,
                              @RequestParam String electiveClass, @RequestParam Long classId,
+                             @RequestParam(defaultValue = "\u5728\u8BFB") String enrollmentStatus,
                              RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
-        studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school);
+        studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school, enrollmentStatus);
         ra.addFlashAttribute("success", "学生添加成功");
         return "redirect:/admin/students";
     }
@@ -283,8 +289,10 @@ public class AdminController {
     public String editStudent(@PathVariable Long id, @RequestParam String name,
                               @RequestParam String gender, @RequestParam String studentNo,
                               @RequestParam String idCard, @RequestParam String electiveClass,
-                              @RequestParam Long classId, RedirectAttributes ra) {
-        studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId);
+                              @RequestParam Long classId,
+                              @RequestParam(defaultValue = "\u5728\u8BFB") String enrollmentStatus,
+                              RedirectAttributes ra) {
+        studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId, enrollmentStatus);
         ra.addFlashAttribute("success", "修改成功");
         return "redirect:/admin/students";
     }

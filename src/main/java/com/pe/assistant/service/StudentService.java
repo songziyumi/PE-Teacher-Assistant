@@ -10,10 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class StudentService {
+    private static final String DEFAULT_ENROLLMENT_STATUS = "\u5728\u8BFB";
+    private static final Set<String> ALLOWED_ENROLLMENT_STATUSES =
+            Set.of("\u5728\u8BFB", "\u4F11\u5B66", "\u6BD5\u4E1A", "\u9000\u5B66", "\u8F6C\u5B66",
+                    "\u5728\u5916\u501F\u8BFB", "\u501F\u8BFB");
 
     private final StudentRepository studentRepository;
     private final SchoolClassRepository classRepository;
@@ -61,6 +66,12 @@ public class StudentService {
     @Transactional
     public Student create(String name, String gender, String studentNo, String idCard,
             String electiveClass, Long classId, School school) {
+        return create(name, gender, studentNo, idCard, electiveClass, classId, school, null);
+    }
+
+    @Transactional
+    public Student create(String name, String gender, String studentNo, String idCard,
+            String electiveClass, Long classId, School school, String enrollmentStatus) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         Student s = new Student();
         s.setName(name);
@@ -68,6 +79,7 @@ public class StudentService {
         s.setStudentNo(studentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
+        s.setEnrollmentStatus(normalizeEnrollmentStatus(enrollmentStatus));
         s.setSchoolClass(sc);
         s.setSchool(school);
         return studentRepository.save(s);
@@ -88,6 +100,7 @@ public class StudentService {
                     s.setGender(gender);
                     s.setIdCard(idCard);
                     s.setElectiveClass(electiveClass);
+                    s.setEnrollmentStatus(normalizeEnrollmentStatus(s.getEnrollmentStatus()));
                     s.setSchoolClass(sc);
                     studentRepository.save(s);
                     return false;
@@ -99,6 +112,7 @@ public class StudentService {
                     s.setStudentNo(studentNo);
                     s.setIdCard(idCard);
                     s.setElectiveClass(electiveClass);
+                    s.setEnrollmentStatus(DEFAULT_ENROLLMENT_STATUS);
                     s.setSchoolClass(sc);
                     s.setSchool(school);
                     studentRepository.save(s);
@@ -109,12 +123,20 @@ public class StudentService {
     @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId) {
+        return update(id, name, gender, studentNo, idCard, electiveClass, classId, null);
+    }
+
+    @Transactional
+    public Student update(Long id, String name, String gender, String studentNo,
+            String idCard, String electiveClass, Long classId, String enrollmentStatus) {
         Student s = studentRepository.findById(id).orElseThrow();
         s.setName(name);
         s.setGender(gender);
         s.setStudentNo(studentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
+        s.setEnrollmentStatus(normalizeEnrollmentStatus(
+                enrollmentStatus != null ? enrollmentStatus : s.getEnrollmentStatus()));
         if (classId != null) {
             SchoolClass sc = classRepository.findById(classId).orElseThrow();
             s.setSchoolClass(sc);
@@ -166,5 +188,14 @@ public class StudentService {
             return studentRepository.countBySchool(teacher.getSchool());
         }
         return studentRepository.count();
+    }
+
+    private String normalizeEnrollmentStatus(String enrollmentStatus) {
+        if (enrollmentStatus == null || enrollmentStatus.isBlank()) {
+            return DEFAULT_ENROLLMENT_STATUS;
+        }
+        return ALLOWED_ENROLLMENT_STATUSES.contains(enrollmentStatus)
+                ? enrollmentStatus
+                : DEFAULT_ENROLLMENT_STATUS;
     }
 }
