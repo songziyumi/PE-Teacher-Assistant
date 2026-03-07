@@ -308,11 +308,21 @@
             <form th:action="@{/admin/students/add}" method="post">
                 <div class="modal-body">
                     <div class="form-grid2">
-                        <div class="form-group full">
+                        <div class="form-group">
+                            <label>年级</label>
+                            <select id="add-grade" onchange="onAddGradeChange()">
+                                <option value="">全部年级</option>
+                                <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>班级 <span style="color:#e74c3c">*</span></label>
-                            <select name="classId" required>
+                            <select name="classId" id="add-classId" required>
                                 <option value="">请选择班级</option>
-                                <option th:each="c : ${classes}" th:value="${c.id}"
+                                <option th:each="c : ${classes}"
+                                        th:if="${'行政班'.equals(c.type)}"
+                                        th:value="${c.id}"
+                                        th:attr="data-grade=${c.grade != null ? c.grade.id : ''}"
                                         th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
                             </select>
                         </div>
@@ -335,16 +345,17 @@
                             <label>身份证号</label>
                             <input type="text" name="idCard" placeholder="请输入身份证号">
                         </div>
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>选课班</label>
-                            <select name="electiveClass">
+                            <select name="electiveClass" id="add-elective">
                                 <option value="">-- 不选 --</option>
                                 <option th:each="ec : ${electiveClasses}"
+                                        th:attr="data-grade=${ec.grade != null ? ec.grade.id : ''}"
                                         th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
                                         th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
                             </select>
                         </div>
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>学籍状态</label>
                             <select name="studentStatus">
                                 <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"
@@ -371,14 +382,14 @@
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <div class="modal-body">
                     <div class="form-grid2">
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>年级</label>
-                            <select id="edit-grade" onchange="filterEditClasses()">
+                            <select id="edit-grade" onchange="onEditGradeChange()">
                                 <option value="">全部年级</option>
                                 <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
                             </select>
                         </div>
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>班级 <span style="color:#e74c3c">*</span></label>
                             <select name="classId" id="edit-classId" required>
                                 <option th:each="c : ${classes}"
@@ -407,16 +418,17 @@
                             <label>身份证号</label>
                             <input type="text" name="idCard" id="edit-idCard">
                         </div>
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>选课班</label>
                             <select name="electiveClass" id="edit-elective">
                                 <option value="">-- 不选 --</option>
                                 <option th:each="ec : ${electiveClasses}"
+                                        th:attr="data-grade=${ec.grade != null ? ec.grade.id : ''}"
                                         th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
                                         th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
                             </select>
                         </div>
-                        <div class="form-group full">
+                        <div class="form-group">
                             <label>学籍状态</label>
                             <select name="studentStatus" id="edit-studentStatus">
                                 <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"></option>
@@ -558,7 +570,10 @@ function submitBatchDelete() {
     document.getElementById('batchDeleteForm').submit();
 }
 
-function openAdd() { document.getElementById('addModal').classList.add('active'); }
+function openAdd() {
+    onAddGradeChange();
+    document.getElementById('addModal').classList.add('active');
+}
 function closeAdd() { document.getElementById('addModal').classList.remove('active'); }
 
 function openEdit(btn) {
@@ -566,12 +581,13 @@ function openEdit(btn) {
     document.getElementById('edit-gender').value = btn.dataset.gender || '男';
     document.getElementById('edit-studentNo').value = btn.dataset.studentno || '';
     document.getElementById('edit-idCard').value = btn.dataset.idcard || '';
-    document.getElementById('edit-elective').value = btn.dataset.elective || '';
     document.getElementById('edit-studentStatus').value = btn.dataset.studentstatus || '在籍';
 
     document.getElementById('edit-grade').value = btn.dataset.gradeid || '';
-    filterEditClasses();
+    onEditGradeChange();
     document.getElementById('edit-classId').value = btn.dataset.classid;
+    document.getElementById('edit-elective').value = btn.dataset.elective || '';
+    filterEditElectiveClasses();
     document.getElementById('editForm').action = '/admin/students/edit/' + btn.dataset.id;
     document.getElementById('editModal').classList.add('active');
 }
@@ -586,6 +602,61 @@ function filterEditClasses() {
         const first = Array.from(sel.options).find(o => !o.hidden);
         if (first) sel.value = first.value;
     }
+}
+
+function filterAddClasses() {
+    const gid = document.getElementById('add-grade').value;
+    const sel = document.getElementById('add-classId');
+    Array.from(sel.options).forEach((opt, idx) => {
+        if (idx === 0) {
+            opt.hidden = false;
+            return;
+        }
+        opt.hidden = gid ? opt.dataset.grade !== gid : false;
+    });
+    if (sel.selectedOptions.length > 0 && sel.selectedOptions[0].hidden) {
+        sel.value = '';
+    }
+}
+
+function filterAddElectiveClasses() {
+    const gid = document.getElementById('add-grade').value;
+    const sel = document.getElementById('add-elective');
+    Array.from(sel.options).forEach((opt, idx) => {
+        if (idx === 0) {
+            opt.hidden = false;
+            return;
+        }
+        opt.hidden = gid ? opt.dataset.grade !== gid : false;
+    });
+    if (sel.selectedOptions.length > 0 && sel.selectedOptions[0].hidden) {
+        sel.value = '';
+    }
+}
+
+function onAddGradeChange() {
+    filterAddClasses();
+    filterAddElectiveClasses();
+}
+
+function filterEditElectiveClasses() {
+    const gid = document.getElementById('edit-grade').value;
+    const sel = document.getElementById('edit-elective');
+    Array.from(sel.options).forEach((opt, idx) => {
+        if (idx === 0) {
+            opt.hidden = false;
+            return;
+        }
+        opt.hidden = gid ? opt.dataset.grade !== gid : false;
+    });
+    if (sel.selectedOptions.length > 0 && sel.selectedOptions[0].hidden) {
+        sel.value = '';
+    }
+}
+
+function onEditGradeChange() {
+    filterEditClasses();
+    filterEditElectiveClasses();
 }
 
 function closeEdit() { document.getElementById('editModal').classList.remove('active'); }
