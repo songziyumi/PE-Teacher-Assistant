@@ -60,10 +60,10 @@ public class TeacherPhysicalTestController {
         if (classId != null) {
             SchoolClass sc = classService.findById(classId);
             if ("选修课".equals(sc.getType())) {
-                students = studentService.findByElectiveClass(
+                students = studentService.findByElectiveClassForTeacher(school,
                         (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName());
             } else {
-                students = studentService.findByClassId(classId);
+                students = studentService.findByClassIdForTeacher(school, classId);
             }
             // 查当前已有记录
             for (Student s : students) {

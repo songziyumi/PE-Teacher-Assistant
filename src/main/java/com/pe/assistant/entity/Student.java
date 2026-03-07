@@ -26,6 +26,9 @@ public class Student {
     @Column(name = "elective_class", length = 100)
     private String electiveClass;
 
+    @Column(name = "student_status", length = 20)
+    private String studentStatus = "在籍";
+
     @Column(length = 200)
     private String password;
 

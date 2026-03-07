@@ -109,13 +109,14 @@ public class TeacherApiController {
 
     @GetMapping("/classes/{classId}/students")
     public ApiResponse<List<Map<String, Object>>> students(@PathVariable Long classId) {
+        School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
         if ("选修课".equals(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            students = studentService.findByElectiveClass(name);
+            students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
-            students = studentService.findByClassId(classId);
+            students = studentService.findByClassIdForTeacher(school, classId);
         }
         List<Map<String, Object>> result = students.stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -124,6 +125,7 @@ public class TeacherApiController {
             m.put("studentNo", s.getStudentNo());
             m.put("gender", s.getGender());
             m.put("electiveClass", s.getElectiveClass());
+            m.put("studentStatus", s.getStudentStatus());
             if (s.getSchoolClass() != null) {
                 Map<String, Object> classMap = new LinkedHashMap<>();
                 classMap.put("id", s.getSchoolClass().getId());
@@ -188,9 +190,9 @@ public class TeacherApiController {
         List<Student> students;
         if ("选修课".equals(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            students = studentService.findByElectiveClass(name);
+            students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
-            students = studentService.findByClassId(classId);
+            students = studentService.findByClassIdForTeacher(school, classId);
         }
         Map<Long, Object> map = new HashMap<>();
         for (Student s : students) {
@@ -258,13 +260,14 @@ public class TeacherApiController {
     public ApiResponse<Map<Long, Object>> termGrades(@RequestParam Long classId,
                                                       @RequestParam String academicYear,
                                                       @RequestParam String semester) {
+        School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
         if ("选修课".equals(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            students = studentService.findByElectiveClass(name);
+            students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
-            students = studentService.findByClassId(classId);
+            students = studentService.findByClassIdForTeacher(school, classId);
         }
         Map<Long, Object> map = new HashMap<>();
         for (Student s : students) {

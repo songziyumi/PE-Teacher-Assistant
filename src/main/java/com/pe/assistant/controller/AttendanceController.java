@@ -34,16 +34,17 @@ public class AttendanceController {
                                  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                  Model model) {
         if (date == null) date = LocalDate.now();
+        School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         boolean isElective = "选修课".equals(sc.getType());
         List<Student> students;
         List<Attendance> existing;
         if (isElective) {
             String elName = electiveName(sc);
-            students = studentService.findByElectiveClass(elName);
+            students = studentService.findByElectiveClassForTeacher(school, elName);
             existing = attendanceService.findByElectiveClassAndDate(elName, date);
         } else {
-            students = studentService.findByClassId(classId);
+            students = studentService.findByClassIdForTeacher(school, classId);
             existing = attendanceService.findByClassAndDate(classId, date);
         }
         Map<Long, String> statusMap = new HashMap<>();
@@ -69,7 +70,8 @@ public class AttendanceController {
                                          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                          Model model) {
         if (date == null) date = LocalDate.now();
-        List<Student> students = studentService.findByElectiveClass(name);
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students = studentService.findByElectiveClassForTeacher(school, name);
         List<Attendance> existing = attendanceService.findByElectiveClassAndDate(name, date);
         Map<Long, String> statusMap = new HashMap<>();
         for (Attendance a : existing) statusMap.put(a.getStudent().getId(), a.getStatus());

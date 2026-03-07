@@ -51,6 +51,15 @@ public class SchoolService {
     }
 
     @Transactional
+    public School updateTeacherStudentVisibility(Long id, boolean showSuspendedOnTeacherPage,
+            boolean showOutgoingBorrowOnTeacherPage) {
+        School s = schoolRepository.findById(id).orElseThrow();
+        s.setShowSuspendedOnTeacherPage(showSuspendedOnTeacherPage);
+        s.setShowOutgoingBorrowOnTeacherPage(showOutgoingBorrowOnTeacherPage);
+        return schoolRepository.save(s);
+    }
+
+    @Transactional
     public void toggleEnabled(Long id) {
         School s = schoolRepository.findById(id).orElseThrow();
         s.setEnabled(!s.getEnabled());

@@ -27,6 +27,12 @@ public class School {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @Column(name = "show_suspended_on_teacher_page", nullable = false)
+    private Boolean showSuspendedOnTeacherPage = true;
+
+    @Column(name = "show_outgoing_borrow_on_teacher_page", nullable = false)
+    private Boolean showOutgoingBorrowOnTeacherPage = true;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

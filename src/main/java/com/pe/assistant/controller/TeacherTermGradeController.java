@@ -34,6 +34,7 @@ public class TeacherTermGradeController {
                             @RequestParam(defaultValue = "") String academicYear,
                             @RequestParam(defaultValue = "上学期") String semester,
                             Model model) {
+        School school = currentUserService.getCurrentSchool();
         Teacher teacher = currentUserService.getCurrentTeacher();
         List<SchoolClass> myClasses = classService.findByTeacher(teacher);
 
@@ -52,10 +53,10 @@ public class TeacherTermGradeController {
         if (classId != null) {
             SchoolClass sc = classService.findById(classId);
             if ("选修课".equals(sc.getType())) {
-                students = studentService.findByElectiveClass(
+                students = studentService.findByElectiveClassForTeacher(school,
                         (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName());
             } else {
-                students = studentService.findByClassId(classId);
+                students = studentService.findByClassIdForTeacher(school, classId);
             }
             for (Student s : students) {
                 termGradeService.findExisting(s, academicYear, semester)

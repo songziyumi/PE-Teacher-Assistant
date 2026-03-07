@@ -26,11 +26,10 @@ public class StudentController {
     @GetMapping("/class/{classId}")
     public String listStudents(@PathVariable Long classId, Model model) {
         School school = currentUserService.getCurrentSchool();
-        Teacher teacher = currentUserService.getCurrentTeacher();
         SchoolClass sc = classService.findById(classId);
         List<Student> students = "选修课".equals(sc.getType())
-                ? studentService.findByElectiveClass(electiveName(sc))
-                : studentService.findByClassId(classId);
+                ? studentService.findByElectiveClassForTeacher(school, electiveName(sc))
+                : studentService.findByClassIdForTeacher(school, classId);
         List<SchoolClass> electiveClasses = classService.findAll(school).stream()
                 .filter(c -> "选修课".equals(c.getType())).toList();
         List<SchoolClass> adminClasses = classService.findAll(school).stream()

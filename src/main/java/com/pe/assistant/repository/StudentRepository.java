@@ -26,7 +26,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             "(:name IS NULL OR :name = '' OR s.name LIKE CONCAT('%', :name, '%')) AND " +
             "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE CONCAT('%', :studentNo, '%')) AND " +
             "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE CONCAT('%', :idCard, '%')) AND " +
-            "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass = :electiveClass)", countQuery = "SELECT COUNT(DISTINCT s) FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE "
+            "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass LIKE CONCAT('%', :electiveClass, '%')) AND " +
+            "(:studentStatus IS NULL OR :studentStatus = '' OR s.studentStatus = :studentStatus)", countQuery = "SELECT COUNT(DISTINCT s) FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE "
                     +
                     "s.school = :school AND " +
                     "(:classId IS NULL OR sc.id = :classId) AND " +
@@ -34,7 +35,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                     "(:name IS NULL OR :name = '' OR s.name LIKE CONCAT('%', :name, '%')) AND " +
                     "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE CONCAT('%', :studentNo, '%')) AND " +
                     "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE CONCAT('%', :idCard, '%')) AND " +
-                    "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass = :electiveClass)")
+                    "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass LIKE CONCAT('%', :electiveClass, '%')) AND " +
+                    "(:studentStatus IS NULL OR :studentStatus = '' OR s.studentStatus = :studentStatus)")
     Page<Student> findWithFilters(@Param("school") School school,
             @Param("classId") Long classId,
             @Param("gradeId") Long gradeId,
@@ -42,7 +44,27 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             @Param("studentNo") String studentNo,
             @Param("idCard") String idCard,
             @Param("electiveClass") String electiveClass,
+            @Param("studentStatus") String studentStatus,
             Pageable pageable);
+
+    @Query("SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+            "s.school = :school AND " +
+            "(:classId IS NULL OR sc.id = :classId) AND " +
+            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
+            "(:name IS NULL OR :name = '' OR s.name LIKE CONCAT('%', :name, '%')) AND " +
+            "(:studentNo IS NULL OR :studentNo = '' OR s.studentNo LIKE CONCAT('%', :studentNo, '%')) AND " +
+            "(:idCard IS NULL OR :idCard = '' OR s.idCard LIKE CONCAT('%', :idCard, '%')) AND " +
+            "(:electiveClass IS NULL OR :electiveClass = '' OR s.electiveClass LIKE CONCAT('%', :electiveClass, '%')) AND " +
+            "(:studentStatus IS NULL OR :studentStatus = '' OR s.studentStatus = :studentStatus) " +
+            "ORDER BY s.studentNo")
+    List<Student> findListWithFilters(@Param("school") School school,
+            @Param("classId") Long classId,
+            @Param("gradeId") Long gradeId,
+            @Param("name") String name,
+            @Param("studentNo") String studentNo,
+            @Param("idCard") String idCard,
+            @Param("electiveClass") String electiveClass,
+            @Param("studentStatus") String studentStatus);
 
     List<Student> findByElectiveClassOrderByStudentNo(String electiveClass);
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -7,63 +7,148 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         .modal-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,.45); z-index: 1000;
-            align-items: center; justify-content: center;
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
         .modal-overlay.active { display: flex; }
         .modal {
-            background: #fff; border-radius: 12px; width: 480px;
-            max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            background: #fff;
+            border-radius: 12px;
+            width: 480px;
+            max-width: 95vw;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .18);
             animation: modalIn .2s ease;
         }
         @keyframes modalIn {
             from { transform: translateY(-24px); opacity: 0; }
-            to   { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(0); opacity: 1; }
         }
         .modal-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 18px 24px; background: #4a90e2; border-radius: 12px 12px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+            background: #4a90e2;
+            border-radius: 12px 12px 0 0;
         }
         .modal-header h3 { font-size: 16px; color: #fff; margin: 0; }
         .modal-close {
-            background: none; border: none; font-size: 22px;
-            color: rgba(255,255,255,.8); cursor: pointer; line-height: 1; padding: 0 4px;
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: rgba(255, 255, 255, .8);
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
         }
         .modal-close:hover { color: #fff; }
         .modal-body { padding: 24px; }
         .modal-footer {
-            display: flex; justify-content: flex-end; gap: 10px;
-            padding: 16px 24px; border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 24px;
+            border-top: 1px solid #eee;
         }
         .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .form-grid2 .full { grid-column: 1 / -1; }
         .form-group { display: flex; flex-direction: column; gap: 5px; }
         .form-group label { font-size: 13px; color: #555; font-weight: 500; }
         .form-group input, .form-group select {
-            padding: 8px 11px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 14px; transition: border-color .2s; outline: none;
+            padding: 8px 11px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color .2s;
+            outline: none;
         }
         .form-group input:focus, .form-group select:focus { border-color: #4a90e2; }
-        .search-bar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+
+        .search-bar {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
         .search-bar input, .search-bar select {
-            flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 14px; outline: none; min-width: 0;
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            min-width: 0;
         }
         .search-bar input:focus, .search-bar select:focus { border-color: #4a90e2; }
-        .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 16px; align-items: center; }
+
+        .search-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .setting-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            background: #f9fafb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+        }
+        .setting-title {
+            font-size: 13px;
+            color: #374151;
+            font-weight: 600;
+        }
+        .setting-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #374151;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 16px;
+            align-items: center;
+        }
         .pagination a, .pagination span {
-            padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 13px; text-decoration: none; color: #333;
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            text-decoration: none;
+            color: #333;
         }
         .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
         .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
         .pagination .disabled { color: #bbb; pointer-events: none; }
+
+        @media (max-width: 1100px) {
+            .search-bar { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+        }
+        @media (max-width: 680px) {
+            .search-bar { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">?? 体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/admin}">管理后台</a>
         <a th:href="@{/dashboard}">首页</a>
@@ -73,13 +158,29 @@
         </form>
     </div>
 </nav>
+
 <div class="container">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
     <div class="page-header">
         <h2>学生管理</h2>
     </div>
-    <!-- 搜索框 -->
+
+    <form th:action="@{/admin/students/teacher-visibility}" method="post" class="setting-card">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <span class="setting-title">教师页面学生显示设置</span>
+        <label class="setting-item">
+            <input type="checkbox" name="showSuspendedOnTeacherPage" th:checked="${showSuspendedOnTeacherPage}">
+            显示休学学生
+        </label>
+        <label class="setting-item">
+            <input type="checkbox" name="showOutgoingBorrowOnTeacherPage" th:checked="${showOutgoingBorrowOnTeacherPage}">
+            显示外出借读学生
+        </label>
+        <button type="submit" class="btn btn-outline">保存设置</button>
+    </form>
+
     <form method="get" th:action="@{/admin/students}" class="search-bar">
         <select name="gradeId" id="gradeSelect">
             <option value="" th:selected="${gradeId == null}">全部年级</option>
@@ -96,50 +197,93 @@
         <input type="text" name="name" th:value="${name}" placeholder="姓名">
         <input type="text" name="studentNo" th:value="${studentNo}" placeholder="学号">
         <input type="text" name="idCard" th:value="${idCard}" placeholder="身份证号">
+        <select name="electiveClass">
+            <option value="" th:selected="${electiveClass == null || electiveClass == ''}">选课班（下拉）</option>
+            <option th:each="ecName : ${electiveClassOptions}" th:value="${ecName}" th:text="${ecName}"
+                    th:selected="${electiveClass == ecName}"></option>
+        </select>
+        <input type="text" name="electiveClassInput" th:value="${electiveClassInput}" placeholder="选课班（手动输入）">
+        <select name="studentStatus">
+            <option value="" th:selected="${studentStatus == null || studentStatus == ''}">全部学籍状态</option>
+            <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"
+                    th:selected="${studentStatus == status}"></option>
+        </select>
         <button type="submit" class="btn btn-secondary">搜索</button>
+    </form>
+
+    <div class="search-actions">
         <a th:href="@{/admin/students}" class="btn btn-outline">重置</a>
         <button type="button" class="btn btn-primary" onclick="openAdd()">＋ 添加学生</button>
-    </form>
-    <form th:action="@{/admin/students/delete-all}" method="post" style="display:inline"
-          onsubmit="return confirm('确认删除全部学生数据？此操作不可恢复！')">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <button type="submit" class="btn btn-danger">删除全部</button>
-    </form>
-    <table class="table">        <thead><tr><th>序号</th><th>班级</th><th>姓名</th><th>性别</th><th>学号</th><th>身份证</th><th>选课班</th><th>操作</th></tr></thead>
+        <a th:href="@{/admin/students/export(all=true)}" class="btn btn-outline">导出全部</a>
+        <a th:href="@{/admin/students/export(gradeId=${gradeId},classId=${classId},name=${name},studentNo=${studentNo},idCard=${idCard},electiveClass=${electiveClass},electiveClassInput=${electiveClassInput},studentStatus=${studentStatus})}"
+           class="btn btn-outline">按搜索条件导出</a>
+        <button type="button" class="btn btn-danger" onclick="submitBatchDelete()">删除选中</button>
+        <form th:action="@{/admin/students/delete-all}" method="post" style="display:inline"
+              onsubmit="return confirm('确认删除全部学生数据？此操作不可恢复！')">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="btn btn-danger">删除全部</button>
+        </form>
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th><input type="checkbox" id="selectAll" onclick="toggleAllRows(this)"></th>
+            <th>序号</th>
+            <th>班级</th>
+            <th>姓名</th>
+            <th>性别</th>
+            <th>学号</th>
+            <th>身份证</th>
+            <th>选课班</th>
+            <th>学籍状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
         <tbody>
-            <tr th:each="s, iter : ${studentPage.content}">
-                <td th:text="${studentPage.number * studentPage.size + iter.count}"></td>
-                <td th:text="${s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' + s.schoolClass.name : s.schoolClass.name}"></td>
-                <td th:text="${s.name}"></td>
-                <td th:text="${s.gender}"></td>
-                <td th:text="${s.studentNo}"></td>
-                <td th:text="${s.idCard}"></td>
-                <td th:text="${s.electiveClass}"></td>
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="openEdit(this)"
-                            th:data-id="${s.id}" th:data-name="${s.name}"
-                            th:data-gender="${s.gender}" th:data-studentno="${s.studentNo}"
-                            th:data-idcard="${s.idCard}" th:data-elective="${s.electiveClass}"
-                            th:data-classid="${s.schoolClass.id}"
-                            th:data-gradeid="${s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}">编辑</button>
-                    <form th:action="@{/admin/students/delete/{id}(id=${s.id})}" method="post" style="display:inline"
-                          onsubmit="return confirm('确认删除？')">
-                        <input type="hidden" name="classId" th:value="${s.schoolClass.id}">
-                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
-                    </form>
-                </td>
-            </tr>
+        <tr th:each="s, iter : ${studentPage.content}">
+            <td><input type="checkbox" class="row-check" name="ids" th:value="${s.id}"></td>
+            <td th:text="${studentPage.number * studentPage.size + iter.count}"></td>
+            <td th:text="${s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' + s.schoolClass.name : s.schoolClass.name}"></td>
+            <td th:text="${s.name}"></td>
+            <td th:text="${s.gender}"></td>
+            <td th:text="${s.studentNo}"></td>
+            <td th:text="${s.idCard}"></td>
+            <td th:text="${s.electiveClass}"></td>
+            <td th:text="${s.studentStatus != null ? s.studentStatus : '在籍'}"></td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="openEdit(this)"
+                        th:data-id="${s.id}" th:data-name="${s.name}"
+                        th:data-gender="${s.gender}" th:data-studentno="${s.studentNo}"
+                        th:data-idcard="${s.idCard}" th:data-elective="${s.electiveClass}"
+                        th:data-studentstatus="${s.studentStatus != null ? s.studentStatus : '在籍'}"
+                        th:data-classid="${s.schoolClass.id}"
+                        th:data-gradeid="${s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}">编辑</button>
+                <form th:action="@{/admin/students/delete/{id}(id=${s.id})}" method="post" style="display:inline"
+                      onsubmit="return confirm('确认删除？')">
+                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                </form>
+            </td>
+        </tr>
         </tbody>
     </table>
-    <!-- 分页参数（供JS读取） -->
-    <input type="hidden" id="pg-current"  th:value="${studentPage.number}">
-    <input type="hidden" id="pg-total"    th:value="${studentPage.totalPages}">
-    <input type="hidden" id="pg-gradeId"  th:value="${gradeId}">
-    <input type="hidden" id="pg-classId"  th:value="${classId}">
-    <input type="hidden" id="pg-name"     th:value="${name}">
+
+    <form id="batchDeleteForm" th:action="@{/admin/students/delete-batch}" method="post" style="display:none">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div id="batchDeleteIds"></div>
+    </form>
+
+    <input type="hidden" id="pg-current" th:value="${studentPage.number}">
+    <input type="hidden" id="pg-total" th:value="${studentPage.totalPages}">
+    <input type="hidden" id="pg-gradeId" th:value="${gradeId}">
+    <input type="hidden" id="pg-classId" th:value="${classId}">
+    <input type="hidden" id="pg-name" th:value="${name}">
     <input type="hidden" id="pg-studentNo" th:value="${studentNo}">
-    <input type="hidden" id="pg-idCard"   th:value="${idCard}">
-    <!-- 分页控件 -->
+    <input type="hidden" id="pg-idCard" th:value="${idCard}">
+    <input type="hidden" id="pg-electiveClass" th:value="${electiveClass}">
+    <input type="hidden" id="pg-electiveClassInput" th:value="${electiveClassInput}">
+    <input type="hidden" id="pg-studentStatus" th:value="${studentStatus}">
+
     <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${studentPage.totalPages > 0}">
         <span style="font-size:13px;color:#555;white-space:nowrap"
               th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
@@ -155,141 +299,154 @@
         </span>
     </div>
 
-<!-- 添加学生弹窗 -->
-<div class="modal-overlay" id="addModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>添加学生</h3>
-            <button class="modal-close" onclick="closeAdd()">×</button>
-        </div>
-        <form th:action="@{/admin/students/add}" method="post">
-            <div class="modal-body">
-                <div class="form-grid2">
-                    <div class="form-group full">
-                        <label>班级 <span style="color:#e74c3c">*</span></label>
-                        <select name="classId" required>
-                            <option value="">请选择班级</option>
-                            <option th:each="c : ${classes}" th:value="${c.id}"
-                                    th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>姓名 <span style="color:#e74c3c">*</span></label>
-                        <input type="text" name="name" placeholder="请输入姓名" required>
-                    </div>
-                    <div class="form-group">
-                        <label>性别</label>
-                        <select name="gender">
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>学号</label>
-                        <input type="text" name="studentNo" placeholder="请输入学号">
-                    </div>
-                    <div class="form-group">
-                        <label>身份证号</label>
-                        <input type="text" name="idCard" placeholder="请输入身份证号">
-                    </div>
-                    <div class="form-group full">
-                        <label>选课班</label>
-                        <select name="electiveClass">
-                            <option value="">-- 不选 --</option>
-                            <option th:each="ec : ${electiveClasses}"
-                                    th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
-                                    th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
-                        </select>
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>添加学生</h3>
+                <button class="modal-close" onclick="closeAdd()">×</button>
+            </div>
+            <form th:action="@{/admin/students/add}" method="post">
+                <div class="modal-body">
+                    <div class="form-grid2">
+                        <div class="form-group full">
+                            <label>班级 <span style="color:#e74c3c">*</span></label>
+                            <select name="classId" required>
+                                <option value="">请选择班级</option>
+                                <option th:each="c : ${classes}" th:value="${c.id}"
+                                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>姓名 <span style="color:#e74c3c">*</span></label>
+                            <input type="text" name="name" placeholder="请输入姓名" required>
+                        </div>
+                        <div class="form-group">
+                            <label>性别</label>
+                            <select name="gender">
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>学号</label>
+                            <input type="text" name="studentNo" placeholder="请输入学号">
+                        </div>
+                        <div class="form-group">
+                            <label>身份证号</label>
+                            <input type="text" name="idCard" placeholder="请输入身份证号">
+                        </div>
+                        <div class="form-group full">
+                            <label>选课班</label>
+                            <select name="electiveClass">
+                                <option value="">-- 不选 --</option>
+                                <option th:each="ec : ${electiveClasses}"
+                                        th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
+                                        th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group full">
+                            <label>学籍状态</label>
+                            <select name="studentStatus">
+                                <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"
+                                        th:selected="${status == '在籍'}"></option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="closeAdd()">取消</button>
-                <button type="submit" class="btn btn-primary">确认添加</button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeAdd()">取消</button>
+                    <button type="submit" class="btn btn-primary">确认添加</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- 编辑学生弹窗 -->
-<div class="modal-overlay" id="editModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>编辑学生</h3>
-            <button class="modal-close" onclick="closeEdit()">×</button>
-        </div>
-        <form id="editForm" method="post">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-            <div class="modal-body">
-                <div class="form-grid2">
-                    <div class="form-group full">
-                        <label>年级</label>
-                        <select id="edit-grade" onchange="filterEditClasses()">
-                            <option value="">全部年级</option>
-                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
-                        </select>
-                    </div>
-                    <div class="form-group full">
-                        <label>班级 <span style="color:#e74c3c">*</span></label>
-                        <select name="classId" id="edit-classId" required>
-                            <option th:each="c : ${classes}"
-                                    th:if="${'行政班'.equals(c.type)}"
-                                    th:value="${c.id}"
-                                    th:attr="data-grade=${c.grade != null ? c.grade.id : ''}"
-                                    th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>姓名 <span style="color:#e74c3c">*</span></label>
-                        <input type="text" name="name" id="edit-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>性别</label>
-                        <select name="gender" id="edit-gender">
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>学号</label>
-                        <input type="text" name="studentNo" id="edit-studentNo">
-                    </div>
-                    <div class="form-group">
-                        <label>身份证号</label>
-                        <input type="text" name="idCard" id="edit-idCard">
-                    </div>
-                    <div class="form-group full">
-                        <label>选课班</label>
-                        <select name="electiveClass" id="edit-elective">
-                            <option value="">-- 不选 --</option>
-                            <option th:each="ec : ${electiveClasses}"
-                                    th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
-                                    th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
-                        </select>
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>编辑学生</h3>
+                <button class="modal-close" onclick="closeEdit()">×</button>
+            </div>
+            <form id="editForm" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <div class="modal-body">
+                    <div class="form-grid2">
+                        <div class="form-group full">
+                            <label>年级</label>
+                            <select id="edit-grade" onchange="filterEditClasses()">
+                                <option value="">全部年级</option>
+                                <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group full">
+                            <label>班级 <span style="color:#e74c3c">*</span></label>
+                            <select name="classId" id="edit-classId" required>
+                                <option th:each="c : ${classes}"
+                                        th:if="${'行政班'.equals(c.type)}"
+                                        th:value="${c.id}"
+                                        th:attr="data-grade=${c.grade != null ? c.grade.id : ''}"
+                                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>姓名 <span style="color:#e74c3c">*</span></label>
+                            <input type="text" name="name" id="edit-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>性别</label>
+                            <select name="gender" id="edit-gender">
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>学号</label>
+                            <input type="text" name="studentNo" id="edit-studentNo">
+                        </div>
+                        <div class="form-group">
+                            <label>身份证号</label>
+                            <input type="text" name="idCard" id="edit-idCard">
+                        </div>
+                        <div class="form-group full">
+                            <label>选课班</label>
+                            <select name="electiveClass" id="edit-elective">
+                                <option value="">-- 不选 --</option>
+                                <option th:each="ec : ${electiveClasses}"
+                                        th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
+                                        th:text="${ec.grade != null ? ec.grade.name + ' - ' + ec.name : ec.name}"></option>
+                            </select>
+                        </div>
+                        <div class="form-group full">
+                            <label>学籍状态</label>
+                            <select name="studentStatus" id="edit-studentStatus">
+                                <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"></option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
-                <button type="submit" class="btn btn-primary">保存修改</button>
-            </div>
-        </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
-// 年级联动班级
 (function() {
     const gradeSelect = document.getElementById('gradeSelect');
     const classSelect = document.getElementById('classSelect');
-    const allOptions  = Array.from(classSelect.options).slice(1);
+    const allOptions = Array.from(classSelect.options).slice(1);
 
     function filterClasses() {
         const gid = gradeSelect.value;
+        const selected = classSelect.value;
         while (classSelect.options.length > 1) classSelect.remove(1);
         allOptions.forEach(opt => {
             if (!gid || opt.dataset.grade === gid) classSelect.add(opt.cloneNode(true));
         });
+        if (selected) classSelect.value = selected;
     }
 
     gradeSelect.addEventListener('change', () => {
@@ -300,26 +457,31 @@
     if (gradeSelect.value) filterClasses();
 })();
 
-// 分页逻辑
 (function() {
     const pg = document.getElementById('pagination');
     if (!pg) return;
 
-    const current   = parseInt(document.getElementById('pg-current').value);
-    const total     = parseInt(document.getElementById('pg-total').value);
-    const gradeId   = document.getElementById('pg-gradeId').value;
-    const classId   = document.getElementById('pg-classId').value;
-    const name      = document.getElementById('pg-name').value;
+    const current = parseInt(document.getElementById('pg-current').value, 10);
+    const total = parseInt(document.getElementById('pg-total').value, 10);
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const classId = document.getElementById('pg-classId').value;
+    const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
-    const idCard    = document.getElementById('pg-idCard').value;
+    const idCard = document.getElementById('pg-idCard').value;
+    const electiveClass = document.getElementById('pg-electiveClass').value;
+    const electiveClassInput = document.getElementById('pg-electiveClassInput').value;
+    const studentStatus = document.getElementById('pg-studentStatus').value;
 
     function url(p) {
         const params = new URLSearchParams();
-        if (gradeId)   params.set('gradeId', gradeId);
-        if (classId)   params.set('classId', classId);
-        if (name)      params.set('name', name);
+        if (gradeId) params.set('gradeId', gradeId);
+        if (classId) params.set('classId', classId);
+        if (name) params.set('name', name);
         if (studentNo) params.set('studentNo', studentNo);
-        if (idCard)    params.set('idCard', idCard);
+        if (idCard) params.set('idCard', idCard);
+        if (electiveClass) params.set('electiveClass', electiveClass);
+        if (electiveClassInput) params.set('electiveClassInput', electiveClassInput);
+        if (studentStatus) params.set('studentStatus', studentStatus);
         params.set('page', p);
         return '/admin/students?' + params.toString();
     }
@@ -334,7 +496,8 @@
     const pages = new Set([0, total - 1]);
     for (let i = Math.max(0, current - 2); i <= Math.min(total - 1, current + 2); i++) pages.add(i);
     const sorted = [...pages].sort((a, b) => a - b);
-    let html = '', prev2 = -1;
+    let html = '';
+    let prev2 = -1;
     for (const p of sorted) {
         if (prev2 !== -1 && p - prev2 > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>';
         html += `<a href="${url(p)}" class="${p === current ? 'active' : ''}">${p + 1}</a>`;
@@ -344,58 +507,101 @@
 })();
 
 function jumpPage() {
-    const total     = parseInt(document.getElementById('pg-total').value);
-    const val       = parseInt(document.getElementById('pg-jump').value);
+    const total = parseInt(document.getElementById('pg-total').value, 10);
+    const val = parseInt(document.getElementById('pg-jump').value, 10);
     if (isNaN(val) || val < 1 || val > total) return;
-    const gradeId   = document.getElementById('pg-gradeId').value;
-    const classId   = document.getElementById('pg-classId').value;
-    const name      = document.getElementById('pg-name').value;
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const classId = document.getElementById('pg-classId').value;
+    const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
-    const idCard    = document.getElementById('pg-idCard').value;
+    const idCard = document.getElementById('pg-idCard').value;
+    const electiveClass = document.getElementById('pg-electiveClass').value;
+    const electiveClassInput = document.getElementById('pg-electiveClassInput').value;
+    const studentStatus = document.getElementById('pg-studentStatus').value;
     const params = new URLSearchParams();
-    if (gradeId)   params.set('gradeId', gradeId);
-    if (classId)   params.set('classId', classId);
-    if (name)      params.set('name', name);
+    if (gradeId) params.set('gradeId', gradeId);
+    if (classId) params.set('classId', classId);
+    if (name) params.set('name', name);
     if (studentNo) params.set('studentNo', studentNo);
-    if (idCard)    params.set('idCard', idCard);
+    if (idCard) params.set('idCard', idCard);
+    if (electiveClass) params.set('electiveClass', electiveClass);
+    if (electiveClassInput) params.set('electiveClassInput', electiveClassInput);
+    if (studentStatus) params.set('studentStatus', studentStatus);
     params.set('page', val - 1);
     location.href = '/admin/students?' + params.toString();
 }
 
-function openAdd()  { document.getElementById('addModal').classList.add('active'); }
+function toggleAllRows(master) {
+    document.querySelectorAll('.row-check').forEach(cb => {
+        cb.checked = master.checked;
+    });
+}
+
+function submitBatchDelete() {
+    const checked = Array.from(document.querySelectorAll('.row-check:checked'));
+    if (!checked.length) {
+        alert('请先勾选要删除的学生');
+        return;
+    }
+    if (!confirm('确认删除选中的 ' + checked.length + ' 名学生？')) {
+        return;
+    }
+    const container = document.getElementById('batchDeleteIds');
+    container.innerHTML = '';
+    checked.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'ids';
+        input.value = cb.value;
+        container.appendChild(input);
+    });
+    document.getElementById('batchDeleteForm').submit();
+}
+
+function openAdd() { document.getElementById('addModal').classList.add('active'); }
 function closeAdd() { document.getElementById('addModal').classList.remove('active'); }
+
 function openEdit(btn) {
     document.getElementById('edit-name').value = btn.dataset.name;
-    document.getElementById('edit-gender').value = btn.dataset.gender;
-    document.getElementById('edit-studentNo').value = btn.dataset.studentno;
-    document.getElementById('edit-idCard').value = btn.dataset.idcard;
+    document.getElementById('edit-gender').value = btn.dataset.gender || '男';
+    document.getElementById('edit-studentNo').value = btn.dataset.studentno || '';
+    document.getElementById('edit-idCard').value = btn.dataset.idcard || '';
     document.getElementById('edit-elective').value = btn.dataset.elective || '';
-    // 先设年级，再过滤班级，最后选中班级
+    document.getElementById('edit-studentStatus').value = btn.dataset.studentstatus || '在籍';
+
     document.getElementById('edit-grade').value = btn.dataset.gradeid || '';
     filterEditClasses();
     document.getElementById('edit-classId').value = btn.dataset.classid;
     document.getElementById('editForm').action = '/admin/students/edit/' + btn.dataset.id;
     document.getElementById('editModal').classList.add('active');
 }
+
 function filterEditClasses() {
-    var gid = document.getElementById('edit-grade').value;
-    var sel = document.getElementById('edit-classId');
-    Array.from(sel.options).forEach(function(opt) {
+    const gid = document.getElementById('edit-grade').value;
+    const sel = document.getElementById('edit-classId');
+    Array.from(sel.options).forEach(opt => {
         opt.hidden = gid ? opt.dataset.grade !== gid : false;
     });
-    // 若当前选中项被隐藏，重置为第一个可见项
     if (sel.selectedOptions.length > 0 && sel.selectedOptions[0].hidden) {
-        var first = Array.from(sel.options).find(function(o) { return !o.hidden; });
+        const first = Array.from(sel.options).find(o => !o.hidden);
         if (first) sel.value = first.value;
     }
 }
+
 function closeEdit() { document.getElementById('editModal').classList.remove('active'); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAdd(); closeEdit(); } });
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeAdd();
+        closeEdit();
+    }
+});
 </script>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>
-    <span>© 2026 陈胜松 版权所有</span>
+    <span>? 2026 陈胜松 版权所有</span>
 </footer>
 </body>
 </html>
