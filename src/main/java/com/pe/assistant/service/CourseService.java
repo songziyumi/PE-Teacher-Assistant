@@ -19,6 +19,7 @@ public class CourseService {
     private final CourseSelectionRepository selectionRepo;
     private final EventStudentRepository eventStudentRepo;
     private final SelectionEventRepository eventRepo;
+    private final StudentRepository studentRepo;
 
     // ===== 课程 CRUD =====
 
@@ -216,10 +217,19 @@ public class CourseService {
 
     @Transactional
     public void adminEnroll(Long courseId, Long studentId, Long eventId) {
+        adminEnroll(courseId, studentId, eventId, false);
+    }
+
+    @Transactional
+    public void adminEnroll(Long courseId, Long studentId, Long eventId, boolean forceOverflow) {
         Course course = findById(courseId);
-        SelectionEvent event = eventRepo.findById(eventId).orElseThrow();
-        Student student = new Student();
-        student.setId(studentId);
+        SelectionEvent event = eventRepo.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("活动不存在"));
+        if (course.getEvent() == null || !course.getEvent().getId().equals(event.getId())) {
+            throw new RuntimeException("课程不属于该选课活动");
+        }
+        Student student = studentRepo.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("学生不存在"));
         // 检查是否已有确认记录
         if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
             throw new RuntimeException("该学生已有确认的选课记录");
@@ -233,9 +243,41 @@ public class CourseService {
         cs.setStatus("CONFIRMED");
         cs.setSelectedAt(LocalDateTime.now());
         cs.setConfirmedAt(LocalDateTime.now());
+        reserveCapacityForAdminEnroll(course, student, forceOverflow);
         selectionRepo.save(cs);
-        course.setCurrentCount(course.getCurrentCount() + 1);
-        courseRepo.save(course);
+    }
+
+    private void reserveCapacityForAdminEnroll(Course course, Student student, boolean forceOverflow) {
+        if ("GLOBAL".equals(course.getCapacityMode())) {
+            Course locked = courseRepo.findByIdForUpdate(course.getId())
+                    .orElseThrow(() -> new RuntimeException("课程不存在"));
+            if (!forceOverflow && locked.getCurrentCount() >= locked.getTotalCapacity()) {
+                throw new RuntimeException("课程总名额已满");
+            }
+            locked.setCurrentCount(locked.getCurrentCount() + 1);
+            courseRepo.save(locked);
+            return;
+        }
+
+        SchoolClass sc = student.getSchoolClass();
+        if (sc == null) {
+            throw new RuntimeException("学生未分配行政班");
+        }
+        CourseClassCapacity cap = capacityRepo.findByCourseIdAndClassIdForUpdate(course.getId(), sc.getId())
+                .orElseThrow(() -> new RuntimeException("该学生所在班级未配置课程名额"));
+        if (!forceOverflow && cap.getCurrentCount() >= cap.getMaxCapacity()) {
+            throw new RuntimeException("该班级课程名额已满");
+        }
+        cap.setCurrentCount(cap.getCurrentCount() + 1);
+        capacityRepo.save(cap);
+
+        Course locked = courseRepo.findByIdForUpdate(course.getId())
+                .orElseThrow(() -> new RuntimeException("课程不存在"));
+        if (!forceOverflow && locked.getCurrentCount() >= locked.getTotalCapacity()) {
+            throw new RuntimeException("课程总名额已满");
+        }
+        locked.setCurrentCount(locked.getCurrentCount() + 1);
+        courseRepo.save(locked);
     }
 
     @Transactional

@@ -14,6 +14,8 @@ import java.util.List;
 public interface ExamRecordRepository extends JpaRepository<ExamRecord, Long> {
     
     List<ExamRecord> findByStudent(Student student);
+
+    void deleteByStudent(Student student);
     
     List<ExamRecord> findByStudentAndExamDateBetween(Student student, LocalDate startDate, LocalDate endDate);
     

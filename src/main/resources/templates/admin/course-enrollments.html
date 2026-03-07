@@ -131,6 +131,13 @@
                         <option th:each="s : ${allStudents}" th:value="${s.id}"
                                 th:text="${s.name} + ' (' + ${s.studentNo} + ')'"></option>
                     </select>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:500;">
+                        <input type="checkbox" name="forceOverflow" value="true">
+                        <span>强制超编（仅管理员手动加人时使用）</span>
+                    </label>
+                    <textarea name="forceReason"
+                              placeholder="若勾选强制超编，请填写原因（必填）"
+                              style="margin-top:8px;width:100%;min-height:72px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:.9rem;"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -144,6 +151,20 @@
 <script>
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('#addModal form');
+    if (!form) return;
+    const forceCheckbox = form.querySelector('input[name="forceOverflow"]');
+    const reasonInput = form.querySelector('textarea[name="forceReason"]');
+
+    form.addEventListener('submit', function (e) {
+        if (forceCheckbox && forceCheckbox.checked && reasonInput && !reasonInput.value.trim()) {
+            e.preventDefault();
+            alert('勾选强制超编时必须填写原因');
+        }
+    });
+});
 </script>
 </body>
 </html>

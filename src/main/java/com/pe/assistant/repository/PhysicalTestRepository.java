@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PhysicalTestRepository extends JpaRepository<PhysicalTest, Long> {
+    void deleteByStudent(Student student);
 
     Optional<PhysicalTest> findByStudentAndAcademicYearAndSemester(
             Student student, String academicYear, String semester);

@@ -25,6 +25,7 @@ public class AdminCourseController {
     private final ClassService classService;
     private final GradeService gradeService;
     private final StudentService studentService;
+    private final CourseOverflowAuditService courseOverflowAuditService;
     private final CourseClassCapacityRepository capacityRepo;
 
     @ModelAttribute("currentSchool")
@@ -274,10 +275,24 @@ public class AdminCourseController {
 
     @PostMapping("/{eventId}/courses/{courseId}/enrollments/add")
     public String adminEnroll(@PathVariable Long eventId, @PathVariable Long courseId,
-                              @RequestParam Long studentId, RedirectAttributes ra) {
+                              @RequestParam Long studentId,
+                              @RequestParam(defaultValue = "false") boolean forceOverflow,
+                              @RequestParam(defaultValue = "") String forceReason,
+                              RedirectAttributes ra) {
         try {
-            courseService.adminEnroll(courseId, studentId, eventId);
-            ra.addFlashAttribute("success", "已手动加入");
+            if (forceOverflow && (forceReason == null || forceReason.isBlank())) {
+                throw new RuntimeException("强制超编时必须填写原因");
+            }
+            courseService.adminEnroll(courseId, studentId, eventId, forceOverflow);
+            if (forceOverflow) {
+                School school = currentUserService.getCurrentSchool();
+                Teacher operator = currentUserService.getCurrentTeacher();
+                Course course = courseService.findById(courseId);
+                Student student = studentService.findById(studentId);
+                courseOverflowAuditService.recordForcedOverflow(
+                        school, course, student, operator, forceReason.trim());
+            }
+            ra.addFlashAttribute("success", forceOverflow ? "已强制超编加入" : "已手动加入");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }

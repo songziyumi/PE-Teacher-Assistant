@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<Attendance> findByStudentOrderByDateDesc(Student student);
     Optional<Attendance> findByStudentAndDate(Student student, LocalDate date);
+    void deleteByStudent(Student student);
 
     @Query("SELECT a FROM Attendance a WHERE a.student.schoolClass.id = :classId AND a.date = :date")
     List<Attendance> findByClassIdAndDate(@Param("classId") Long classId, @Param("date") LocalDate date);

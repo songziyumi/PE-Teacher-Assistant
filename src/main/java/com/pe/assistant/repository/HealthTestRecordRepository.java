@@ -14,6 +14,8 @@ import java.util.List;
 public interface HealthTestRecordRepository extends JpaRepository<HealthTestRecord, Long> {
     
     List<HealthTestRecord> findByStudent(Student student);
+
+    void deleteByStudent(Student student);
     
     List<HealthTestRecord> findByStudentAndTestDateBetween(Student student, LocalDate startDate, LocalDate endDate);
     

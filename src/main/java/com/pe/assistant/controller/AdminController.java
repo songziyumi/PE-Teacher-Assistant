@@ -29,6 +29,7 @@ public class AdminController {
     private final StudentService studentService;
     private final GradeService gradeService;
     private final AttendanceService attendanceService;
+    private final SchoolService schoolService;
     private final CurrentUserService currentUserService;
 
     @ModelAttribute("currentSchool")
@@ -224,27 +225,32 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String name,
                            @RequestParam(defaultValue = "") String studentNo,
                            @RequestParam(defaultValue = "") String idCard,
+                           @RequestParam(defaultValue = "") String electiveClass,
+                           @RequestParam(defaultValue = "") String electiveClassInput,
+                           @RequestParam(defaultValue = "") String studentStatus,
                            @RequestParam(defaultValue = "0") int page,
                            Model model) {
         School school = currentUserService.getCurrentSchool();
-        Long effectiveClassId = classId;
-        String electiveClass = null;
-        if (classId != null) {
-            SchoolClass sc = classService.findById(classId);
-            if ("选修课".equals(sc.getType())) {
-                effectiveClassId = null;
-                electiveClass = sc.getName();
-            }
-        }
-        Page<Student> studentPage = studentService.findWithFilters(school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
+        StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
+                electiveClass, electiveClassInput, studentStatus);
+        Page<Student> studentPage = studentService.findWithFilters(school, filter.classId(), filter.gradeId(),
+                filter.name(), filter.studentNo(), filter.idCard(), filter.electiveClass(), filter.studentStatus(),
+                page, 15);
         model.addAttribute("studentPage", studentPage);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("classId", classId);
         model.addAttribute("name", name);
         model.addAttribute("studentNo", studentNo);
         model.addAttribute("idCard", idCard);
+        model.addAttribute("electiveClass", electiveClass);
+        model.addAttribute("electiveClassInput", electiveClassInput);
+        model.addAttribute("studentStatus", studentStatus);
         model.addAttribute("grades", gradeService.findAll(school));
         model.addAttribute("classes", classService.findAll(school));
+        model.addAttribute("studentStatuses", studentService.getAvailableStatuses());
+        model.addAttribute("electiveClassOptions", studentService.findAllElectiveClassNames(school));
+        model.addAttribute("showSuspendedOnTeacherPage", !Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage()));
+        model.addAttribute("showOutgoingBorrowOnTeacherPage", !Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage()));
         model.addAttribute("electiveClasses", classService.findAll(school).stream()
             .filter(c -> "选修课".equals(c.getType())).toList());
         return "admin/students";
@@ -255,16 +261,45 @@ public class AdminController {
                                   @RequestParam(defaultValue = "") String name,
                                   @RequestParam(defaultValue = "") String studentNo,
                                   @RequestParam(defaultValue = "") String idCard,
-                                  @RequestParam(defaultValue = "0") int page,
-                                  Model model) {
+                                  @RequestParam(defaultValue = "0") int page) {
         return "redirect:/admin/students?classId=" + classId +
                "&name=" + name + "&studentNo=" + studentNo + "&idCard=" + idCard + "&page=" + page;
     }
 
     @PostMapping("/students/delete-all")
     public String deleteAllStudents(RedirectAttributes ra) {
-        studentService.deleteAll();
-        ra.addFlashAttribute("success", "已删除全部学生数据");
+        try {
+            studentService.deleteAll();
+            ra.addFlashAttribute("success", "已删除全部学生数据");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));
+        }
+        return "redirect:/admin/students";
+    }
+
+    @PostMapping("/students/delete-batch")
+    public String deleteBatchStudents(@RequestParam(required = false) List<Long> ids, RedirectAttributes ra) {
+        try {
+            int deleted = studentService.deleteByIds(ids);
+            if (deleted > 0) {
+                ra.addFlashAttribute("success", "已删除 " + deleted + " 名学生");
+            } else {
+                ra.addFlashAttribute("error", "请先勾选要删除的学生");
+            }
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));
+        }
+        return "redirect:/admin/students";
+    }
+
+    @PostMapping("/students/teacher-visibility")
+    public String updateTeacherVisibility(@RequestParam(defaultValue = "false") boolean showSuspendedOnTeacherPage,
+                                          @RequestParam(defaultValue = "false") boolean showOutgoingBorrowOnTeacherPage,
+                                          RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
+        schoolService.updateTeacherStudentVisibility(school.getId(),
+                showSuspendedOnTeacherPage, showOutgoingBorrowOnTeacherPage);
+        ra.addFlashAttribute("success", "教师端学生显示设置已更新");
         return "redirect:/admin/students";
     }
 
@@ -272,9 +307,10 @@ public class AdminController {
     public String addStudent(@RequestParam String name, @RequestParam String gender,
                              @RequestParam String studentNo, @RequestParam String idCard,
                              @RequestParam String electiveClass, @RequestParam Long classId,
+                             @RequestParam(defaultValue = "在籍") String studentStatus,
                              RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
-        studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school);
+        studentService.create(name, gender, studentNo, idCard, electiveClass, classId, school, studentStatus);
         ra.addFlashAttribute("success", "学生添加成功");
         return "redirect:/admin/students";
     }
@@ -283,17 +319,73 @@ public class AdminController {
     public String editStudent(@PathVariable Long id, @RequestParam String name,
                               @RequestParam String gender, @RequestParam String studentNo,
                               @RequestParam String idCard, @RequestParam String electiveClass,
-                              @RequestParam Long classId, RedirectAttributes ra) {
-        studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId);
+                              @RequestParam Long classId,
+                              @RequestParam(defaultValue = "在籍") String studentStatus,
+                              RedirectAttributes ra) {
+        studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId, studentStatus);
         ra.addFlashAttribute("success", "修改成功");
         return "redirect:/admin/students";
     }
 
     @PostMapping("/students/delete/{id}")
-    public String deleteStudent(@PathVariable Long id, @RequestParam Long classId, RedirectAttributes ra) {
-        studentService.delete(id);
-        ra.addFlashAttribute("success", "删除成功");
+    public String deleteStudent(@PathVariable Long id, RedirectAttributes ra) {
+        try {
+            studentService.delete(id);
+            ra.addFlashAttribute("success", "删除成功");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));
+        }
         return "redirect:/admin/students";
+    }
+
+    @GetMapping("/students/export")
+    public void exportStudents(@RequestParam(defaultValue = "false") boolean all,
+                               @RequestParam(required = false) Long gradeId,
+                               @RequestParam(required = false) Long classId,
+                               @RequestParam(defaultValue = "") String name,
+                               @RequestParam(defaultValue = "") String studentNo,
+                               @RequestParam(defaultValue = "") String idCard,
+                               @RequestParam(defaultValue = "") String electiveClass,
+                               @RequestParam(defaultValue = "") String electiveClassInput,
+                               @RequestParam(defaultValue = "") String studentStatus,
+                               HttpServletResponse response) throws IOException {
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students;
+        if (all) {
+            students = studentService.findBySchool(school);
+        } else {
+            StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
+                    electiveClass, electiveClassInput, studentStatus);
+            students = studentService.findListWithFilters(school, filter.classId(), filter.gradeId(), filter.name(),
+                    filter.studentNo(), filter.idCard(), filter.electiveClass(), filter.studentStatus());
+        }
+
+        response.setContentType("text/csv;charset=UTF-8");
+        String filename = all ? "学生列表_全部.csv" : "学生列表_按条件.csv";
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
+                + java.net.URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20"));
+
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
+            writer.write('\uFEFF');
+            writer.println("姓名,性别,学号,身份证号,年级,行政班,选课班,学籍状态");
+            for (Student student : students) {
+                String gradeName = student.getSchoolClass() != null && student.getSchoolClass().getGrade() != null
+                        ? student.getSchoolClass().getGrade().getName()
+                        : "";
+                String className = student.getSchoolClass() != null ? student.getSchoolClass().getName() : "";
+                String status = student.getStudentStatus() == null || student.getStudentStatus().isBlank()
+                        ? "在籍" : student.getStudentStatus();
+                writer.println(String.join(",",
+                        csv(student.getName()),
+                        csv(student.getGender()),
+                        csv(student.getStudentNo()),
+                        csv(student.getIdCard()),
+                        csv(gradeName),
+                        csv(className),
+                        csv(student.getElectiveClass()),
+                        csv(status)));
+            }
+        }
     }
 
     // ===== 统计 =====
@@ -306,16 +398,11 @@ public class AdminController {
                         @RequestParam(defaultValue = "0") int page,
                         Model model) {
         School school = currentUserService.getCurrentSchool();
-        Long effectiveClassId = classId;
-        String electiveClass = null;
-        if (classId != null) {
-            SchoolClass sc = classService.findById(classId);
-            if ("选修课".equals(sc.getType())) {
-                effectiveClassId = null;
-                electiveClass = sc.getName();
-            }
-        }
-        Page<Student> studentPage = studentService.findWithFilters(school, effectiveClassId, gradeId, name, studentNo, idCard, electiveClass, page, 15);
+        StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
+                "", "", "");
+        Page<Student> studentPage = studentService.findWithFilters(school, filter.classId(), filter.gradeId(),
+                filter.name(), filter.studentNo(), filter.idCard(), filter.electiveClass(), filter.studentStatus(),
+                page, 15);
         List<Map<String, Object>> studentStats = new ArrayList<>();
         for (Student s : studentPage.getContent()) {
             Map<String, Object> stat = attendanceService.getStudentStats(s.getId());
@@ -705,6 +792,47 @@ public class AdminController {
         attendanceService.deleteAllBySchool(school);
         ra.addFlashAttribute("success", "已清空全部考勤记录");
         return "redirect:/admin/import";
+    }
+
+    private StudentFilter resolveStudentFilter(School school, Long gradeId, Long classId, String name,
+                                               String studentNo, String idCard, String electiveClass,
+                                               String electiveClassInput, String studentStatus) {
+        Long effectiveClassId = classId;
+        String normalizedElective = electiveClassInput != null && !electiveClassInput.isBlank()
+                ? electiveClassInput.trim()
+                : (electiveClass == null ? "" : electiveClass.trim());
+        if (classId != null) {
+            SchoolClass selectedClass = classService.findById(classId);
+            if (selectedClass.getSchool() != null && school != null
+                    && !Objects.equals(selectedClass.getSchool().getId(), school.getId())) {
+                effectiveClassId = null;
+                return new StudentFilter(gradeId, effectiveClassId, safeTrim(name), safeTrim(studentNo), safeTrim(idCard),
+                        safeTrim(normalizedElective), safeTrim(studentStatus));
+            }
+            if ("选修课".equals(selectedClass.getType())) {
+                effectiveClassId = null;
+                if (normalizedElective.isBlank()) {
+                    normalizedElective = selectedClass.getGrade() != null
+                            ? selectedClass.getGrade().getName() + "/" + selectedClass.getName()
+                            : selectedClass.getName();
+                }
+            }
+        }
+        return new StudentFilter(gradeId, effectiveClassId, safeTrim(name), safeTrim(studentNo), safeTrim(idCard),
+                safeTrim(normalizedElective), safeTrim(studentStatus));
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String csv(String value) {
+        String text = value == null ? "" : value;
+        return "\"" + text.replace("\"", "\"\"") + "\"";
+    }
+
+    private record StudentFilter(Long gradeId, Long classId, String name, String studentNo,
+                                 String idCard, String electiveClass, String studentStatus) {
     }
 
     /**

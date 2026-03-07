@@ -16,6 +16,8 @@ public interface EventStudentRepository extends JpaRepository<EventStudent, Long
 
     boolean existsByEventAndStudent(SelectionEvent event, Student student);
 
+    void deleteByStudent(Student student);
+
     void deleteByEvent(SelectionEvent event);
 
     boolean existsByEvent(SelectionEvent event);

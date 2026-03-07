@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CourseSelectionRepository extends JpaRepository<CourseSelection, Long> {
+    List<CourseSelection> findByStudent(Student student);
+
+    void deleteByStudent(Student student);
 
     /** 某学生在某活动中的所有志愿/选课记录 */
     List<CourseSelection> findByEventAndStudent(SelectionEvent event, Student student);
