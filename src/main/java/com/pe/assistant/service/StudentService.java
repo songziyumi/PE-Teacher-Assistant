@@ -124,15 +124,18 @@ public class StudentService {
     public Student create(String name, String gender, String studentNo, String idCard,
             String electiveClass, Long classId, School school, String studentStatus) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
+        String normalizedStudentNo = (studentNo == null) ? null : studentNo.trim();
+        School effectiveSchool = school != null ? school : sc.getSchool();
+        ensureStudentNoUniqueBySchool(effectiveSchool, normalizedStudentNo, null);
         Student s = new Student();
         s.setName(name);
         s.setGender(gender);
-        s.setStudentNo(studentNo);
+        s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
         s.setStudentStatus(normalizeStatusForSave(studentStatus));
         s.setSchoolClass(sc);
-        s.setSchool(school);
+        s.setSchool(effectiveSchool);
         return studentRepository.save(s);
     }
 
@@ -184,7 +187,8 @@ public class StudentService {
             String idCard, String electiveClass, Long classId, String studentStatus) {
         Student s = studentRepository.findById(id).orElseThrow();
         String normalizedStudentNo = (studentNo == null) ? null : studentNo.trim();
-        ensureStudentNoUnique(s, normalizedStudentNo);
+        School effectiveSchool = resolveStudentSchool(s, classId);
+        ensureStudentNoUniqueBySchool(effectiveSchool, normalizedStudentNo, s.getId());
 
         s.setName(name);
         s.setGender(gender);
@@ -199,6 +203,11 @@ public class StudentService {
         if (classId != null) {
             SchoolClass sc = classRepository.findById(classId).orElseThrow();
             s.setSchoolClass(sc);
+            if (s.getSchool() == null) {
+                s.setSchool(sc.getSchool());
+            }
+        } else if (s.getSchool() == null) {
+            s.setSchool(effectiveSchool);
         }
         return studentRepository.save(s);
     }
@@ -334,6 +343,28 @@ public class StudentService {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
         return LEGACY_STATUS_ALIASES.getOrDefault(normalized, normalized);
+    }
+
+    private School resolveStudentSchool(Student student, Long classId) {
+        if (classId != null) {
+            SchoolClass sc = classRepository.findById(classId).orElseThrow();
+            return sc.getSchool();
+        }
+        if (student.getSchool() != null) {
+            return student.getSchool();
+        }
+        if (student.getSchoolClass() != null) {
+            return student.getSchoolClass().getSchool();
+        }
+        return null;
+    }
+
+    private void ensureStudentNoUniqueBySchool(School school, String studentNo, Long currentId) {
+        if (school == null || studentNo == null || studentNo.isBlank()) return;
+        Long excludeId = currentId == null ? -1L : currentId;
+        if (studentRepository.existsByStudentNoAndSchoolAndIdNot(studentNo, school, excludeId)) {
+            throw new IllegalArgumentException("\u5b66\u53f7\u5df2\u5b58\u5728");
+        }
     }
 
     private void ensureStudentNoUnique(Student current, String studentNo) {
