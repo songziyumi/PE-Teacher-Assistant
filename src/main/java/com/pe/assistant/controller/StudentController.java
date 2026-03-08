@@ -25,7 +25,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StudentController {
 
-    private static final List<String> STUDENT_STATUSES = List.of("在籍", "休学", "毕业", "在外借读", "借读");
+    private static final List<String> STUDENT_STATUSES = List.of(
+            "\u5728\u7c4d",
+            "\u4f11\u5b66",
+            "\u6bd5\u4e1a",
+            "\u5728\u5916\u501f\u8bfb",
+            "\u501f\u8bfb");
 
     private final StudentService studentService;
     private final ClassService classService;
@@ -81,13 +86,25 @@ public class StudentController {
         School school = currentUserService.getCurrentSchool();
         try {
             Student current = studentService.findById(id);
+            if (current.getSchool() == null || !school.getId().equals(current.getSchool().getId())) {
+                throw new IllegalArgumentException("\u65e0\u6743\u4fee\u6539\u8be5\u5b66\u751f");
+            }
+
             if (newClassId != null) {
                 SchoolClass targetClass = classService.findById(newClassId);
                 if (targetClass.getSchool() == null
                         || !targetClass.getSchool().getId().equals(school.getId())) {
-                    throw new IllegalArgumentException("无权调整到该班级");
+                    throw new IllegalArgumentException("\u65e0\u6743\u8c03\u6574\u5230\u8be5\u73ed\u7ea7");
                 }
             }
+
+            String normalizedStudentNo = studentNo == null ? null : studentNo.trim();
+            if (normalizedStudentNo != null
+                    && !normalizedStudentNo.isBlank()
+                    && !studentService.isStudentNoAvailable(school, normalizedStudentNo, id)) {
+                throw new IllegalArgumentException("\u5b66\u53f7\u5df2\u5b58\u5728\uff0c\u8bf7\u4f7f\u7528\u5176\u4ed6\u5b66\u53f7");
+            }
+
             String normalizedElective = electiveClass == null || electiveClass.isBlank()
                     ? null
                     : electiveClass.trim();
@@ -95,14 +112,14 @@ public class StudentController {
                     id,
                     name.trim(),
                     gender,
-                    studentNo == null ? null : studentNo.trim(),
+                    normalizedStudentNo,
                     current.getIdCard(),
                     normalizedElective,
                     newClassId,
                     studentStatus);
-            ra.addFlashAttribute("success", "学生信息更新成功");
+            ra.addFlashAttribute("success", "\u5b66\u751f\u4fe1\u606f\u66f4\u65b0\u6210\u529f");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "更新失败：" + e.getMessage());
+            ra.addFlashAttribute("error", "\u66f4\u65b0\u5931\u8d25\uff1a" + e.getMessage());
         }
         return "redirect:/teacher/students/class/" + classId;
     }
@@ -113,7 +130,7 @@ public class StudentController {
                                  @RequestParam Long classId,
                                  RedirectAttributes ra) {
         studentService.updateElective(id, electiveClass);
-        ra.addFlashAttribute("success", "选课班已更新");
+        ra.addFlashAttribute("success", "\u9009\u8bfe\u73ed\u5df2\u66f4\u65b0");
         return "redirect:/teacher/students/class/" + classId;
     }
 
@@ -124,12 +141,12 @@ public class StudentController {
                               RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
         SchoolClass target = classService.findById(newClassId);
-        if (!school.getId().equals(target.getSchool().getId())) {
-            ra.addFlashAttribute("error", "无权将学生调至该班级");
+        if (target.getSchool() == null || !school.getId().equals(target.getSchool().getId())) {
+            ra.addFlashAttribute("error", "\u65e0\u6743\u5c06\u5b66\u751f\u8c03\u81f3\u8be5\u73ed\u7ea7");
             return "redirect:/teacher/students/class/" + classId;
         }
         studentService.updateClass(id, newClassId);
-        ra.addFlashAttribute("success", "班级已更新");
+        ra.addFlashAttribute("success", "\u73ed\u7ea7\u5df2\u66f4\u65b0");
         return "redirect:/teacher/students/class/" + classId;
     }
 
@@ -141,6 +158,6 @@ public class StudentController {
     private boolean isElectiveType(String type) {
         if (type == null) return false;
         String value = type.trim();
-        return "选修课".equals(value) || value.contains("选修") || value.contains("閫変慨");
+        return "\u9009\u4fee\u8bfe".equals(value) || value.contains("\u9009\u4fee") || value.contains("elective");
     }
 }

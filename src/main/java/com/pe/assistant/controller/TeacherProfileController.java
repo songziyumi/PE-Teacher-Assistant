@@ -5,6 +5,7 @@ import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.CurrentUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,7 +27,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class TeacherProfileController {
 
-    private static final String UPLOAD_DIR = "src/main/resources/static/uploads/teachers/";
+    @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
+    private String uploadDir;
 
     private final TeacherRepository teacherRepository;
     private final CurrentUserService currentUserService;
@@ -63,9 +65,9 @@ public class TeacherProfileController {
                 teacher.setPhotoUrl(photoUrl);
             }
             teacherRepository.save(teacher);
-            ra.addFlashAttribute("success", "个人主页已更新");
+            ra.addFlashAttribute("success", "\u4e2a\u4eba\u4e3b\u9875\u5df2\u66f4\u65b0");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "保存失败：" + e.getMessage());
+            ra.addFlashAttribute("error", "\u4fdd\u5b58\u5931\u8d25\uff1a" + e.getMessage());
         }
         return "redirect:/teacher/profile";
     }
@@ -78,27 +80,27 @@ public class TeacherProfileController {
         try {
             Teacher teacher = currentUserService.getCurrentTeacher();
             if (!passwordEncoder.matches(oldPassword, teacher.getPassword())) {
-                ra.addFlashAttribute("error", "原密码错误");
+                ra.addFlashAttribute("error", "\u539f\u5bc6\u7801\u9519\u8bef");
                 return "redirect:/teacher/profile";
             }
             if (!newPassword.equals(confirmPassword)) {
-                ra.addFlashAttribute("error", "两次输入的新密码不一致");
+                ra.addFlashAttribute("error", "\u4e24\u6b21\u8f93\u5165\u7684\u65b0\u5bc6\u7801\u4e0d\u4e00\u81f4");
                 return "redirect:/teacher/profile";
             }
             validatePassword(newPassword);
             teacher.setPassword(passwordEncoder.encode(newPassword));
             teacherRepository.save(teacher);
-            ra.addFlashAttribute("success", "密码修改成功");
+            ra.addFlashAttribute("success", "\u5bc6\u7801\u4fee\u6539\u6210\u529f");
         } catch (IllegalArgumentException e) {
             ra.addFlashAttribute("error", e.getMessage());
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "密码修改失败：" + e.getMessage());
+            ra.addFlashAttribute("error", "\u5bc6\u7801\u4fee\u6539\u5931\u8d25\uff1a" + e.getMessage());
         }
         return "redirect:/teacher/profile";
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {
-        Path dir = Paths.get(UPLOAD_DIR);
+        Path dir = Paths.get(uploadDir, "teachers").toAbsolutePath().normalize();
         Files.createDirectories(dir);
         String original = photo.getOriginalFilename();
         String ext = (original != null && original.contains("."))
@@ -115,22 +117,24 @@ public class TeacherProfileController {
 
     private void validatePassword(String password) {
         if (password == null || password.length() < 8) {
-            throw new IllegalArgumentException("密码长度不能少于8位");
+            throw new IllegalArgumentException("\u5bc6\u7801\u957f\u5ea6\u4e0d\u80fd\u5c11\u4e8e8\u4f4d");
         }
         if (!password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
-            throw new IllegalArgumentException("密码必须同时包含字母和数字");
+            throw new IllegalArgumentException("\u5bc6\u7801\u5fc5\u987b\u540c\u65f6\u5305\u542b\u5b57\u6bcd\u548c\u6570\u5b57");
         }
     }
 
     private String emptyToNull(String value) {
-        if (value == null || value.isBlank()) return null;
+        if (value == null || value.isBlank()) {
+            return null;
+        }
         return value.trim();
     }
 
     @GetMapping("/student/teachers/{id}")
     public String viewTeacherProfile(@PathVariable Long id, Model model) {
         Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("教师不存在"));
+                .orElseThrow(() -> new RuntimeException("\u6559\u5e08\u4e0d\u5b58\u5728"));
         model.addAttribute("teacher", teacher);
         Student student = currentUserService.getCurrentStudent();
         model.addAttribute("student", student);

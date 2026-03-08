@@ -211,17 +211,12 @@
             <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"
                     th:selected="${studentStatus == status}"></option>
         </select>
-        <select name="size">
-            <option value="10" th:selected="${size == 10}">每页10条</option>
-            <option value="15" th:selected="${size == 15}">每页15条</option>
-            <option value="30" th:selected="${size == 30}">每页30条</option>
-            <option value="50" th:selected="${size == 50}">每页50条</option>
-        </select>
+        <input type="hidden" name="size" th:value="${size}">
         <button type="submit" class="btn btn-secondary">搜索</button>
+        <a th:href="@{/admin/students}" class="btn btn-outline">重置</a>
     </form>
 
     <div class="search-actions">
-        <a th:href="@{/admin/students}" class="btn btn-outline">重置</a>
         <button type="button" class="btn btn-primary" onclick="openAdd()">＋ 添加学生</button>
         <a th:href="@{/admin/students/export(all=true)}" class="btn btn-outline">导出全部</a>
         <a th:href="@{/admin/students/export(gradeId=${gradeId},classId=${classId},name=${name},studentNo=${studentNo},idCard=${idCard},electiveClassInput=${electiveClassInput},studentStatus=${studentStatus})}"
