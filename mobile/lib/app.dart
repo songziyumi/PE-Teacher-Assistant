@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/teacher/teacher_home.dart';
@@ -8,10 +6,18 @@ import 'screens/teacher/attendance_screen.dart';
 import 'screens/teacher/teacher_student_list.dart';
 import 'screens/teacher/physical_entry.dart';
 import 'screens/teacher/grade_entry.dart';
+import 'screens/teacher/course_request_center.dart';
+import 'screens/teacher/course_request_detail.dart';
+import 'screens/teacher/teacher_message_center.dart';
+import 'screens/teacher/teacher_profile_screen.dart';
 import 'screens/admin/admin_home.dart';
 import 'screens/admin/student_list.dart';
 import 'screens/admin/physical_list.dart';
 import 'screens/admin/grade_list.dart';
+import 'screens/student/student_home.dart';
+import 'screens/student/student_my_courses.dart';
+import 'screens/student/student_message_center.dart';
+import 'screens/student/student_password_screen.dart';
 
 GoRouter buildRouter(AuthProvider auth) => GoRouter(
       initialLocation: '/login',
@@ -21,15 +27,57 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         final loggedIn = auth.isLoggedIn;
         final loc = state.matchedLocation;
         final onLogin = loc == '/login';
+        final onStudentPassword = loc == '/student/password';
+        final mustForceStudentPassword =
+            auth.isStudent && (auth.user?.mustChangePassword ?? false);
+        final home = auth.isAdmin
+            ? '/admin'
+            : (auth.isStudent ? '/student' : '/teacher');
+
         if (!loggedIn && !onLogin) return '/login';
-        if (loggedIn && onLogin) return auth.isAdmin ? '/admin' : '/teacher';
-        if (loggedIn && loc == '/') return auth.isAdmin ? '/admin' : '/teacher';
+        if (loggedIn && onLogin) return home;
+        if (loggedIn && mustForceStudentPassword && !onStudentPassword) {
+          return '/student/password?force=true';
+        }
+        if (loggedIn && loc == '/') return home;
         return null;
       },
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-        // 教师路由
+        GoRoute(path: '/student', builder: (_, __) => const StudentHome()),
+        GoRoute(
+          path: '/student/my-courses',
+          builder: (_, __) => const StudentMyCoursesScreen(),
+        ),
+        GoRoute(
+          path: '/student/messages',
+          builder: (_, __) => const StudentMessageCenterScreen(),
+        ),
+        GoRoute(
+          path: '/student/password',
+          builder: (_, state) => StudentPasswordScreen(
+            forceChange: state.uri.queryParameters['force'] == 'true',
+          ),
+        ),
         GoRoute(path: '/teacher', builder: (_, __) => const TeacherHome()),
+        GoRoute(
+          path: '/teacher/course-requests',
+          builder: (_, __) => const CourseRequestCenterScreen(),
+        ),
+        GoRoute(
+          path: '/teacher/course-requests/:id',
+          builder: (_, state) => CourseRequestDetailScreen(
+            requestId: int.parse(state.pathParameters['id']!),
+          ),
+        ),
+        GoRoute(
+          path: '/teacher/messages',
+          builder: (_, __) => const TeacherMessageCenterScreen(),
+        ),
+        GoRoute(
+          path: '/teacher/profile',
+          builder: (_, __) => const TeacherProfileScreen(),
+        ),
         GoRoute(
           path: '/teacher/students/:classId',
           builder: (_, state) => TeacherStudentListScreen(
@@ -58,10 +106,18 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
             className: state.uri.queryParameters['name'] ?? '',
           ),
         ),
-        // 管理员路由
         GoRoute(path: '/admin', builder: (_, __) => const AdminHome()),
-        GoRoute(path: '/admin/students', builder: (_, __) => const StudentListScreen()),
-        GoRoute(path: '/admin/physical-tests', builder: (_, __) => const PhysicalListScreen()),
-        GoRoute(path: '/admin/term-grades', builder: (_, __) => const GradeListScreen()),
+        GoRoute(
+          path: '/admin/students',
+          builder: (_, __) => const StudentListScreen(),
+        ),
+        GoRoute(
+          path: '/admin/physical-tests',
+          builder: (_, __) => const PhysicalListScreen(),
+        ),
+        GoRoute(
+          path: '/admin/term-grades',
+          builder: (_, __) => const GradeListScreen(),
+        ),
       ],
     );

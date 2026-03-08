@@ -1,14 +1,15 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
 class ApiService {
-  static final _storage = const FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'jwt_token';
 
   static Future<String?> getToken() => _storage.read(key: _tokenKey);
-  static Future<void> saveToken(String token) => _storage.write(key: _tokenKey, value: token);
+  static Future<void> saveToken(String token) =>
+      _storage.write(key: _tokenKey, value: token);
   static Future<void> clearToken() => _storage.delete(key: _tokenKey);
 
   static Future<Map<String, String>> _headers() async {
@@ -55,17 +56,32 @@ class ApiService {
 
   static dynamic _handle(http.Response res) {
     final decoded = jsonDecode(utf8.decode(res.bodyBytes));
-    if (res.statusCode == 401) throw ApiException(401, decoded['message'] ?? '未授权');
-    if (res.statusCode == 403) throw ApiException(403, decoded['message'] ?? '权限不足');
-    if (res.statusCode >= 400) throw ApiException(res.statusCode, decoded['message'] ?? '请求失败');
-    return decoded['data'];
+
+    if (decoded is Map<String, dynamic>) {
+      final code = decoded['code'];
+      final message = decoded['message']?.toString() ?? '请求失败';
+      if (code is num && code.toInt() != 200) {
+        throw ApiException(code.toInt(), message);
+      }
+      if (res.statusCode == 401) throw ApiException(401, message);
+      if (res.statusCode == 403) throw ApiException(403, message);
+      if (res.statusCode >= 400) throw ApiException(res.statusCode, message);
+      return decoded['data'];
+    }
+
+    if (res.statusCode == 401) throw ApiException(401, '未授权，请先登录');
+    if (res.statusCode == 403) throw ApiException(403, '权限不足');
+    if (res.statusCode >= 400) throw ApiException(res.statusCode, '请求失败');
+    return decoded;
   }
 }
 
 class ApiException implements Exception {
   final int code;
   final String message;
+
   ApiException(this.code, this.message);
+
   @override
   String toString() => message;
 }

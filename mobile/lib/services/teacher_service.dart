@@ -3,6 +3,8 @@ import '../models/student.dart';
 import '../models/physical_test.dart';
 import '../models/term_grade.dart';
 import '../models/elective_class.dart';
+import '../models/course_request.dart';
+import '../models/teacher_message.dart';
 import 'api_service.dart';
 
 class TeacherService {
@@ -50,11 +52,80 @@ class TeacherService {
     });
   }
 
+  static Future<Map<String, dynamic>> checkStudentNoAvailability(
+    String studentNo, {
+    int? excludeId,
+  }) async {
+    final query = StringBuffer(
+      '/teacher/students/check-student-no?studentNo=${Uri.encodeComponent(studentNo)}',
+    );
+    if (excludeId != null) {
+      query.write('&excludeId=$excludeId');
+    }
+    final data = await ApiService.get(query.toString()) as Map;
+    return {
+      'available': data['available'] == true,
+      'message': data['message']?.toString() ?? '',
+    };
+  }
+
   // 班级学生
   static Future<List<Student>> getStudents(int classId) async {
     final data =
         await ApiService.get('/teacher/classes/$classId/students') as List;
     return data.map((e) => Student.fromJson(e)).toList();
+  }
+
+  static Future<List<CourseRequest>> getCourseRequests(
+      {String status = 'PENDING'}) async {
+    final data = await ApiService.get(
+            '/teacher/course-requests?status=${Uri.encodeComponent(status)}')
+        as List;
+    return data.map((e) => CourseRequest.fromJson(e)).toList();
+  }
+
+  static Future<Map<String, int>> getCourseRequestSummary() async {
+    final data =
+        await ApiService.get('/teacher/course-requests/summary') as Map;
+    return {
+      'pending': _toInt(data['pending']),
+      'approved': _toInt(data['approved']),
+      'rejected': _toInt(data['rejected']),
+    };
+  }
+
+  static Future<CourseRequest> getCourseRequestDetail(int id) async {
+    final data = await ApiService.get('/teacher/course-requests/$id') as Map;
+    return CourseRequest.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  static Future<void> approveCourseRequest(int id, {String? remark}) async {
+    await ApiService.post('/teacher/course-requests/$id/approve', {
+      if (remark != null) 'remark': remark,
+    });
+  }
+
+  static Future<void> rejectCourseRequest(int id, {String? remark}) async {
+    await ApiService.post('/teacher/course-requests/$id/reject', {
+      if (remark != null) 'remark': remark,
+    });
+  }
+
+  static Future<int> getUnreadMessageCount() async {
+    final data = await ApiService.get('/teacher/messages/unread-count') as Map;
+    return _toInt(data['unreadCount']);
+  }
+
+  static Future<List<TeacherMessage>> getTeacherMessages(
+      {bool unreadOnly = false}) async {
+    final data = await ApiService.get(
+      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}',
+    ) as List;
+    return data.map((e) => TeacherMessage.fromJson(e)).toList();
+  }
+
+  static Future<void> markTeacherMessageRead(int id) async {
+    await ApiService.post('/teacher/messages/$id/read', {});
   }
 
   // 考勤查询
@@ -111,5 +182,11 @@ class TeacherService {
       'semester': semester,
       'items': items,
     });
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }

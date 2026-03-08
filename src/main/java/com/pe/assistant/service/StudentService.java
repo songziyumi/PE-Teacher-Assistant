@@ -310,6 +310,16 @@ public class StudentService {
         return studentRepository.count();
     }
 
+    public boolean isStudentNoAvailable(School school, String studentNo, Long excludeId) {
+        if (school == null || studentNo == null || studentNo.isBlank()) {
+            return false;
+        }
+        String normalized = studentNo.trim();
+        Long effectiveExcludeId = excludeId == null ? -1L : excludeId;
+        return !studentRepository.existsByStudentNoAndSchoolAndIdNot(
+                normalized, school, effectiveExcludeId);
+    }
+
     private String normalizeStatusForSave(String status) {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
