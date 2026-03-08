@@ -2,13 +2,21 @@ package com.pe.assistant.controller.api;
 
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,8 +34,12 @@ public class TeacherApiController {
     private final MessageService messageService;
     private final CurrentUserService currentUserService;
     private final GradeService gradeService;
+    private final TeacherRepository teacherRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // ===== 年级列表 =====
+    private static final String UPLOAD_DIR = "src/main/resources/static/uploads/teachers/";
+
+    // ===== 骞寸骇鍒楄〃 =====
 
     @GetMapping("/grades")
     public ApiResponse<List<Grade>> grades() {
@@ -35,13 +47,102 @@ public class TeacherApiController {
         return ApiResponse.ok(gradeService.findAll(school));
     }
 
-    // ===== 全校行政班（用于学生班级修改） =====
+    @GetMapping("/profile")
+    public ApiResponse<Map<String, Object>> profile() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", teacher.getId());
+        m.put("username", teacher.getUsername());
+        m.put("name", teacher.getName());
+        m.put("role", teacher.getRole());
+        m.put("phone", teacher.getPhone());
+        m.put("gender", teacher.getGender());
+        m.put("birthDate", teacher.getBirthDate());
+        m.put("specialty", teacher.getSpecialty());
+        m.put("email", teacher.getEmail());
+        m.put("photoUrl", teacher.getPhotoUrl());
+        m.put("bio", teacher.getBio());
+        m.put("schoolName", teacher.getSchool() != null ? teacher.getSchool().getName() : null);
+        return ApiResponse.ok(m);
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<String>> updateProfile(@RequestBody Map<String, Object> body) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            if (body.containsKey("gender")) {
+                teacher.setGender(body.get("gender") == null ? null : String.valueOf(body.get("gender")));
+            }
+            if (body.containsKey("specialty")) {
+                teacher.setSpecialty(body.get("specialty") == null ? null : String.valueOf(body.get("specialty")));
+            }
+            if (body.containsKey("email")) {
+                teacher.setEmail(body.get("email") == null ? null : String.valueOf(body.get("email")));
+            }
+            if (body.containsKey("bio")) {
+                teacher.setBio(body.get("bio") == null ? null : String.valueOf(body.get("bio")));
+            }
+            if (body.containsKey("birthDate")) {
+                Object value = body.get("birthDate");
+                if (value == null || String.valueOf(value).isBlank()) {
+                    teacher.setBirthDate(null);
+                } else {
+                    teacher.setBirthDate(LocalDate.parse(String.valueOf(value)));
+                }
+            }
+            teacherRepository.save(teacher);
+            return ResponseEntity.ok(ApiResponse.ok("个人资料已更新", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping(value = "/profile/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadProfilePhoto(
+            @RequestPart("photo") MultipartFile photo) {
+        try {
+            if (photo == null || photo.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请上传图片"));
+            }
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            String photoUrl = savePhoto(teacher.getId(), photo);
+            teacher.setPhotoUrl(photoUrl);
+            teacherRepository.save(teacher);
+            Map<String, String> m = new LinkedHashMap<>();
+            m.put("photoUrl", photoUrl);
+            return ResponseEntity.ok(ApiResponse.ok(m));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/password/change")
+    public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody Map<String, String> body) {
+        try {
+            String oldPassword = body.getOrDefault("oldPassword", "");
+            String newPassword = body.getOrDefault("newPassword", "");
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            if (!passwordEncoder.matches(oldPassword, teacher.getPassword())) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "原密码错误"));
+            }
+            validatePassword(newPassword);
+            teacher.setPassword(passwordEncoder.encode(newPassword));
+            teacherRepository.save(teacher);
+            return ResponseEntity.ok(ApiResponse.ok("密码修改成功", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "修改失败"));
+        }
+    }
+
+    // ===== 鍏ㄦ牎琛屾斂鐝紙鐢ㄤ簬瀛︾敓鐝骇淇敼锛?=====
 
     @GetMapping("/school-classes")
     public ApiResponse<List<Map<String, Object>>> schoolClasses() {
         School school = currentUserService.getCurrentSchool();
         List<Map<String, Object>> result = classService.findAll(school).stream()
-                .filter(c -> !"选修课".equals(c.getType()))
+                .filter(c -> !isElectiveType(c.getType()))
                 .map(c -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", c.getId());
@@ -54,20 +155,19 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 全校选修班（用于学生选修班修改） =====
+    // ===== 鍏ㄦ牎閫変慨鐝紙鐢ㄤ簬瀛︾敓閫変慨鐝慨鏀癸級 =====
 
     @GetMapping("/elective-classes")
     public ApiResponse<List<Map<String, Object>>> electiveClasses() {
         School school = currentUserService.getCurrentSchool();
         List<Map<String, Object>> result = classService.findAll(school).stream()
-                .filter(c -> "选修课".equals(c.getType()))
+                .filter(c -> isElectiveType(c.getType()))
                 .map(c -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", c.getId());
                     m.put("name", c.getName());
                     m.put("gradeName", c.getGrade() != null ? c.getGrade().getName() : null);
                     m.put("gradeId", c.getGrade() != null ? c.getGrade().getId() : null);
-                    // 存储格式: "年级/班级名" 或 "班级名"
                     String storedName = c.getGrade() != null
                             ? c.getGrade().getName() + "/" + c.getName()
                             : c.getName();
@@ -77,7 +177,7 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 班级列表 =====
+    // ===== 鐝骇鍒楄〃 =====
 
     @GetMapping("/classes")
     public ApiResponse<List<Map<String, Object>>> classes() {
@@ -94,7 +194,7 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 选课审批中心 =====
+    // ===== 閫夎瀹℃壒涓績 =====
 
     @GetMapping("/course-requests")
     public ApiResponse<List<Map<String, Object>>> courseRequests(
@@ -271,7 +371,7 @@ public class TeacherApiController {
         return ApiResponse.ok(m);
     }
 
-    // ===== 学生班级修改（教师权限） =====
+    // ===== 瀛︾敓鐝骇淇敼锛堟暀甯堟潈闄愶級 =====
 
     @PutMapping("/students/{id}")
     public ResponseEntity<ApiResponse<String>> updateStudentClass(
@@ -295,14 +395,14 @@ public class TeacherApiController {
         }
     }
 
-    // ===== 班级学生列表（含选修班信息） =====
+    // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
 
     @GetMapping("/classes/{classId}/students")
     public ApiResponse<List<Map<String, Object>>> students(@PathVariable Long classId) {
         School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
-        if ("选修课".equals(sc.getType())) {
+        if (isElectiveType(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
             students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
@@ -331,7 +431,52 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 考勤查询 =====
+    // ===== 鑰冨嫟鏌ヨ =====
+
+    @GetMapping("/students/{id}/attendance-history")
+    public ApiResponse<Map<String, Object>> studentAttendanceHistory(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "60") int days) {
+        Student student = studentService.findById(id);
+        School school = currentUserService.getCurrentSchool();
+        if (student.getSchool() == null || !Objects.equals(student.getSchool().getId(), school.getId())) {
+            throw new IllegalArgumentException("无权限查看该学生");
+        }
+
+        int safeDays = Math.max(1, Math.min(days, 365));
+        LocalDate cutoff = LocalDate.now().minusDays(safeDays - 1L);
+        List<Attendance> records = attendanceService.findByStudent(id).stream()
+                .filter(a -> a.getDate() != null && !a.getDate().isBefore(cutoff))
+                .sorted(Comparator.comparing(Attendance::getDate).reversed())
+                .collect(Collectors.toList());
+
+        long present = records.stream().filter(a -> "出勤".equals(normalizeAttendanceStatus(a.getStatus()))).count();
+        long absent = records.stream().filter(a -> "缺勤".equals(normalizeAttendanceStatus(a.getStatus()))).count();
+        long leave = records.stream().filter(a -> "请假".equals(normalizeAttendanceStatus(a.getStatus()))).count();
+        long total = records.size();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total", total);
+        stats.put("present", present);
+        stats.put("absent", absent);
+        stats.put("leave", leave);
+        stats.put("rate", total > 0 ? String.format("%.1f", present * 100.0 / total) : "0.0");
+
+        List<Map<String, Object>> list = records.stream().map(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", a.getId());
+            m.put("date", a.getDate());
+            m.put("status", normalizeAttendanceStatus(a.getStatus()));
+            return m;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("studentId", student.getId());
+        result.put("studentName", student.getName());
+        result.put("stats", stats);
+        result.put("records", list);
+        return ApiResponse.ok(result);
+    }
 
     @GetMapping("/attendance")
     public ApiResponse<Map<Long, String>> attendance(@RequestParam Long classId,
@@ -343,7 +488,7 @@ public class TeacherApiController {
         return ApiResponse.ok(map);
     }
 
-    // ===== 考勤保存 =====
+    // ===== 鑰冨嫟淇濆瓨 =====
 
     @PostMapping("/attendance/save-batch")
     public ApiResponse<String> saveAttendance(@RequestBody AttendanceBatchRequest req) {
@@ -365,11 +510,11 @@ public class TeacherApiController {
         @Data
         static class Record {
             private Long studentId;
-            private String status; // 出勤/缺勤/请假
+            private String status; // 鍑哄嫟/缂哄嫟/璇峰亣
         }
     }
 
-    // ===== 体测查询 =====
+    // ===== 浣撴祴鏌ヨ =====
 
     @GetMapping("/physical-tests")
     public ApiResponse<Map<Long, Object>> physicalTests(@RequestParam Long classId,
@@ -378,7 +523,7 @@ public class TeacherApiController {
         School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
-        if ("选修课".equals(sc.getType())) {
+        if (isElectiveType(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
             students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
@@ -392,7 +537,7 @@ public class TeacherApiController {
         return ApiResponse.ok(map);
     }
 
-    // ===== 体测批量保存 =====
+    // ===== 浣撴祴鎵归噺淇濆瓨 =====
 
     @PostMapping("/physical-tests/save-batch")
     public ApiResponse<String> savePhysicalTests(@RequestBody List<PhysicalTestItem> items) {
@@ -444,7 +589,7 @@ public class TeacherApiController {
         private String remark;
     }
 
-    // ===== 成绩查询 =====
+    // ===== 鎴愮哗鏌ヨ =====
 
     @GetMapping("/term-grades")
     public ApiResponse<Map<Long, Object>> termGrades(@RequestParam Long classId,
@@ -453,7 +598,7 @@ public class TeacherApiController {
         School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
-        if ("选修课".equals(sc.getType())) {
+        if (isElectiveType(sc.getType())) {
             String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
             students = studentService.findByElectiveClassForTeacher(school, name);
         } else {
@@ -467,7 +612,7 @@ public class TeacherApiController {
         return ApiResponse.ok(map);
     }
 
-    // ===== 成绩批量保存 =====
+    // ===== 鎴愮哗鎵归噺淇濆瓨 =====
 
     @PostMapping("/term-grades/save-batch")
     public ApiResponse<String> saveTermGrades(@RequestBody TermGradeBatchRequest req) {
@@ -503,6 +648,46 @@ public class TeacherApiController {
             private Double skillScore;
             private Double theoryScore;
             private String remark;
+        }
+    }
+
+    private boolean isElectiveType(String type) {
+        if (type == null) return false;
+        String v = type.trim();
+        return "选修课".equals(v) || v.contains("閫変慨") || v.contains("选修");
+    }
+
+    private String normalizeAttendanceStatus(String raw) {
+        if (raw == null || raw.isBlank()) return "出勤";
+        String status = raw.trim();
+        if ("鍑哄嫟".equals(status) || "出勤".equals(status)) return "出勤";
+        if ("缂哄嫟".equals(status) || "缺勤".equals(status)) return "缺勤";
+        if ("璇峰亣".equals(status) || "请假".equals(status)) return "请假";
+        return status;
+    }
+
+    private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {
+        Path dir = Paths.get(UPLOAD_DIR);
+        Files.createDirectories(dir);
+        String original = photo.getOriginalFilename();
+        String ext = (original != null && original.contains("."))
+                ? original.substring(original.lastIndexOf('.')).toLowerCase(Locale.ROOT)
+                : ".jpg";
+        if (!ext.matches("\\.(jpg|jpeg|png|webp|gif)")) {
+            ext = ".jpg";
+        }
+        String filename = teacherId + ext;
+        Path dest = dir.resolve(filename);
+        photo.transferTo(dest.toFile());
+        return "/uploads/teachers/" + filename;
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8) {
+            throw new IllegalArgumentException("密码长度不能少于8位");
+        }
+        if (!password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*")) {
+            throw new IllegalArgumentException("密码必须同时包含字母和数字");
         }
     }
 }
