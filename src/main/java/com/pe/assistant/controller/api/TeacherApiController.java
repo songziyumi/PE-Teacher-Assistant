@@ -6,6 +6,7 @@ import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,7 +38,8 @@ public class TeacherApiController {
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
 
-    private static final String UPLOAD_DIR = "src/main/resources/static/uploads/teachers/";
+    @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
+    private String uploadDir;
 
     // ===== 骞寸骇鍒楄〃 =====
 
@@ -667,7 +669,7 @@ public class TeacherApiController {
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {
-        Path dir = Paths.get(UPLOAD_DIR);
+        Path dir = Paths.get(uploadDir, "teachers").toAbsolutePath().normalize();
         Files.createDirectories(dir);
         String original = photo.getOriginalFilename();
         String ext = (original != null && original.contains("."))
