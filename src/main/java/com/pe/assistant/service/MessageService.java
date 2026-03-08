@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -13,6 +14,7 @@ import java.util.List;
 public class MessageService {
 
     private final InternalMessageRepository messageRepo;
+    private final CourseRequestAuditRepository courseRequestAuditRepo;
     private final CourseService courseService;
     private final TeacherRepository teacherRepository;
 
@@ -74,6 +76,11 @@ public class MessageService {
 
     @Transactional
     public void approveRequest(Long messageId, Teacher teacher) {
+        approveRequest(messageId, teacher, null);
+    }
+
+    @Transactional
+    public void approveRequest(Long messageId, Teacher teacher, String remark) {
         InternalMessage msg = messageRepo.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("消息不存在"));
         if (!"COURSE_REQUEST".equals(msg.getType())) {
@@ -89,9 +96,17 @@ public class MessageService {
         Course course = courseService.findById(msg.getRelatedCourseId());
         // 复用 adminEnroll 逻辑（内部处理容量检查和记录创建）
         courseService.adminEnroll(course.getId(), msg.getSenderId(), course.getEvent().getId());
+        String beforeStatus = msg.getStatus();
+        String normalizedRemark = normalizeRemark(remark);
+        LocalDateTime handledAt = LocalDateTime.now();
         msg.setStatus("APPROVED");
         msg.setIsRead(true);
+        msg.setHandledById(teacher.getId());
+        msg.setHandledByName(teacher.getName());
+        msg.setHandledAt(handledAt);
+        msg.setHandleRemark(normalizedRemark);
         messageRepo.save(msg);
+        saveRequestAudit(msg, teacher, "APPROVE", beforeStatus, "APPROVED", normalizedRemark, handledAt);
         // 向学生发送通知
         InternalMessage notify = new InternalMessage();
         notify.setSchool(msg.getSchool());
@@ -109,6 +124,11 @@ public class MessageService {
 
     @Transactional
     public void rejectRequest(Long messageId, Teacher teacher) {
+        rejectRequest(messageId, teacher, null);
+    }
+
+    @Transactional
+    public void rejectRequest(Long messageId, Teacher teacher, String remark) {
         InternalMessage msg = messageRepo.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("消息不存在"));
         if (!"COURSE_REQUEST".equals(msg.getType())) {
@@ -120,9 +140,17 @@ public class MessageService {
         if (!teacher.getId().equals(msg.getRecipientId())) {
             throw new RuntimeException("无权处理他人的申请");
         }
+        String beforeStatus = msg.getStatus();
+        String normalizedRemark = normalizeRemark(remark);
+        LocalDateTime handledAt = LocalDateTime.now();
         msg.setStatus("REJECTED");
         msg.setIsRead(true);
+        msg.setHandledById(teacher.getId());
+        msg.setHandledByName(teacher.getName());
+        msg.setHandledAt(handledAt);
+        msg.setHandleRemark(normalizedRemark);
         messageRepo.save(msg);
+        saveRequestAudit(msg, teacher, "REJECT", beforeStatus, "REJECTED", normalizedRemark, handledAt);
         // 向学生发送通知
         InternalMessage notify = new InternalMessage();
         notify.setSchool(msg.getSchool());
@@ -144,8 +172,62 @@ public class MessageService {
         return messageRepo.findByRecipientTypeAndRecipientIdOrderBySentAtDesc("TEACHER", teacher.getId());
     }
 
+    public List<InternalMessage> getTeacherCourseRequests(Teacher teacher, String status) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
+            return messageRepo.findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(
+                    "TEACHER", teacher.getId(), "COURSE_REQUEST");
+        }
+        return messageRepo.findByRecipientTypeAndRecipientIdAndTypeAndStatusOrderBySentAtDesc(
+                "TEACHER", teacher.getId(), "COURSE_REQUEST", status.trim().toUpperCase());
+    }
+
+    public long countTeacherCourseRequests(Teacher teacher, String status) {
+        if (status == null || status.isBlank()) {
+            return 0L;
+        }
+        return messageRepo.countByRecipientTypeAndRecipientIdAndTypeAndStatus(
+                "TEACHER", teacher.getId(), "COURSE_REQUEST", status.trim().toUpperCase());
+    }
+
+    public InternalMessage getTeacherCourseRequestById(Teacher teacher, Long messageId) {
+        InternalMessage msg = getTeacherMessageById(teacher, messageId);
+        if (!"COURSE_REQUEST".equals(msg.getType())) {
+            throw new RuntimeException("该消息不是选课申请");
+        }
+        return msg;
+    }
+
+    public List<CourseRequestAudit> getTeacherCourseRequestAudits(Teacher teacher, Long messageId) {
+        InternalMessage msg = getTeacherCourseRequestById(teacher, messageId);
+        return courseRequestAuditRepo.findByRequestMessageIdOrderByHandledAtDesc(msg.getId());
+    }
+
+    public InternalMessage getTeacherMessageById(Teacher teacher, Long messageId) {
+        InternalMessage msg = messageRepo.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("消息不存在"));
+        if (!"TEACHER".equals(msg.getRecipientType())) {
+            throw new RuntimeException("该消息不属于教师收件箱");
+        }
+        if (!teacher.getId().equals(msg.getRecipientId())) {
+            throw new RuntimeException("无权查看他人的消息");
+        }
+        return msg;
+    }
+
     public List<InternalMessage> getStudentInbox(Student student) {
         return messageRepo.findByRecipientTypeAndRecipientIdOrderBySentAtDesc("STUDENT", student.getId());
+    }
+
+    public InternalMessage getStudentMessageById(Student student, Long messageId) {
+        InternalMessage msg = messageRepo.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("消息不存在"));
+        if (!"STUDENT".equals(msg.getRecipientType())) {
+            throw new RuntimeException("该消息不属于学生收件箱");
+        }
+        if (!student.getId().equals(msg.getRecipientId())) {
+            throw new RuntimeException("无权查看他人的消息");
+        }
+        return msg;
     }
 
     public long getUnreadCount(String recipientType, Long recipientId) {
@@ -160,11 +242,65 @@ public class MessageService {
         });
     }
 
+    @Transactional
+    public void markTeacherMessageRead(Long messageId, Teacher teacher) {
+        InternalMessage msg = getTeacherMessageById(teacher, messageId);
+        if (!Boolean.TRUE.equals(msg.getIsRead())) {
+            msg.setIsRead(true);
+            messageRepo.save(msg);
+        }
+    }
+
+    @Transactional
+    public void markStudentMessageRead(Long messageId, Student student) {
+        InternalMessage msg = getStudentMessageById(student, messageId);
+        if (!Boolean.TRUE.equals(msg.getIsRead())) {
+            msg.setIsRead(true);
+            messageRepo.save(msg);
+        }
+    }
+
     // ===== 教师列表（供学生发消息选择） =====
 
     public List<Teacher> findTeachersBySchool(School school) {
         return teacherRepository.findBySchool(school).stream()
                 .filter(t -> !"ADMIN".equals(t.getRole()))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private String normalizeRemark(String remark) {
+        if (remark == null) {
+            return null;
+        }
+        String trimmed = remark.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.length() <= 500 ? trimmed : trimmed.substring(0, 500);
+    }
+
+    private void saveRequestAudit(
+            InternalMessage msg,
+            Teacher teacher,
+            String action,
+            String beforeStatus,
+            String afterStatus,
+            String remark,
+            LocalDateTime handledAt) {
+        CourseRequestAudit audit = new CourseRequestAudit();
+        audit.setSchool(msg.getSchool());
+        audit.setRequestMessageId(msg.getId());
+        audit.setAction(action);
+        audit.setBeforeStatus(beforeStatus);
+        audit.setAfterStatus(afterStatus);
+        audit.setOperatorTeacherId(teacher.getId());
+        audit.setOperatorTeacherName(teacher.getName());
+        audit.setSenderId(msg.getSenderId());
+        audit.setSenderName(msg.getSenderName());
+        audit.setRelatedCourseId(msg.getRelatedCourseId());
+        audit.setRelatedCourseName(msg.getRelatedCourseName());
+        audit.setRemark(remark);
+        audit.setHandledAt(handledAt != null ? handledAt : LocalDateTime.now());
+        courseRequestAuditRepo.save(audit);
     }
 }
