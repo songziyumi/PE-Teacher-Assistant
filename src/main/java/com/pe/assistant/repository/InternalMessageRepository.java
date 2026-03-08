@@ -11,6 +11,14 @@ public interface InternalMessageRepository extends JpaRepository<InternalMessage
     List<InternalMessage> findByRecipientTypeAndRecipientIdOrderBySentAtDesc(
             String recipientType, Long recipientId);
 
+    /** 某人的指定类型收件箱（按时间倒序） */
+    List<InternalMessage> findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(
+            String recipientType, Long recipientId, String type);
+
+    /** 某人的指定类型 + 指定状态收件箱（按时间倒序） */
+    List<InternalMessage> findByRecipientTypeAndRecipientIdAndTypeAndStatusOrderBySentAtDesc(
+            String recipientType, Long recipientId, String type, String status);
+
     /** 某课程的待处理申请 */
     List<InternalMessage> findByTypeAndRelatedCourseIdAndStatus(
             String type, Long relatedCourseId, String status);
@@ -18,6 +26,10 @@ public interface InternalMessageRepository extends JpaRepository<InternalMessage
     /** 未读数 */
     long countByRecipientTypeAndRecipientIdAndIsRead(
             String recipientType, Long recipientId, boolean isRead);
+
+    /** 某人的指定类型 + 指定状态数量 */
+    long countByRecipientTypeAndRecipientIdAndTypeAndStatus(
+            String recipientType, Long recipientId, String type, String status);
 
     /** 是否已经对某课程发过申请（防重复） */
     boolean existsByTypeAndRelatedCourseIdAndSenderIdAndStatusNot(

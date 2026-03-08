@@ -19,6 +19,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     java.util.Optional<Student> findByStudentNoAndSchool(String studentNo, School school);
 
+    boolean existsByStudentNoAndSchoolAndIdNot(String studentNo, School school, Long id);
+
     @Query(value = "SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
             "s.school = :school AND " +
             "(:classId IS NULL OR sc.id = :classId) AND " +

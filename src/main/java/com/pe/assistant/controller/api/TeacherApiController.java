@@ -5,6 +5,7 @@ import com.pe.assistant.entity.*;
 import com.pe.assistant.service.*;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,7 @@ public class TeacherApiController {
     private final AttendanceService attendanceService;
     private final PhysicalTestService physicalTestService;
     private final TermGradeService termGradeService;
+    private final MessageService messageService;
     private final CurrentUserService currentUserService;
     private final GradeService gradeService;
 
@@ -92,17 +94,205 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
+    // ===== 选课审批中心 =====
+
+    @GetMapping("/course-requests")
+    public ApiResponse<List<Map<String, Object>>> courseRequests(
+            @RequestParam(defaultValue = "PENDING") String status) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        List<InternalMessage> messages = messageService.getTeacherCourseRequests(teacher, status);
+        List<Map<String, Object>> result = messages.stream()
+                .map(this::toCourseRequestMap)
+                .collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
+
+    @GetMapping("/course-requests/{id:\\d+}")
+    public ApiResponse<Map<String, Object>> courseRequestDetail(@PathVariable Long id) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        InternalMessage msg = messageService.getTeacherCourseRequestById(teacher, id);
+        List<CourseRequestAudit> audits = messageService.getTeacherCourseRequestAudits(teacher, id);
+        Map<String, Object> detail = toCourseRequestMap(msg);
+        detail.put("auditLogs", audits.stream()
+                .map(this::toCourseRequestAuditMap)
+                .collect(Collectors.toList()));
+        return ApiResponse.ok(detail);
+    }
+
+    @GetMapping("/course-requests/summary")
+    public ApiResponse<Map<String, Long>> courseRequestSummary() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        Map<String, Long> m = new LinkedHashMap<>();
+        m.put("pending", messageService.countTeacherCourseRequests(teacher, "PENDING"));
+        m.put("approved", messageService.countTeacherCourseRequests(teacher, "APPROVED"));
+        m.put("rejected", messageService.countTeacherCourseRequests(teacher, "REJECTED"));
+        return ApiResponse.ok(m);
+    }
+
+    @GetMapping("/messages/unread-count")
+    public ApiResponse<Map<String, Long>> unreadMessageCount() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        Map<String, Long> m = new LinkedHashMap<>();
+        m.put("unreadCount", messageService.getUnreadCount("TEACHER", teacher.getId()));
+        return ApiResponse.ok(m);
+    }
+
+    @GetMapping("/messages")
+    public ApiResponse<List<Map<String, Object>>> messages(
+            @RequestParam(defaultValue = "false") boolean unreadOnly) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        List<InternalMessage> list = messageService.getTeacherInbox(teacher);
+        if (unreadOnly) {
+            list = list.stream()
+                    .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
+                    .collect(Collectors.toList());
+        }
+        List<Map<String, Object>> result = list.stream()
+                .map(this::toTeacherMessageMap)
+                .collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
+
+    @PostMapping("/messages/{id:\\d+}/read")
+    public ResponseEntity<ApiResponse<String>> markMessageRead(@PathVariable Long id) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            messageService.markTeacherMessageRead(id, teacher);
+            return ResponseEntity.ok(ApiResponse.ok("已标记已读", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/course-requests/{id}/approve")
+    public ResponseEntity<ApiResponse<String>> approveCourseRequest(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            String remark = body != null && body.get("remark") != null
+                    ? String.valueOf(body.get("remark"))
+                    : null;
+            messageService.approveRequest(id, teacher, remark);
+            return ResponseEntity.ok(ApiResponse.ok("已同意申请", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/course-requests/{id}/reject")
+    public ResponseEntity<ApiResponse<String>> rejectCourseRequest(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            String remark = body != null && body.get("remark") != null
+                    ? String.valueOf(body.get("remark"))
+                    : null;
+            messageService.rejectRequest(id, teacher, remark);
+            return ResponseEntity.ok(ApiResponse.ok("已拒绝申请", null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    private Map<String, Object> toCourseRequestMap(InternalMessage msg) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", msg.getId());
+        m.put("subject", msg.getSubject());
+        m.put("content", msg.getContent());
+        m.put("status", msg.getStatus());
+        m.put("type", msg.getType());
+        m.put("senderId", msg.getSenderId());
+        m.put("senderName", msg.getSenderName());
+        m.put("relatedCourseId", msg.getRelatedCourseId());
+        m.put("relatedCourseName", msg.getRelatedCourseName());
+        m.put("isRead", msg.getIsRead());
+        m.put("sentAt", msg.getSentAt());
+        m.put("handledById", msg.getHandledById());
+        m.put("handledByName", msg.getHandledByName());
+        m.put("handledAt", msg.getHandledAt());
+        m.put("handleRemark", msg.getHandleRemark());
+        return m;
+    }
+
+    private Map<String, Object> toTeacherMessageMap(InternalMessage msg) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", msg.getId());
+        m.put("subject", msg.getSubject());
+        m.put("content", msg.getContent());
+        m.put("type", msg.getType());
+        m.put("status", msg.getStatus());
+        m.put("isRead", msg.getIsRead());
+        m.put("sentAt", msg.getSentAt());
+        m.put("senderType", msg.getSenderType());
+        m.put("senderId", msg.getSenderId());
+        m.put("senderName", msg.getSenderName());
+        m.put("relatedCourseId", msg.getRelatedCourseId());
+        m.put("relatedCourseName", msg.getRelatedCourseName());
+
+        if ("COURSE_REQUEST".equals(msg.getType())) {
+            m.put("businessTargetType", "COURSE_REQUEST");
+            m.put("businessTargetId", msg.getId());
+        } else {
+            m.put("businessTargetType", null);
+            m.put("businessTargetId", null);
+        }
+        return m;
+    }
+
+    private Map<String, Object> toCourseRequestAuditMap(CourseRequestAudit audit) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", audit.getId());
+        m.put("requestMessageId", audit.getRequestMessageId());
+        m.put("action", audit.getAction());
+        m.put("beforeStatus", audit.getBeforeStatus());
+        m.put("afterStatus", audit.getAfterStatus());
+        m.put("operatorTeacherId", audit.getOperatorTeacherId());
+        m.put("operatorTeacherName", audit.getOperatorTeacherName());
+        m.put("senderId", audit.getSenderId());
+        m.put("senderName", audit.getSenderName());
+        m.put("relatedCourseId", audit.getRelatedCourseId());
+        m.put("relatedCourseName", audit.getRelatedCourseName());
+        m.put("remark", audit.getRemark());
+        m.put("handledAt", audit.getHandledAt());
+        return m;
+    }
+
+    @GetMapping("/students/check-student-no")
+    public ApiResponse<Map<String, Object>> checkStudentNo(
+            @RequestParam String studentNo,
+            @RequestParam(required = false) Long excludeId) {
+        School school = currentUserService.getCurrentSchool();
+        boolean available = studentService.isStudentNoAvailable(school, studentNo, excludeId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("available", available);
+        m.put("message", available ? "学号可用" : "学号已存在");
+        return ApiResponse.ok(m);
+    }
+
     // ===== 学生班级修改（教师权限） =====
 
     @PutMapping("/students/{id}")
-    public ApiResponse<String> updateStudentClass(
+    public ResponseEntity<ApiResponse<String>> updateStudentClass(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body) {
+        Student current = studentService.findById(id);
+        String name = body.get("name") != null ? String.valueOf(body.get("name")) : current.getName();
+        String gender = body.get("gender") != null ? String.valueOf(body.get("gender")) : current.getGender();
+        String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
+        String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
-        String electiveClass = (String) body.get("electiveClass");
-        if (classId != null) studentService.updateClass(id, classId);
-        studentService.updateElective(id, electiveClass);
-        return ApiResponse.ok("修改成功", null);
+        String electiveClass = body.containsKey("electiveClass")
+                ? (String) body.get("electiveClass")
+                : current.getElectiveClass();
+        try {
+            studentService.update(id, name, gender, studentNo, current.getIdCard(),
+                    electiveClass, classId, studentStatus);
+            return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
     }
 
     // ===== 班级学生列表（含选修班信息） =====

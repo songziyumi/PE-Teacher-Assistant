@@ -64,6 +64,22 @@ public class InternalMessage {
     @Column(length = 20)
     private String status;
 
+    /** COURSE_REQUEST 审批人 ID（处理后写入） */
+    @Column(name = "handled_by_id")
+    private Long handledById;
+
+    /** COURSE_REQUEST 审批人姓名（处理后写入） */
+    @Column(name = "handled_by_name", length = 50)
+    private String handledByName;
+
+    /** COURSE_REQUEST 审批时间（处理后写入） */
+    @Column(name = "handled_at")
+    private LocalDateTime handledAt;
+
+    /** COURSE_REQUEST 审批备注（处理后写入） */
+    @Column(name = "handle_remark", length = 500)
+    private String handleRemark;
+
     @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt = LocalDateTime.now();
 }
