@@ -14,6 +14,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,28 +27,42 @@ public class AuthApiController {
     private final CurrentUserService currentUserService;
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
-            // 先尝试教师账号
+
             Teacher teacher = teacherRepository.findByUsername(auth.getName()).orElse(null);
             if (teacher != null) {
                 Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
                 String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
                 String token = jwtUtil.generateToken(teacher.getUsername(), teacher.getRole(), schoolId);
-                return ApiResponse.ok(new LoginResponse(token, teacher.getUsername(),
-                        teacher.getName(), teacher.getRole(), schoolId, schoolName));
+                return ApiResponse.ok(new LoginResponse(
+                        token,
+                        teacher.getUsername(),
+                        teacher.getName(),
+                        teacher.getRole(),
+                        schoolId,
+                        schoolName,
+                        false));
             }
-            // 学生账号（用学号登录）
+
             Student student = studentRepository.findByStudentNo(auth.getName()).orElseThrow();
             Long schoolId = student.getSchool() != null ? student.getSchool().getId() : null;
             String schoolName = student.getSchool() != null ? student.getSchool().getName() : null;
             String token = jwtUtil.generateToken(student.getStudentNo(), "STUDENT", schoolId);
-            return ApiResponse.ok(new LoginResponse(token, student.getStudentNo(),
-                    student.getName(), "STUDENT", schoolId, schoolName));
+            boolean mustChangePassword = isStudentUsingInitialPassword(student);
+            return ApiResponse.ok(new LoginResponse(
+                    token,
+                    student.getStudentNo(),
+                    student.getName(),
+                    "STUDENT",
+                    schoolId,
+                    schoolName,
+                    mustChangePassword));
         } catch (BadCredentialsException e) {
             return ApiResponse.error(401, "用户名或密码错误");
         } catch (Exception e) {
@@ -57,10 +72,38 @@ public class AuthApiController {
 
     @GetMapping("/me")
     public ApiResponse<LoginResponse> me() {
-        Teacher teacher = currentUserService.getCurrentTeacher();
-        Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
-        String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
-        return ApiResponse.ok(new LoginResponse(null, teacher.getUsername(),
-                teacher.getName(), teacher.getRole(), schoolId, schoolName));
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
+            String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
+            return ApiResponse.ok(new LoginResponse(
+                    null,
+                    teacher.getUsername(),
+                    teacher.getName(),
+                    teacher.getRole(),
+                    schoolId,
+                    schoolName,
+                    false));
+        } catch (Exception ignored) {
+            Student student = currentUserService.getCurrentStudent();
+            Long schoolId = student.getSchool() != null ? student.getSchool().getId() : null;
+            String schoolName = student.getSchool() != null ? student.getSchool().getName() : null;
+            boolean mustChangePassword = isStudentUsingInitialPassword(student);
+            return ApiResponse.ok(new LoginResponse(
+                    null,
+                    student.getStudentNo(),
+                    student.getName(),
+                    "STUDENT",
+                    schoolId,
+                    schoolName,
+                    mustChangePassword));
+        }
+    }
+
+    private boolean isStudentUsingInitialPassword(Student student) {
+        if (student == null || student.getStudentNo() == null || student.getPassword() == null) {
+            return false;
+        }
+        return passwordEncoder.matches(student.getStudentNo(), student.getPassword());
     }
 }

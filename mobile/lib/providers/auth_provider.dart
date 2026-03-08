@@ -10,6 +10,7 @@ class AuthProvider extends ChangeNotifier {
   bool get loading => _loading;
   bool get isLoggedIn => _user != null;
   bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isStudent => _user?.isStudent ?? false;
 
   Future<void> tryAutoLogin() async {
     _loading = true;
@@ -22,6 +23,14 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login(String username, String password) async {
     _user = await AuthService.login(username, password);
     notifyListeners();
+  }
+
+  Future<void> refreshCurrentUser() async {
+    final user = await AuthService.tryAutoLogin();
+    if (user != null) {
+      _user = user;
+      notifyListeners();
+    }
   }
 
   Future<void> logout() async {
