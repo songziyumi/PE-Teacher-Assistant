@@ -3,218 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>学生列表 - 体育教师助手</title>
+    <title>班级学生 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        /* 性别徽标 */
-        .gender-badge {
-            display: inline-block; padding: 2px 8px; border-radius: 10px;
-            font-size: 12px; font-weight: 600;
+        .wrap {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 0 16px;
         }
-        .gender-male   { background: #dbeafe; color: #1d4ed8; }
-        .gender-female { background: #fce7f3; color: #be185d; }
-
-        /* 选修班徽标 */
-        .elective-tag {
-            display: inline-block; padding: 3px 10px; border-radius: 12px;
-            font-size: 12px; font-weight: 500;
-        }
-        .elective-tag.has-class  { background: #d1fae5; color: #065f46; }
-        .elective-tag.no-class   { background: #f3f4f6; color: #9ca3af; }
-
-        /* 头像圆圈 */
-        .avatar-circle {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: linear-gradient(135deg, #4a90e2, #7ec8e3);
-            color: #fff; font-size: 13px; font-weight: 700;
-            display: inline-flex; align-items: center; justify-content: center;
-        }
-
-        /* 学号字体 */
-        .student-no-text { font-family: monospace; color: #555; font-size: 13px; }
-
-        /* 班级类型标签 */
-        .class-type-badge {
-            padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
-        }
-        .class-type-admin    { background: #dbeafe; color: #1e40af; }
-        .class-type-elective { background: #d1fae5; color: #065f46; }
-
-        /* 操作按钮间距 */
-        .action-btns { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; white-space: nowrap; }
-
-        /* 弹窗 */
-        .modal-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,.45); z-index: 1000;
-            align-items: center; justify-content: center;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: #fff; border-radius: 12px; width: 400px;
-            max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2);
-            animation: modalIn .18s ease;
-        }
-        @keyframes modalIn {
-            from { transform: translateY(-16px); opacity: 0; }
-            to   { transform: translateY(0);     opacity: 1; }
-        }
-        .modal-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 16px 22px; background: #4a90e2; border-radius: 12px 12px 0 0;
-        }
-        .modal-header h3 { font-size: 15px; color: #fff; margin: 0; }
-        .modal-close {
-            background: none; border: none; font-size: 22px;
-            color: rgba(255,255,255,.8); cursor: pointer; line-height: 1; padding: 0 2px;
-        }
-        .modal-close:hover { color: #fff; }
-        .modal-body { padding: 22px 22px 8px; }
-        .modal-footer { padding: 12px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; }
-        .modal-student-info {
-            display: flex; align-items: center; gap: 10px;
-            background: #f8f9fa; border-radius: 8px; padding: 10px 14px;
-            margin-bottom: 16px;
-        }
-        .modal-student-info .name { font-weight: 600; color: #2c3e50; font-size: 15px; }
-        .modal-student-info .current { font-size: 12px; color: #888; margin-top: 2px; }
-        
-        /* 学生列表美化 */
-        .student-list-container {
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            overflow: hidden;
-            margin-top: 20px;
-        }
-        
-        .student-card {
+        .header {
             display: flex;
             align-items: center;
-            padding: 16px 20px;
-            border-bottom: 1px solid #eee;
-            transition: all 0.3s ease;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
         }
-        
-        .student-card:last-child {
-            border-bottom: none;
-        }
-        
-        .student-card:hover {
-            background-color: #f8fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
-        }
-        
-        .student-photo {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #4a90e2, #7ec8e3);
+        .stats {
             display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .06);
+            padding: 12px 16px;
+            min-width: 160px;
+        }
+        .stat b {
+            font-size: 20px;
+            color: #1f2937;
+        }
+        .table-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
+            overflow: hidden;
+        }
+        .table-card table {
+            margin: 0;
+        }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .male {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .female {
+            background: #fce7f3;
+            color: #be185d;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 999;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 18px;
-            margin-right: 16px;
-            flex-shrink: 0;
         }
-        
-        .student-info {
-            flex-grow: 1;
-        }
-        
-        .student-name {
-            font-weight: 600;
-            font-size: 16px;
-            color: #2c3e50;
-            margin-bottom: 4px;
-        }
-        
-        .student-details {
+        .modal-overlay.active {
             display: flex;
-            gap: 15px;
         }
-        
-        .detail-item {
+        .modal {
+            width: 560px;
+            max-width: 94vw;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .modal-head {
+            background: #2563eb;
+            color: #fff;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 14px;
-            color: #6b7280;
+            justify-content: space-between;
         }
-        
-        .student-actions {
-            flex-shrink: 0;
+        .modal-body {
+            padding: 16px;
         }
-        
-        .card-btn {
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: none;
-            background: #e2e8f0;
-            color: #4a5568;
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .full {
+            grid-column: 1 / -1;
+        }
+        .field label {
+            display: block;
+            margin-bottom: 4px;
+            color: #4b5563;
             font-size: 13px;
-            cursor: pointer;
-            margin-left: 8px;
-            transition: all 0.2s;
+            font-weight: 600;
         }
-        
-        .card-btn:hover {
-            background: #cbd5e0;
+        .field input,
+        .field select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 14px;
+            box-sizing: border-box;
         }
-        
-        .card-btn-primary {
-            background: #3498db;
-            color: white;
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding-top: 12px;
         }
-        
-        .card-btn-primary:hover {
-            background: #2980b9;
-        }
-        
-        .card-btn-outline {
-            background: transparent;
-            border: 1px solid #cbd5e0;
-        }
-        
-        /* 响应式设计 */
         @media (max-width: 768px) {
-            .student-card {
-                flex-direction: column;
-                align-items: flex-start;
-                padding: 16px;
-            }
-            
-            .student-photo {
-                margin-right: 0;
-                margin-bottom: 12px;
-            }
-            
-            .student-details {
-                flex-wrap: wrap;
-                width: 100%;
-            }
-            
-            .student-actions {
-                width: 100%;
-                margin-top: 12px;
-                display: flex;
-                justify-content: flex-end;
-            }
-            
-            .card-btn {
-                margin-left: 6px;
-                padding: 5px 10px;
-                font-size: 12px;
+            .grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
@@ -224,273 +138,183 @@
     </div>
 </nav>
 
-<div class="container">
+<div class="wrap">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-    <!-- 页面标题 -->
-    <div class="page-header">
-        <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}"></h2>
-        <span class="class-type-badge"
-              th:classappend="${'选修课'.equals(schoolClass.type)} ? 'class-type-elective' : 'class-type-admin'"
-              th:text="${schoolClass.type}"></span>
+    <div class="header">
+        <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}">班级</h2>
         <span style="flex:1"></span>
-        <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">去考勤</a>
+        <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">考勤录入</a>
         <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-row" style="flex-wrap:nowrap">
-        <div class="stat-card total">
-            <span class="stat-num" th:text="${#lists.size(students)}">0</span><span class="stat-label"> 总人数</span>
-        </div>
-        <div class="stat-card present">
-            <span class="stat-num" th:text="${withElectiveCount}">0</span><span class="stat-label"> 已选课</span>
-        </div>
-        <div class="stat-card absent">
-            <span class="stat-num" th:text="${noElectiveCount}">0</span><span class="stat-label"> 未选课</span>
-        </div>
+    <div class="stats">
+        <div class="stat">总人数：<b th:text="${#lists.size(students)}">0</b></div>
+        <div class="stat">已选课：<b th:text="${withElectiveCount}">0</b></div>
+        <div class="stat">未选课：<b th:text="${noElectiveCount}">0</b></div>
     </div>
 
-
-    <!-- 学生卡片列表 -->
-    <div class="student-list-container">
-        <div th:each="s, iter : ${students}" class="student-card">
-            <!-- 头像 -->
-            <div class="student-photo" th:text="${s.name.charAt(0)}"></div>
-
-            <!-- 学生信息 -->
-            <div class="student-info">
-                <div class="student-name">
-                    <span th:text="${s.name}"></span>
-                    <span class="gender-badge"
-                          th:classappend="${'男'.equals(s.gender)} ? 'gender-male' : 'gender-female'"
-                          style="margin-left:8px"
-                          th:text="${s.gender ?: '-'}"></span>
-                </div>
-                <div class="student-details">
-                    <span class="detail-item">
-                        <span style="color:#9ca3af;font-size:12px">学号</span>
-                        <span class="student-no-text" th:text="${s.studentNo ?: '-'}"></span>
-                    </span>
-                    <span class="detail-item">
-                        <span th:if="${s.electiveClass != null}"
-                              class="elective-tag has-class"
-                              th:text="${s.electiveClass}"></span>
-                        <span th:unless="${s.electiveClass != null}"
-                              class="elective-tag no-class">未选课</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="student-actions">
-                <a th:href="@{/attendance/student/{id}(id=${s.id})}"
-                   class="card-btn card-btn-primary">考勤记录</a>
-                <button type="button" class="card-btn card-btn-outline"
-                        th:data-id="${s.id}"
-                        th:data-name="${s.name}"
-                        th:data-elective="${s.electiveClass}"
-                        onclick="openElectiveModal(this)">
-                    修改选修班
-                </button>
-                <button type="button" class="card-btn card-btn-outline"
-                        th:data-id="${s.id}"
-                        th:data-name="${s.name}"
-                        th:data-classid="${s.schoolClass != null ? s.schoolClass.id : ''}"
-                        th:data-classname="${s.schoolClass != null ? (s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' : '') + s.schoolClass.name : '未分配'}"
-                        th:data-gradeid="${s.schoolClass != null and s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}"
-                        onclick="openClassModal(this)">
-                    修改班级
-                </button>
-            </div>
-        </div>
-
-        <div th:if="${#lists.isEmpty(students)}"
-             style="padding:40px;text-align:center;color:#9ca3af;font-size:14px">
-            暂无学生数据
-        </div>
+    <div class="table-card">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>姓名</th>
+                <th>学号</th>
+                <th>性别</th>
+                <th>学籍状态</th>
+                <th>行政班</th>
+                <th>选课班</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="s : ${students}">
+                <td th:text="${s.name}">张三</td>
+                <td th:text="${s.studentNo ?: '-'}">20240001</td>
+                <td>
+                    <span class="badge" th:classappend="${s.gender == '女'} ? 'female' : 'male'" th:text="${s.gender ?: '-'}">男</span>
+                </td>
+                <td th:text="${s.studentStatus ?: '在籍'}">在籍</td>
+                <td th:text="${s.schoolClass != null ? ((s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' : '') + s.schoolClass.name) : '-'}">高一1班</td>
+                <td th:text="${s.electiveClass ?: '未选课'}">篮球</td>
+                <td>
+                    <a th:href="@{/attendance/student/{id}(id=${s.id})}" class="btn btn-sm btn-outline">出勤记录</a>
+                    <button type="button" class="btn btn-sm btn-secondary"
+                            th:data-id="${s.id}"
+                            th:data-name="${s.name}"
+                            th:data-gender="${s.gender}"
+                            th:data-studentno="${s.studentNo}"
+                            th:data-studentstatus="${s.studentStatus ?: '在籍'}"
+                            th:data-classid="${s.schoolClass != null ? s.schoolClass.id : ''}"
+                            th:data-gradeid="${s.schoolClass != null && s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}"
+                            th:data-elective="${s.electiveClass}"
+                            onclick="openEdit(this)">
+                        编辑
+                    </button>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(students)}">
+                <td colspan="7" style="text-align:center;color:#9ca3af;padding:30px 0">暂无学生</td>
+            </tr>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<!-- 修改选修班弹窗 -->
-<div id="electiveModal" class="modal-overlay">
+<div id="editModal" class="modal-overlay">
     <div class="modal">
-        <div class="modal-header">
-            <h3>修改选修班</h3>
-            <button class="modal-close" onclick="closeElectiveModal()">×</button>
+        <div class="modal-head">
+            <strong>编辑学生</strong>
+            <button type="button" class="btn-link" style="color:#fff" onclick="closeEdit()">关闭</button>
         </div>
-        <form id="electiveForm" method="post">
+        <form id="editForm" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="hidden" name="classId" th:value="${schoolClass.id}">
             <div class="modal-body">
-                <div class="modal-student-info">
-                    <div class="avatar-circle" id="modalAvatar">?</div>
-                    <div>
-                        <div class="name" id="modalStudentName"></div>
-                        <div class="current">当前选修班：<span id="modalCurrentElective">未选课</span></div>
+                <div class="grid">
+                    <div class="field">
+                        <label>姓名</label>
+                        <input type="text" id="editName" name="name" required>
+                    </div>
+                    <div class="field">
+                        <label>性别</label>
+                        <select id="editGender" name="gender">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>学号</label>
+                        <input type="text" id="editStudentNo" name="studentNo">
+                    </div>
+                    <div class="field">
+                        <label>学籍状态</label>
+                        <select id="editStatus" name="studentStatus">
+                            <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"></option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>行政班年级</label>
+                        <select id="editAdminGrade" onchange="filterAdminClasses()">
+                            <option value="">全部年级</option>
+                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>行政班</label>
+                        <select id="editClassId" name="newClassId">
+                            <option th:each="c : ${adminClasses}" th:value="${c.id}" th:attr="data-grade=${c.grade != null ? c.grade.id : ''}" th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>选课班年级</label>
+                        <select id="editElectiveGrade" onchange="filterElectiveClasses()">
+                            <option value="">全部年级</option>
+                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>选课班</label>
+                        <select id="editElective" name="electiveClass">
+                            <option value="">不参加选课</option>
+                            <option th:each="ec : ${electiveClasses}" th:value="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}" th:attr="data-grade=${ec.grade != null ? ec.grade.id : ''}" th:text="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"></option>
+                        </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>选择年级</label>
-                    <select id="electiveGradeSelect" onchange="filterElectiveClasses()">
-                        <option value="">— 全部年级 —</option>
-                    </select>
+                <div class="actions">
+                    <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
                 </div>
-                <div class="form-group">
-                    <label>选择新的选修班</label>
-                    <select name="electiveClass" id="electiveSelect">
-                        <option value="">— 不参加选修 —</option>
-                        <option th:each="ec : ${electiveClasses}"
-                                th:value="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"
-                                th:data-gradeid="${ec.grade != null ? ec.grade.id : ''}"
-                                th:data-gradename="${ec.grade != null ? ec.grade.name : ''}"
-                                th:text="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"></option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">保存</button>
-                <button type="button" class="btn" onclick="closeElectiveModal()">取消</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 修改班级弹窗 -->
-<div id="classModal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>修改班级</h3>
-            <button class="modal-close" onclick="closeClassModal()">×</button>
-        </div>
-        <form id="classForm" method="post">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-            <input type="hidden" name="classId" th:value="${schoolClass.id}">
-            <div class="modal-body">
-                <div class="modal-student-info">
-                    <div class="avatar-circle" id="classModalAvatar">?</div>
-                    <div>
-                        <div class="name" id="classModalStudentName"></div>
-                        <div class="current">当前班级：<span id="classModalCurrent"></span></div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>选择新的班级</label>
-                    <select name="newClassId" id="classSelect">
-                        <option th:each="ac : ${adminClasses}"
-                                th:value="${ac.id}"
-                                th:data-gradeid="${ac.grade != null ? ac.grade.id : ''}"
-                                th:text="${(ac.grade != null ? ac.grade.name + ' ' : '') + ac.name}"></option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">保存</button>
-                <button type="button" class="btn" onclick="closeClassModal()">取消</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    // 初始化年级下拉：从选修班选项中提取唯一年级
-    function initElectiveGradeFilter() {
-        var gradeSelect = document.getElementById('electiveGradeSelect');
-        var electiveSel = document.getElementById('electiveSelect');
-        var seen = {}, grades = [];
-        Array.from(electiveSel.options).forEach(function(opt) {
-            var gid = opt.dataset.gradeid;
-            var gname = opt.dataset.gradename;
-            if (gid && !seen[gid]) {
-                seen[gid] = true;
-                grades.push({ id: gid, name: gname });
-            }
-        });
-        grades.forEach(function(g) {
-            var o = document.createElement('option');
-            o.value = g.id;
-            o.textContent = g.name;
-            gradeSelect.appendChild(o);
-        });
+    function openEdit(btn) {
+        document.getElementById('editForm').action = '/teacher/students/' + btn.dataset.id + '/edit';
+        document.getElementById('editName').value = btn.dataset.name || '';
+        document.getElementById('editGender').value = btn.dataset.gender || '男';
+        document.getElementById('editStudentNo').value = btn.dataset.studentno || '';
+        document.getElementById('editStatus').value = btn.dataset.studentstatus || '在籍';
+        document.getElementById('editAdminGrade').value = btn.dataset.gradeid || '';
+        filterAdminClasses();
+        document.getElementById('editClassId').value = btn.dataset.classid || '';
+        document.getElementById('editElective').value = btn.dataset.elective || '';
+        document.getElementById('editModal').classList.add('active');
     }
-
-    // 按年级过滤选修班选项
-    function filterElectiveClasses() {
-        var gradeId = document.getElementById('electiveGradeSelect').value;
-        var sel = document.getElementById('electiveSelect');
-        Array.from(sel.options).forEach(function(opt) {
-            if (!opt.value) { opt.hidden = false; return; } // 保留"不参加选修"
-            opt.hidden = gradeId ? opt.dataset.gradeid !== gradeId : false;
+    function closeEdit() {
+        document.getElementById('editModal').classList.remove('active');
+    }
+    function filterAdminClasses() {
+        const gradeId = document.getElementById('editAdminGrade').value;
+        const classSel = document.getElementById('editClassId');
+        Array.from(classSel.options).forEach(opt => {
+            opt.hidden = gradeId ? opt.dataset.grade !== gradeId : false;
         });
-        // 如果当前选中项被隐藏，重置为空
-        if (sel.selectedIndex >= 0 && sel.options[sel.selectedIndex].hidden) {
+        if (classSel.selectedOptions.length && classSel.selectedOptions[0].hidden) {
+            const first = Array.from(classSel.options).find(o => !o.hidden);
+            if (first) classSel.value = first.value;
+        }
+    }
+    function filterElectiveClasses() {
+        const gradeId = document.getElementById('editElectiveGrade').value;
+        const sel = document.getElementById('editElective');
+        Array.from(sel.options).forEach((opt, idx) => {
+            if (idx === 0) {
+                opt.hidden = false;
+                return;
+            }
+            opt.hidden = gradeId ? opt.dataset.grade !== gradeId : false;
+        });
+        if (sel.selectedOptions.length && sel.selectedOptions[0].hidden) {
             sel.value = '';
         }
     }
-
-    function openElectiveModal(btn) {
-        var studentId   = btn.dataset.id;
-        var studentName = btn.dataset.name;
-        var current     = btn.dataset.elective || '';
-        document.getElementById('modalStudentName').textContent = studentName;
-        document.getElementById('modalAvatar').textContent = studentName.charAt(0);
-        document.getElementById('modalCurrentElective').textContent = current || '未选课';
-        document.getElementById('electiveForm').action = '/teacher/students/' + studentId + '/elective';
-
-        var sel = document.getElementById('electiveSelect');
-        // 自动选中当前选修班对应的年级
-        var matchGradeId = '';
-        if (current) {
-            Array.from(sel.options).forEach(function(opt) {
-                if (opt.value === current) matchGradeId = opt.dataset.gradeid || '';
-            });
-        }
-        document.getElementById('electiveGradeSelect').value = matchGradeId;
-        filterElectiveClasses();
-        sel.value = current;
-
-        document.getElementById('electiveModal').classList.add('active');
-    }
-    function closeElectiveModal() {
-        document.getElementById('electiveModal').classList.remove('active');
-    }
-    document.getElementById('electiveModal').addEventListener('click', function(e) {
-        if (e.target === this) closeElectiveModal();
-    });
-
-    // 页面加载后初始化年级过滤器
-    initElectiveGradeFilter();
-
-    function openClassModal(btn) {
-        var studentId   = btn.dataset.id;
-        var studentName = btn.dataset.name;
-        var curClassId  = btn.dataset.classid;
-        var curClassName= btn.dataset.classname;
-        var gradeId     = btn.dataset.gradeid;
-        document.getElementById('classModalStudentName').textContent = studentName;
-        document.getElementById('classModalAvatar').textContent = studentName.charAt(0);
-        document.getElementById('classModalCurrent').textContent = curClassName;
-        document.getElementById('classForm').action = '/teacher/students/' + studentId + '/class';
-        // 按年级过滤选项
-        var sel = document.getElementById('classSelect');
-        Array.from(sel.options).forEach(function(opt) {
-            opt.hidden = gradeId ? opt.dataset.gradeid !== gradeId : false;
-        });
-        if (curClassId) sel.value = curClassId;
-        document.getElementById('classModal').classList.add('active');
-    }
-    function closeClassModal() {
-        document.getElementById('classModal').classList.remove('active');
-    }
-    document.getElementById('classModal').addEventListener('click', function(e) {
-        if (e.target === this) closeClassModal();
+    document.getElementById('editModal').addEventListener('click', function (e) {
+        if (e.target === this) closeEdit();
     });
 </script>
-
-<footer class="site-footer">
-    <th:block th:replace="~{fragments/footer :: version}"></th:block>
-    <span class="footer-sep">|</span>
-    <span>© 2026 陈胜松 版权所有</span>
-</footer>
 </body>
 </html>

@@ -71,10 +71,14 @@
 
         .search-bar {
             display: grid;
-            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            grid-template-columns: repeat(5, minmax(120px, 1fr));
             gap: 8px;
             margin-bottom: 12px;
             align-items: center;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 10px;
         }
         .search-bar input, .search-bar select {
             width: 100%;
@@ -93,6 +97,10 @@
             gap: 8px;
             align-items: center;
             margin-bottom: 14px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 10px;
         }
 
         .setting-card {
@@ -148,7 +156,7 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">?? 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/admin}">管理后台</a>
         <a th:href="@{/dashboard}">首页</a>
@@ -197,16 +205,17 @@
         <input type="text" name="name" th:value="${name}" placeholder="姓名">
         <input type="text" name="studentNo" th:value="${studentNo}" placeholder="学号">
         <input type="text" name="idCard" th:value="${idCard}" placeholder="身份证号">
-        <select name="electiveClass">
-            <option value="" th:selected="${electiveClass == null || electiveClass == ''}">选课班（下拉）</option>
-            <option th:each="ecName : ${electiveClassOptions}" th:value="${ecName}" th:text="${ecName}"
-                    th:selected="${electiveClass == ecName}"></option>
-        </select>
-        <input type="text" name="electiveClassInput" th:value="${electiveClassInput}" placeholder="选课班（手动输入）">
+        <input type="text" name="electiveClassInput" th:value="${electiveClassInput}" placeholder="选课班（输入关键词）">
         <select name="studentStatus">
             <option value="" th:selected="${studentStatus == null || studentStatus == ''}">全部学籍状态</option>
             <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"
                     th:selected="${studentStatus == status}"></option>
+        </select>
+        <select name="size">
+            <option value="10" th:selected="${size == 10}">每页10条</option>
+            <option value="15" th:selected="${size == 15}">每页15条</option>
+            <option value="30" th:selected="${size == 30}">每页30条</option>
+            <option value="50" th:selected="${size == 50}">每页50条</option>
         </select>
         <button type="submit" class="btn btn-secondary">搜索</button>
     </form>
@@ -215,7 +224,7 @@
         <a th:href="@{/admin/students}" class="btn btn-outline">重置</a>
         <button type="button" class="btn btn-primary" onclick="openAdd()">＋ 添加学生</button>
         <a th:href="@{/admin/students/export(all=true)}" class="btn btn-outline">导出全部</a>
-        <a th:href="@{/admin/students/export(gradeId=${gradeId},classId=${classId},name=${name},studentNo=${studentNo},idCard=${idCard},electiveClass=${electiveClass},electiveClassInput=${electiveClassInput},studentStatus=${studentStatus})}"
+        <a th:href="@{/admin/students/export(gradeId=${gradeId},classId=${classId},name=${name},studentNo=${studentNo},idCard=${idCard},electiveClassInput=${electiveClassInput},studentStatus=${studentStatus})}"
            class="btn btn-outline">按搜索条件导出</a>
         <button type="button" class="btn btn-danger" onclick="submitBatchDelete()">删除选中</button>
         <form th:action="@{/admin/students/delete-all}" method="post" style="display:inline"
@@ -280,13 +289,29 @@
     <input type="hidden" id="pg-name" th:value="${name}">
     <input type="hidden" id="pg-studentNo" th:value="${studentNo}">
     <input type="hidden" id="pg-idCard" th:value="${idCard}">
-    <input type="hidden" id="pg-electiveClass" th:value="${electiveClass}">
     <input type="hidden" id="pg-electiveClassInput" th:value="${electiveClassInput}">
     <input type="hidden" id="pg-studentStatus" th:value="${studentStatus}">
+    <input type="hidden" id="pg-size" th:value="${size}">
 
     <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${studentPage.totalPages > 0}">
         <span style="font-size:13px;color:#555;white-space:nowrap"
               th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
+        <form method="get" th:action="@{/admin/students}" style="display:flex;align-items:center;gap:6px;margin-left:8px;">
+            <input type="hidden" name="gradeId" th:value="${gradeId}">
+            <input type="hidden" name="classId" th:value="${classId}">
+            <input type="hidden" name="name" th:value="${name}">
+            <input type="hidden" name="studentNo" th:value="${studentNo}">
+            <input type="hidden" name="idCard" th:value="${idCard}">
+            <input type="hidden" name="electiveClassInput" th:value="${electiveClassInput}">
+            <input type="hidden" name="studentStatus" th:value="${studentStatus}">
+            <label style="font-size:13px;color:#555;white-space:nowrap;">每页</label>
+            <select name="size" onchange="this.form.submit()" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+                <option value="10" th:selected="${size == 10}">10</option>
+                <option value="15" th:selected="${size == 15}">15</option>
+                <option value="30" th:selected="${size == 30}">30</option>
+                <option value="50" th:selected="${size == 50}">50</option>
+            </select>
+        </form>
         <div class="pagination" id="pagination" th:if="${studentPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
             <a id="pg-prev">上一页</a>
             <span id="pg-numbers"></span>
@@ -480,9 +505,9 @@
     const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
     const idCard = document.getElementById('pg-idCard').value;
-    const electiveClass = document.getElementById('pg-electiveClass').value;
     const electiveClassInput = document.getElementById('pg-electiveClassInput').value;
     const studentStatus = document.getElementById('pg-studentStatus').value;
+    const size = document.getElementById('pg-size').value;
 
     function url(p) {
         const params = new URLSearchParams();
@@ -491,9 +516,9 @@
         if (name) params.set('name', name);
         if (studentNo) params.set('studentNo', studentNo);
         if (idCard) params.set('idCard', idCard);
-        if (electiveClass) params.set('electiveClass', electiveClass);
         if (electiveClassInput) params.set('electiveClassInput', electiveClassInput);
         if (studentStatus) params.set('studentStatus', studentStatus);
+        if (size) params.set('size', size);
         params.set('page', p);
         return '/admin/students?' + params.toString();
     }
@@ -527,18 +552,18 @@ function jumpPage() {
     const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
     const idCard = document.getElementById('pg-idCard').value;
-    const electiveClass = document.getElementById('pg-electiveClass').value;
     const electiveClassInput = document.getElementById('pg-electiveClassInput').value;
     const studentStatus = document.getElementById('pg-studentStatus').value;
+    const size = document.getElementById('pg-size').value;
     const params = new URLSearchParams();
     if (gradeId) params.set('gradeId', gradeId);
     if (classId) params.set('classId', classId);
     if (name) params.set('name', name);
     if (studentNo) params.set('studentNo', studentNo);
     if (idCard) params.set('idCard', idCard);
-    if (electiveClass) params.set('electiveClass', electiveClass);
     if (electiveClassInput) params.set('electiveClassInput', electiveClassInput);
     if (studentStatus) params.set('studentStatus', studentStatus);
+    if (size) params.set('size', size);
     params.set('page', val - 1);
     location.href = '/admin/students?' + params.toString();
 }

@@ -229,13 +229,15 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String electiveClassInput,
                            @RequestParam(defaultValue = "") String studentStatus,
                            @RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "15") int size,
                            Model model) {
         School school = currentUserService.getCurrentSchool();
+        int pageSize = normalizePageSize(size);
         StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
                 electiveClass, electiveClassInput, studentStatus);
         Page<Student> studentPage = studentService.findWithFilters(school, filter.classId(), filter.gradeId(),
                 filter.name(), filter.studentNo(), filter.idCard(), filter.electiveClass(), filter.studentStatus(),
-                page, 15);
+                page, pageSize);
         model.addAttribute("studentPage", studentPage);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("classId", classId);
@@ -249,6 +251,7 @@ public class AdminController {
         model.addAttribute("classes", classService.findAll(school));
         model.addAttribute("studentStatuses", studentService.getAvailableStatuses());
         model.addAttribute("electiveClassOptions", studentService.findAllElectiveClassNames(school));
+        model.addAttribute("size", pageSize);
         model.addAttribute("showSuspendedOnTeacherPage", !Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage()));
         model.addAttribute("showOutgoingBorrowOnTeacherPage", !Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage()));
         model.addAttribute("electiveClasses", classService.findAll(school).stream()
@@ -820,6 +823,11 @@ public class AdminController {
         }
         return new StudentFilter(gradeId, effectiveClassId, safeTrim(name), safeTrim(studentNo), safeTrim(idCard),
                 safeTrim(normalizedElective), safeTrim(studentStatus));
+    }
+
+    private int normalizePageSize(int size) {
+        List<Integer> allowed = List.of(10, 15, 30, 50);
+        return allowed.contains(size) ? size : 15;
     }
 
     private String safeTrim(String value) {

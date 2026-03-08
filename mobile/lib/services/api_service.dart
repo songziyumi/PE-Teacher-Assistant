@@ -12,10 +12,10 @@ class ApiService {
       _storage.write(key: _tokenKey, value: token);
   static Future<void> clearToken() => _storage.delete(key: _tokenKey);
 
-  static Future<Map<String, String>> _headers() async {
+  static Future<Map<String, String>> _headers({bool json = true}) async {
     final token = await getToken();
     return {
-      'Content-Type': 'application/json; charset=UTF-8',
+      if (json) 'Content-Type': 'application/json; charset=UTF-8',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -23,7 +23,7 @@ class ApiService {
   static Future<dynamic> get(String path) async {
     final res = await http.get(
       Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(),
+      headers: await _headers(json: true),
     );
     return _handle(res);
   }
@@ -31,7 +31,7 @@ class ApiService {
   static Future<dynamic> post(String path, Map<String, dynamic> body) async {
     final res = await http.post(
       Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(),
+      headers: await _headers(json: true),
       body: jsonEncode(body),
     );
     return _handle(res);
@@ -40,7 +40,7 @@ class ApiService {
   static Future<dynamic> put(String path, Map<String, dynamic> body) async {
     final res = await http.put(
       Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(),
+      headers: await _headers(json: true),
       body: jsonEncode(body),
     );
     return _handle(res);
@@ -49,8 +49,26 @@ class ApiService {
   static Future<dynamic> delete(String path) async {
     final res = await http.delete(
       Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(),
+      headers: await _headers(json: true),
     );
+    return _handle(res);
+  }
+
+  static Future<dynamic> postMultipart(
+    String path, {
+    required String fileField,
+    required String filePath,
+    Map<String, String>? fields,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.apiBase}$path');
+    final req = http.MultipartRequest('POST', uri);
+    req.headers.addAll(await _headers(json: false));
+    if (fields != null) {
+      req.fields.addAll(fields);
+    }
+    req.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
     return _handle(res);
   }
 
