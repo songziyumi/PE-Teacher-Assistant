@@ -14,6 +14,46 @@ class TeacherService {
     return data.map((e) => SchoolClass.fromJson(e)).toList();
   }
 
+  static Future<Map<String, dynamic>> getProfile() async {
+    final data = await ApiService.get('/teacher/profile') as Map;
+    return Map<String, dynamic>.from(data);
+  }
+
+  static Future<void> updateProfile({
+    String? gender,
+    String? birthDate,
+    String? specialty,
+    String? email,
+    String? bio,
+  }) async {
+    await ApiService.put('/teacher/profile', {
+      'gender': gender,
+      'birthDate': birthDate,
+      'specialty': specialty,
+      'email': email,
+      'bio': bio,
+    });
+  }
+
+  static Future<String?> uploadProfilePhoto(String filePath) async {
+    final data = await ApiService.postMultipart(
+      '/teacher/profile/photo',
+      fileField: 'photo',
+      filePath: filePath,
+    ) as Map;
+    return data['photoUrl']?.toString();
+  }
+
+  static Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await ApiService.post('/teacher/password/change', {
+      'oldPassword': oldPassword,
+      'newPassword': newPassword,
+    });
+  }
+
   // 年级列表
   static Future<List<Grade>> getGrades() async {
     final data = await ApiService.get('/teacher/grades') as List;
@@ -126,6 +166,16 @@ class TeacherService {
 
   static Future<void> markTeacherMessageRead(int id) async {
     await ApiService.post('/teacher/messages/$id/read', {});
+  }
+
+  static Future<Map<String, dynamic>> getStudentAttendanceHistory(
+    int studentId, {
+    int days = 60,
+  }) async {
+    final data = await ApiService.get(
+      '/teacher/students/$studentId/attendance-history?days=$days',
+    ) as Map;
+    return Map<String, dynamic>.from(data);
   }
 
   // 考勤查询
