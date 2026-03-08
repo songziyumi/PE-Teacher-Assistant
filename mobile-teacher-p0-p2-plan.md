@@ -126,4 +126,16 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.2.101:8080
 ##  构建正式版APK
 flutter build apk --release --dart-define=API_BASE_URL=http://192.168.2.101:8080
 ##  将apk推送到手机
-C:\Users\28970\AppData\Local\Android\Sdk\platform-tools\adb.exe push C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA\mobile\build\app\outputs\flutter-apk\app-debug.apk /sdcard/Download/  
+C:\Users\28970\AppData\Local\Android\Sdk\platform-tools\adb.exe push C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA\mobile\build\app\outputs\flutter-apk\app-debug.apk /sdcard/Download/ 
+
+##  直接执行（在 mobile 目录）                                                                                                                      
+  1. 生成 keystore + key.properties                                                                                                               
+  scripts\generate_keystore.bat -StorePass "Abc@123456" -KeyPass "Abc@123456"                                                                     
+  2. 打正式 APK                                                                                                                                   
+  scripts\build_release_apk.bat -ApiBaseUrl "http://192.168.2.101:8080"                                                                           
+  更小
+  scripts\build_release_apk.bat -ApiBaseUrl "http://175.24.131.74:8080" -SplitPerAbi
+  产物目录：mobile\build\app\outputs\flutter-apk\                                                                                                  
+  注意：                                                                                                                                          
+  - 这两个密码必须自己记住，丢了就无法继续用同一签名更新应用。                                                                                    
+  - 正式上架后，不要随便改 keystore 或密码。   
