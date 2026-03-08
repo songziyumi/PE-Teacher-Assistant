@@ -1,9 +1,32 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+}
+
+fun readKeyProperty(name: String): String? {
+    val direct = keystoreProperties.getProperty(name)
+    if (!direct.isNullOrBlank()) return direct
+    // PowerShell-generated UTF-8 BOM can be treated as part of the first key.
+    return keystoreProperties.getProperty("\uFEFF$name")
+}
+
+val hasReleaseSigning = listOf(
+    "storeFile",
+    "storePassword",
+    "keyAlias",
+    "keyPassword",
+).all { !readKeyProperty(it).isNullOrBlank() }
 
 android {
     namespace = "com.example.pe_teacher_app"
@@ -30,13 +53,41 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(readKeyProperty("storeFile"))
+                storePassword = readKeyProperty("storePassword")
+                keyAlias = readKeyProperty("keyAlias")
+                keyPassword = readKeyProperty("keyPassword")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+    }
+}
+
+tasks.register("verifyReleaseSigning") {
+    doLast {
+        if (!hasReleaseSigning) {
+            throw GradleException(
+                "Missing Android release signing config. " +
+                    "Create android/key.properties from android/key.properties.example first.",
+            )
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    dependsOn("verifyReleaseSigning")
 }
 
 flutter {
