@@ -538,6 +538,108 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     studentNoCtrl.dispose();
   }
 
+  Future<void> _showAttendanceDialog(Student s) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return FutureBuilder<Map<String, dynamic>>(
+          future: TeacherService.getStudentAttendanceHistory(s.id, days: 90),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const AlertDialog(
+                content: SizedBox(
+                  height: 80,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+
+            if (snapshot.hasError || !snapshot.hasData) {
+              return AlertDialog(
+                title: const Text('出勤记录'),
+                content: Text('加载失败：${snapshot.error ?? '未知错误'}'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('关闭'),
+                  ),
+                ],
+              );
+            }
+
+            final data = snapshot.data!;
+            final stats = (data['stats'] as Map?)?.cast<String, dynamic>() ??
+                <String, dynamic>{};
+            final records = (data['records'] as List?) ?? const [];
+
+            Color statusColor(String value) {
+              switch (value) {
+                case '缺勤':
+                  return Colors.red;
+                case '请假':
+                  return Colors.orange;
+                default:
+                  return Colors.green;
+              }
+            }
+
+            return AlertDialog(
+              title: Text('${s.name} - 出勤记录'),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('近90天共 ${stats['total'] ?? 0} 次'),
+                    Text(
+                        '出勤：${stats['present'] ?? 0}  缺勤：${stats['absent'] ?? 0}  请假：${stats['leave'] ?? 0}'),
+                    Text('出勤率：${stats['rate'] ?? '0.0'}%'),
+                    const SizedBox(height: 10),
+                    if (records.isEmpty)
+                      const Text('暂无出勤记录')
+                    else
+                      SizedBox(
+                        height: 220,
+                        child: ListView.builder(
+                          itemCount: records.length,
+                          itemBuilder: (_, i) {
+                            final item =
+                                (records[i] as Map).cast<String, dynamic>();
+                            final status = item['status']?.toString() ?? '-';
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(item['date']?.toString() ?? '-'),
+                              trailing: Text(
+                                status,
+                                style: TextStyle(
+                                  color: statusColor(status),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('关闭'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    messenger.hideCurrentSnackBar();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -606,9 +708,21 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                           ],
                         ),
                         isThreeLine: true,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showEditDialog(s),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: '出勤记录',
+                              icon: const Icon(Icons.fact_check_outlined,
+                                  color: Colors.green),
+                              onPressed: () => _showAttendanceDialog(s),
+                            ),
+                            IconButton(
+                              tooltip: '编辑',
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showEditDialog(s),
+                            ),
+                          ],
                         ),
                       );
                     },
