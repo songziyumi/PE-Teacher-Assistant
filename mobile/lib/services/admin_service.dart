@@ -1,7 +1,4 @@
 import '../models/school_class.dart';
-import '../models/student.dart';
-import '../models/physical_test.dart';
-import '../models/term_grade.dart';
 import '../models/elective_class.dart';
 import 'api_service.dart';
 

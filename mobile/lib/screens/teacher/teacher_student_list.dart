@@ -279,7 +279,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       const SizedBox(height: 16),
                       buildFieldPair(
                         DropdownButtonFormField<String>(
-                          value: selectedGender,
+                          initialValue: selectedGender,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '性别',
@@ -294,7 +294,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                               setDialogState(() => selectedGender = v ?? '男'),
                         ),
                         DropdownButtonFormField<String>(
-                          value: selectedStatus,
+                          initialValue: selectedStatus,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '学籍状态',
@@ -352,7 +352,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       const SizedBox(height: 6),
                       buildFieldPair(
                         DropdownButtonFormField<int?>(
-                          value: adminGradeId,
+                          initialValue: adminGradeId,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '年级',
@@ -384,7 +384,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                           }),
                         ),
                         DropdownButtonFormField<int?>(
-                          value: filteredAdminClasses
+                          initialValue: filteredAdminClasses
                                   .any((c) => c.id == selectedClassId)
                               ? selectedClassId
                               : null,
@@ -410,7 +410,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       const SizedBox(height: 6),
                       buildFieldPair(
                         DropdownButtonFormField<int?>(
-                          value: electiveGradeId,
+                          initialValue: electiveGradeId,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '年级',
@@ -432,7 +432,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                           }),
                         ),
                         DropdownButtonFormField<String?>(
-                          value: filteredElective
+                          initialValue: filteredElective
                                   .any((c) => c.storedName == selectedElective)
                               ? selectedElective
                               : null,
