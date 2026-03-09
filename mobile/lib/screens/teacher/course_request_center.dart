@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/course_request.dart';
 import '../../services/teacher_service.dart';
@@ -36,8 +36,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final result =
-          await TeacherService.getCourseRequests(status: _selectedStatus);
+      final result = await TeacherService.getCourseRequests(
+        status: _selectedStatus,
+      );
       if (!mounted) return;
       setState(() {
         _requests = result;
@@ -45,14 +46,16 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
           _batchMode = false;
           _selectedRequestIds.clear();
         } else {
-          _selectedRequestIds
-              .removeWhere((id) => !_requests.any((req) => req.id == id));
+          _selectedRequestIds.removeWhere(
+            (id) => !_requests.any((req) => req.id == id),
+          );
         }
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('加载审批数据失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载审批数据失败: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -107,9 +110,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   Future<void> _batchHandle(bool approve) async {
     if (_batchSubmitting || _selectedStatus != 'PENDING') return;
     if (_selectedRequestIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先选择至少一条待审批记录')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请先选择至少一条待审批记录')));
       return;
     }
 
@@ -125,31 +128,32 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
       );
       if (!mounted) return;
 
+      final actionLabel = approve ? '同意' : '拒绝';
       final successCount = _toInt(result['successCount']);
       final failedCount = _toInt(result['failedCount']);
       final failedItems = (result['failedItems'] is List)
           ? (result['failedItems'] as List)
           : const [];
-      final failedIds = failedItems
-          .map((e) => (e is Map ? e['messageId'] : null)?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .take(5)
-          .toList();
-      final failedSuffix =
-          failedIds.isEmpty ? '' : '，失败ID：${failedIds.join(', ')}';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '批量${approve ? '同意' : '拒绝'}完成：成功$successCount，失败$failedCount$failedSuffix',
-          ),
-        ),
-      );
       _selectedRequestIds.clear();
       await _load();
+      if (!mounted) return;
+      if (failedCount > 0) {
+        await _showBatchFailureDialog(
+          actionLabel: actionLabel,
+          successCount: successCount,
+          failedCount: failedCount,
+          failedItems: failedItems,
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('批量$actionLabel完成：成功$successCount条')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('批量操作失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('批量操作失败: $e')));
     } finally {
       if (mounted) setState(() => _batchSubmitting = false);
     }
@@ -185,6 +189,65 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     );
     controller.dispose();
     return result;
+  }
+
+  Future<void> _showBatchFailureDialog({
+    required String actionLabel,
+    required int successCount,
+    required int failedCount,
+    required List failedItems,
+  }) {
+    final failureLines = failedItems
+        .map(_formatFailedItem)
+        .where((line) => line.isNotEmpty)
+        .toList();
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('部分处理失败'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('批量$actionLabel已完成：成功$successCount条，失败$failedCount条。'),
+              if (failureLines.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('失败明细：'),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  child: SingleChildScrollView(
+                    child: Text(failureLines.join('\n')),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('我知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatFailedItem(dynamic item) {
+    if (item is! Map) {
+      return '';
+    }
+    final id =
+        item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+    final reason = item['reason']?.toString().trim();
+    final idText = id == null ? '未知记录' : 'ID $id';
+    if (reason == null || reason.isEmpty) {
+      return idText;
+    }
+    return '$idText：$reason';
   }
 
   String _formatDate(DateTime? dt) {
@@ -273,20 +336,34 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text('已选 ${_selectedRequestIds.length}/${_requests.length}'),
-                    OutlinedButton(
-                      onPressed:
-                          _batchSubmitting ? null : (isAllSelected ? _clearSelection : _selectAll),
-                      child: Text(isAllSelected ? '取消全选' : '全选'),
+                    Text(
+                      '已选 ${_selectedRequestIds.length}/${_requests.length}',
                     ),
                     OutlinedButton(
-                      onPressed: _batchSubmitting ? null : () => _batchHandle(false),
-                      style:
-                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('批量拒绝'),
+                      onPressed: _batchSubmitting || isAllSelected
+                          ? null
+                          : _selectAll,
+                      child: Text(isAllSelected ? '已全选' : '全选'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _batchSubmitting || _selectedRequestIds.isEmpty
+                          ? null
+                          : _clearSelection,
+                      child: const Text('清空选择'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _batchSubmitting
+                          ? null
+                          : () => _batchHandle(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                      child: Text(_batchSubmitting ? '处理中...' : '批量拒绝'),
                     ),
                     ElevatedButton(
-                      onPressed: _batchSubmitting ? null : () => _batchHandle(true),
+                      onPressed: _batchSubmitting
+                          ? null
+                          : () => _batchHandle(true),
                       child: Text(_batchSubmitting ? '处理中...' : '批量同意'),
                     ),
                   ],
@@ -299,80 +376,81 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _requests.isEmpty
-                    ? const Center(child: Text('暂无数据'))
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _requests.length,
-                          itemBuilder: (_, i) {
-                            final req = _requests[i];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: ListTile(
-                                onTap: () => _openDetail(req),
-                                leading: (_batchMode && isPendingTab)
-                                    ? Checkbox(
-                                        value:
-                                            _selectedRequestIds.contains(req.id),
-                                        onChanged: _batchSubmitting
-                                            ? null
-                                            : (_) => _toggleSelected(req.id),
-                                      )
-                                    : null,
-                                contentPadding: const EdgeInsets.all(12),
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        req.senderName ?? '未知学生',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                ? const Center(child: Text('暂无数据'))
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _requests.length,
+                      itemBuilder: (_, i) {
+                        final req = _requests[i];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            onTap: () => _openDetail(req),
+                            leading: (_batchMode && isPendingTab)
+                                ? Checkbox(
+                                    value: _selectedRequestIds.contains(req.id),
+                                    onChanged: _batchSubmitting
+                                        ? null
+                                        : (_) => _toggleSelected(req.id),
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.all(12),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    req.senderName ?? '未知学生',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: _statusColor(req.status)
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        req.statusLabel,
-                                        style: TextStyle(
-                                          color: _statusColor(req.status),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('课程：${req.relatedCourseName ?? '-'}'),
-                                      const SizedBox(height: 4),
-                                      Text('主题：${req.subject ?? '-'}'),
-                                      const SizedBox(height: 4),
-                                      Text('申请时间：${_formatDate(req.sentAt)}'),
-                                    ],
                                   ),
                                 ),
-                                trailing: (_batchMode && isPendingTab)
-                                    ? null
-                                    : const Icon(Icons.chevron_right),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(
+                                      req.status,
+                                    ).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    req.statusLabel,
+                                    style: TextStyle(
+                                      color: _statusColor(req.status),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('课程：${req.relatedCourseName ?? '-'}'),
+                                  const SizedBox(height: 4),
+                                  Text('主题：${req.subject ?? '-'}'),
+                                  const SizedBox(height: 4),
+                                  Text('申请时间：${_formatDate(req.sentAt)}'),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                            trailing: (_batchMode && isPendingTab)
+                                ? null
+                                : const Icon(Icons.chevron_right),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

@@ -320,13 +320,16 @@ public class TeacherApiController {
                 return ResponseEntity.badRequest().body(ApiResponse.error(400, "批量操作类型仅支持 APPROVE 或 REJECT"));
             }
 
-            List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(body.getMessageIds()));
+            List<Long> deduplicatedIds = body.getMessageIds().stream()
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (deduplicatedIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "\u8bf7\u9009\u62e9\u8981\u5904\u7406\u7684\u5ba1\u6279\u8bb0\u5f55"));
+            }
             List<Long> successIds = new ArrayList<>();
             List<Map<String, Object>> failedItems = new ArrayList<>();
             for (Long messageId : deduplicatedIds) {
-                if (messageId == null) {
-                    continue;
-                }
                 try {
                     if (approve) {
                         messageService.approveRequest(messageId, teacher, body.getRemark());
@@ -336,6 +339,7 @@ public class TeacherApiController {
                     successIds.add(messageId);
                 } catch (Exception ex) {
                     Map<String, Object> failed = new LinkedHashMap<>();
+                    failed.put("id", messageId);
                     failed.put("messageId", messageId);
                     failed.put("reason", ex.getMessage() == null ? "处理失败" : ex.getMessage());
                     failedItems.add(failed);
