@@ -298,6 +298,155 @@ class TeacherApiControllerRegressionTest {
     }
 
     @Test
+    void batchApproveShouldReturnSuccessSummary() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doNothing().when(messageService).approveRequest(anyLong(), eq(teacher), any());
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(11, 12),
+                                "action", "APPROVE",
+                                "remark", "ok"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.action").value("APPROVE"))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.successCount").value(2))
+                .andExpect(jsonPath("$.data.failedCount").value(0))
+                .andExpect(jsonPath("$.data.successIds", hasSize(2)))
+                .andExpect(jsonPath("$.data.failedItems", hasSize(0)));
+
+        verify(messageService, times(1)).approveRequest(eq(11L), eq(teacher), eq("ok"));
+        verify(messageService, times(1)).approveRequest(eq(12L), eq(teacher), eq("ok"));
+    }
+
+    @Test
+    void batchRejectShouldReturnSuccessSummary() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doNothing().when(messageService).rejectRequest(anyLong(), eq(teacher), any());
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(21, 22),
+                                "action", "REJECT",
+                                "remark", "deny"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.action").value("REJECT"))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.successCount").value(2))
+                .andExpect(jsonPath("$.data.failedCount").value(0))
+                .andExpect(jsonPath("$.data.successIds", hasSize(2)))
+                .andExpect(jsonPath("$.data.failedItems", hasSize(0)));
+
+        verify(messageService, times(1)).rejectRequest(eq(21L), eq(teacher), eq("deny"));
+        verify(messageService, times(1)).rejectRequest(eq(22L), eq(teacher), eq("deny"));
+    }
+
+    @Test
+    void batchHandleShouldExposePartialFailureReasons() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doAnswer(invocation -> {
+            Long messageId = invocation.getArgument(0, Long.class);
+            if (messageId.equals(32L)) {
+                throw new RuntimeException("\u7533\u8bf7\u5df2\u5904\u7406\uff0c\u65e0\u6cd5\u91cd\u590d\u64cd\u4f5c");
+            }
+            if (messageId.equals(33L)) {
+                throw new RuntimeException("\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7");
+            }
+            if (messageId.equals(34L)) {
+                throw new RuntimeException("\u6d88\u606f\u4e0d\u5b58\u5728");
+            }
+            if (messageId.equals(35L)) {
+                throw new RuntimeException("\u8be5\u6d88\u606f\u4e0d\u662f\u9009\u8bfe\u7533\u8bf7");
+            }
+            return null;
+        }).when(messageService).approveRequest(anyLong(), eq(teacher), any());
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(31, 32, 33, 34, 35),
+                                "action", "APPROVE"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(5))
+                .andExpect(jsonPath("$.data.successCount").value(1))
+                .andExpect(jsonPath("$.data.failedCount").value(4))
+                .andExpect(jsonPath("$.data.failedItems", hasSize(4)))
+                .andExpect(jsonPath("$.data.failedItems[0].messageId").value(32))
+                .andExpect(jsonPath("$.data.failedItems[0].reason")
+                        .value("\u7533\u8bf7\u5df2\u5904\u7406\uff0c\u65e0\u6cd5\u91cd\u590d\u64cd\u4f5c"))
+                .andExpect(jsonPath("$.data.failedItems[1].messageId").value(33))
+                .andExpect(jsonPath("$.data.failedItems[1].reason")
+                        .value("\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7"))
+                .andExpect(jsonPath("$.data.failedItems[2].messageId").value(34))
+                .andExpect(jsonPath("$.data.failedItems[2].reason").value("\u6d88\u606f\u4e0d\u5b58\u5728"))
+                .andExpect(jsonPath("$.data.failedItems[3].messageId").value(35))
+                .andExpect(jsonPath("$.data.failedItems[3].reason").value("\u8be5\u6d88\u606f\u4e0d\u662f\u9009\u8bfe\u7533\u8bf7"));
+    }
+
+    @Test
+    void batchHandleShouldDeduplicateMessageIds() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doNothing().when(messageService).approveRequest(anyLong(), eq(teacher), any());
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(41, 41, 42, 42),
+                                "action", "APPROVE"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.successCount").value(2))
+                .andExpect(jsonPath("$.data.failedCount").value(0))
+                .andExpect(jsonPath("$.data.successIds", hasSize(2)));
+
+        verify(messageService, times(1)).approveRequest(eq(41L), eq(teacher), any());
+        verify(messageService, times(1)).approveRequest(eq(42L), eq(teacher), any());
+    }
+
+    @Test
+    void batchRejectShouldPassBlankAndOverlongRemark() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doNothing().when(messageService).rejectRequest(anyLong(), eq(teacher), any());
+
+        String blankRemark = "   ";
+        String longRemark = "x".repeat(600);
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(51),
+                                "action", "REJECT",
+                                "remark", blankRemark))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        mockMvc.perform(post("/api/teacher/course-requests/batch-handle")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "messageIds", List.of(52),
+                                "action", "REJECT",
+                                "remark", longRemark))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        ArgumentCaptor<String> remarkCaptor = ArgumentCaptor.forClass(String.class);
+        verify(messageService, times(2)).rejectRequest(anyLong(), eq(teacher), remarkCaptor.capture());
+        assertEquals(blankRemark, remarkCaptor.getAllValues().get(0));
+        assertEquals(longRemark, remarkCaptor.getAllValues().get(1));
+    }
+
+    @Test
     void batchUpdateStudentStatusShouldDelegateToService() throws Exception {
         School school = new School();
         school.setId(1L);
