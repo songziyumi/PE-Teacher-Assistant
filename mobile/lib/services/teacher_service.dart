@@ -156,12 +156,27 @@ class TeacherService {
     return _toInt(data['unreadCount']);
   }
 
-  static Future<List<TeacherMessage>> getTeacherMessages(
-      {bool unreadOnly = false}) async {
+  static Future<List<TeacherMessage>> getTeacherMessages({
+    bool unreadOnly = false,
+    String type = 'ALL',
+  }) async {
     final data = await ApiService.get(
-      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}',
+      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(type)}',
     ) as List;
     return data.map((e) => TeacherMessage.fromJson(e)).toList();
+  }
+
+  static Future<Map<String, dynamic>> batchHandleCourseRequests(
+    List<int> messageIds, {
+    required bool approve,
+    String? remark,
+  }) async {
+    final data = await ApiService.post('/teacher/course-requests/batch-handle', {
+      'messageIds': messageIds,
+      'action': approve ? 'APPROVE' : 'REJECT',
+      if (remark != null) 'remark': remark,
+    }) as Map;
+    return Map<String, dynamic>.from(data);
   }
 
   static Future<void> markTeacherMessageRead(int id) async {

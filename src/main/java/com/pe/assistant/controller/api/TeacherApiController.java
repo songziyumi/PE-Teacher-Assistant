@@ -241,9 +241,10 @@ public class TeacherApiController {
 
     @GetMapping("/messages")
     public ApiResponse<List<Map<String, Object>>> messages(
-            @RequestParam(defaultValue = "false") boolean unreadOnly) {
+            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(defaultValue = "ALL") String type) {
         Teacher teacher = currentUserService.getCurrentTeacher();
-        List<InternalMessage> list = messageService.getTeacherInbox(teacher);
+        List<InternalMessage> list = messageService.getTeacherInbox(teacher, type);
         if (unreadOnly) {
             list = list.stream()
                     .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
@@ -296,6 +297,66 @@ public class TeacherApiController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
+
+    @PostMapping("/course-requests/batch-handle")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchHandleCourseRequests(
+            @RequestBody BatchHandleRequest body) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            if (body == null || body.getMessageIds() == null || body.getMessageIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要处理的审批记录"));
+            }
+            String action = body.getAction() == null ? "" : body.getAction().trim().toUpperCase();
+            boolean approve;
+            if ("APPROVE".equals(action)) {
+                approve = true;
+            } else if ("REJECT".equals(action)) {
+                approve = false;
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "批量操作类型仅支持 APPROVE 或 REJECT"));
+            }
+
+            List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(body.getMessageIds()));
+            List<Long> successIds = new ArrayList<>();
+            List<Map<String, Object>> failedItems = new ArrayList<>();
+            for (Long messageId : deduplicatedIds) {
+                if (messageId == null) {
+                    continue;
+                }
+                try {
+                    if (approve) {
+                        messageService.approveRequest(messageId, teacher, body.getRemark());
+                    } else {
+                        messageService.rejectRequest(messageId, teacher, body.getRemark());
+                    }
+                    successIds.add(messageId);
+                } catch (Exception ex) {
+                    Map<String, Object> failed = new LinkedHashMap<>();
+                    failed.put("messageId", messageId);
+                    failed.put("reason", ex.getMessage() == null ? "处理失败" : ex.getMessage());
+                    failedItems.add(failed);
+                }
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("action", action);
+            result.put("totalCount", deduplicatedIds.size());
+            result.put("successCount", successIds.size());
+            result.put("failedCount", failedItems.size());
+            result.put("successIds", successIds);
+            result.put("failedItems", failedItems);
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @Data
+    static class BatchHandleRequest {
+        private List<Long> messageIds;
+        private String action;
+        private String remark;
     }
 
     private Map<String, Object> toCourseRequestMap(InternalMessage msg) {

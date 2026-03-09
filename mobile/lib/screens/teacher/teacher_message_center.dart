@@ -14,8 +14,15 @@ class TeacherMessageCenterScreen extends StatefulWidget {
 
 class _TeacherMessageCenterScreenState
     extends State<TeacherMessageCenterScreen> {
+  static const Map<String, String> _typeLabels = {
+    'ALL': '全部类型',
+    'COURSE_REQUEST': '选课申请',
+    'GENERAL': '普通消息',
+  };
+
   bool _loading = true;
   bool _unreadOnly = false;
+  String _messageType = 'ALL';
   List<TeacherMessage> _messages = [];
 
   @override
@@ -27,8 +34,10 @@ class _TeacherMessageCenterScreenState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final result =
-          await TeacherService.getTeacherMessages(unreadOnly: _unreadOnly);
+      final result = await TeacherService.getTeacherMessages(
+        unreadOnly: _unreadOnly,
+        type: _messageType,
+      );
       if (!mounted) return;
       setState(() => _messages = result);
     } catch (e) {
@@ -135,6 +144,31 @@ class _TeacherMessageCenterScreenState
                   },
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _typeLabels.entries.map((entry) {
+                  final type = entry.key;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(entry.value),
+                      selected: _messageType == type,
+                      onSelected: (_) {
+                        if (_messageType != type) {
+                          setState(() => _messageType = type);
+                          _load();
+                        }
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
           const SizedBox(height: 8),
