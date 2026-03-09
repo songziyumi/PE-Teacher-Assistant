@@ -240,20 +240,18 @@ public class TeacherApiController {
     }
 
     @GetMapping("/messages")
-    public ApiResponse<List<Map<String, Object>>> messages(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> messages(
             @RequestParam(defaultValue = "false") boolean unreadOnly,
             @RequestParam(defaultValue = "ALL") String type) {
-        Teacher teacher = currentUserService.getCurrentTeacher();
-        List<InternalMessage> list = messageService.getTeacherInbox(teacher, type);
-        if (unreadOnly) {
-            list = list.stream()
-                    .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            List<Map<String, Object>> result = messageService.getTeacherInbox(teacher, type, unreadOnly).stream()
+                    .map(this::toTeacherMessageMap)
                     .collect(Collectors.toList());
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
-        List<Map<String, Object>> result = list.stream()
-                .map(this::toTeacherMessageMap)
-                .collect(Collectors.toList());
-        return ApiResponse.ok(result);
     }
 
     @PostMapping("/messages/{id:\\d+}/read")

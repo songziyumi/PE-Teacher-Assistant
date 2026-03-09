@@ -151,6 +151,33 @@ class MessageServiceRegressionTest {
         assertSame(older, result.get(1));
     }
 
+    @Test
+    void getTeacherInboxShouldRejectInvalidType() {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> messageService.getTeacherInbox(teacher, "NOTICE", false));
+
+        assertEquals("消息类型仅支持 ALL、GENERAL、COURSE_REQUEST", ex.getMessage());
+        verify(messageRepo, never()).findByRecipientTypeAndRecipientIdOrderBySentAtDesc(any(), any());
+        verify(messageRepo, never()).findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(any(), any(), any());
+    }
+
+    @Test
+    void getTeacherInboxShouldCombineTypeAndUnreadOnly() {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        InternalMessage unreadGeneral = buildGeneralMessage(2L, false);
+        InternalMessage readGeneral = buildGeneralMessage(3L, true);
+
+        when(messageRepo.findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc("TEACHER", 10L, "GENERAL"))
+                .thenReturn(List.of(unreadGeneral, readGeneral));
+
+        List<InternalMessage> result = messageService.getTeacherInbox(teacher, "GENERAL", true);
+
+        assertEquals(1, result.size());
+        assertSame(unreadGeneral, result.get(0));
+    }
+
     private InternalMessage buildCourseRequestMessage(String status, Long recipientTeacherId) {
         InternalMessage msg = new InternalMessage();
         msg.setId(1L);
@@ -164,6 +191,19 @@ class MessageServiceRegressionTest {
         msg.setRelatedCourseName("Basketball");
         msg.setSchool(new School());
         msg.setIsRead(false);
+        return msg;
+    }
+
+    private InternalMessage buildGeneralMessage(Long id, boolean isRead) {
+        InternalMessage msg = new InternalMessage();
+        msg.setId(id);
+        msg.setType("GENERAL");
+        msg.setRecipientType("TEACHER");
+        msg.setRecipientId(10L);
+        msg.setSenderId(1L);
+        msg.setSenderName("System");
+        msg.setSchool(new School());
+        msg.setIsRead(isRead);
         return msg;
     }
 
