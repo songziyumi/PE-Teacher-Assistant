@@ -37,7 +37,9 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
   @override
   void dispose() {
     for (final m in _ctrls.values) {
-      for (final c in m.values) c.dispose();
+      for (final c in m.values) {
+        c.dispose();
+      }
     }
     super.dispose();
   }
@@ -101,8 +103,10 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
             const SnackBar(content: Text('体测数据保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -160,7 +164,7 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _semester,
+              initialValue: _semester,
               decoration: const InputDecoration(
                 labelText: '学期', isDense: true, border: OutlineInputBorder(),
               ),

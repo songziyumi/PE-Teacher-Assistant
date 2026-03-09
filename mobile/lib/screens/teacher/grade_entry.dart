@@ -35,7 +35,9 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
   @override
   void dispose() {
     for (final m in _ctrls.values) {
-      for (final c in m.values) c.dispose();
+      for (final c in m.values) {
+        c.dispose();
+      }
     }
     super.dispose();
   }
@@ -80,8 +82,10 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
             const SnackBar(content: Text('成绩保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -137,7 +141,7 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _semester,
+              initialValue: _semester,
               decoration: const InputDecoration(
                 labelText: '学期', isDense: true, border: OutlineInputBorder()),
               items: ['上学期', '下学期']
@@ -221,14 +225,15 @@ class _GradeCardState extends State<_GradeCard> {
                 // 实时综合分预览
                 if (_previewTotal != null)
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('${_previewTotal}',
+                    Text('$_previewTotal',
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
                             color: Color(0xFF4a90e2))),
                     if (_previewLevel != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: (_levelColors[_previewLevel] ?? Colors.grey).withOpacity(0.15),
+                          color: (_levelColors[_previewLevel] ?? Colors.grey)
+                              .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(_previewLevel!,

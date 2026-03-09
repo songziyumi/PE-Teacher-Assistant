@@ -132,7 +132,7 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                                           horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: _statusColor(req.status)
-                                            .withOpacity(0.12),
+                                            .withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(

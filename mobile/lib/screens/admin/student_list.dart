@@ -47,12 +47,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
         AdminService.getGrades(),
         AdminService.getElectiveClasses(),
       ]);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _classes = results[0] as List<SchoolClass>;
           _grades = results[1] as List<Grade>;
           _electiveClasses = results[2] as List<ElectiveClass>;
         });
+      }
     } catch (_) {}
   }
 
@@ -73,9 +74,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
         _totalPages = data['totalPages'] as int;
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('加载失败: $e')));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -137,22 +139,18 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       isDense: true),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('性别：'),
-                    ...['男', '女'].map((g) => Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Radio<String>(
-                              value: g,
-                              groupValue: selectedGender,
-                              onChanged: (v) =>
-                                  setDialogState(() => selectedGender = v!),
-                            ),
-                            Text(g),
-                          ],
-                        )),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedGender,
+                  decoration: const InputDecoration(
+                      labelText: '性别',
+                      border: OutlineInputBorder(),
+                      isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: '男', child: Text('男')),
+                    DropdownMenuItem(value: '女', child: Text('女')),
                   ],
+                  onChanged: (v) =>
+                      setDialogState(() => selectedGender = v ?? '男'),
                 ),
                 const SizedBox(height: 12),
                 const Text('行政班',
@@ -160,7 +158,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<int?>(
-                  value:
+                  initialValue:
                       availableAdminClasses.any((c) => c.id == selectedClassId)
                           ? selectedClassId
                           : null,
@@ -190,7 +188,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<int?>(
-                  value: electiveGradeId,
+                  initialValue: electiveGradeId,
                   decoration: const InputDecoration(
                       labelText: '年级',
                       border: OutlineInputBorder(),
@@ -208,7 +206,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String?>(
-                  value: filteredElective
+                  initialValue: filteredElective
                           .any((c) => c.storedName == selectedElective)
                       ? selectedElective
                       : null,
@@ -243,9 +241,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
       if (nameCtrl.text.trim().isEmpty ||
           studentNoCtrl.text.trim().isEmpty ||
           selectedClassId == null) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('请填写姓名、学号并选择班级')));
+        }
         return;
       }
       try {
@@ -263,9 +262,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
           _load(page: _page);
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text('保存失败: $e')));
+        }
       }
     }
   }
@@ -297,9 +297,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
           _load(page: _page);
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text('删除失败: $e')));
+        }
       }
     }
   }
