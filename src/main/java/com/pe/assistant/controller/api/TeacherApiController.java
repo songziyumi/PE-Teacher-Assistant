@@ -241,9 +241,10 @@ public class TeacherApiController {
 
     @GetMapping("/messages")
     public ApiResponse<List<Map<String, Object>>> messages(
-            @RequestParam(defaultValue = "false") boolean unreadOnly) {
+            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(defaultValue = "ALL") String type) {
         Teacher teacher = currentUserService.getCurrentTeacher();
-        List<InternalMessage> list = messageService.getTeacherInbox(teacher);
+        List<InternalMessage> list = messageService.getTeacherInbox(teacher, type);
         if (unreadOnly) {
             list = list.stream()
                     .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
@@ -296,6 +297,66 @@ public class TeacherApiController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
+    }
+
+    @PostMapping("/course-requests/batch-handle")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchHandleCourseRequests(
+            @RequestBody BatchHandleRequest body) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            if (body == null || body.getMessageIds() == null || body.getMessageIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要处理的审批记录"));
+            }
+            String action = body.getAction() == null ? "" : body.getAction().trim().toUpperCase();
+            boolean approve;
+            if ("APPROVE".equals(action)) {
+                approve = true;
+            } else if ("REJECT".equals(action)) {
+                approve = false;
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "批量操作类型仅支持 APPROVE 或 REJECT"));
+            }
+
+            List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(body.getMessageIds()));
+            List<Long> successIds = new ArrayList<>();
+            List<Map<String, Object>> failedItems = new ArrayList<>();
+            for (Long messageId : deduplicatedIds) {
+                if (messageId == null) {
+                    continue;
+                }
+                try {
+                    if (approve) {
+                        messageService.approveRequest(messageId, teacher, body.getRemark());
+                    } else {
+                        messageService.rejectRequest(messageId, teacher, body.getRemark());
+                    }
+                    successIds.add(messageId);
+                } catch (Exception ex) {
+                    Map<String, Object> failed = new LinkedHashMap<>();
+                    failed.put("messageId", messageId);
+                    failed.put("reason", ex.getMessage() == null ? "处理失败" : ex.getMessage());
+                    failedItems.add(failed);
+                }
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("action", action);
+            result.put("totalCount", deduplicatedIds.size());
+            result.put("successCount", successIds.size());
+            result.put("failedCount", failedItems.size());
+            result.put("successIds", successIds);
+            result.put("failedItems", failedItems);
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @Data
+    static class BatchHandleRequest {
+        private List<Long> messageIds;
+        private String action;
+        private String remark;
     }
 
     private Map<String, Object> toCourseRequestMap(InternalMessage msg) {
@@ -385,13 +446,16 @@ public class TeacherApiController {
         String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
         String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
+        Long version = body.get("version") != null ? Long.valueOf(body.get("version").toString()) : null;
         String electiveClass = body.containsKey("electiveClass")
                 ? (String) body.get("electiveClass")
                 : current.getElectiveClass();
         try {
             studentService.update(id, name, gender, studentNo, current.getIdCard(),
-                    electiveClass, classId, studentStatus);
+                    electiveClass, classId, studentStatus, version);
             return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(ApiResponse.error(409, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
@@ -400,21 +464,37 @@ public class TeacherApiController {
     // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
 
     @GetMapping("/classes/{classId}/students")
-    public ApiResponse<List<Map<String, Object>>> students(@PathVariable Long classId) {
+    public ApiResponse<List<Map<String, Object>>> students(
+            @PathVariable Long classId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String studentNo,
+            @RequestParam(required = false) Long adminClassId,
+            @RequestParam(required = false) String electiveClass,
+            @RequestParam(required = false) String studentStatus) {
         School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
         if (isElectiveType(sc.getType())) {
-            String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            students = studentService.findByElectiveClassForTeacher(school, name);
+            String electiveClassName = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
+            students = studentService.findByElectiveClassForTeacher(school, electiveClassName);
         } else {
             students = studentService.findByClassIdForTeacher(school, classId);
         }
+        students = students.stream()
+                .filter(s -> containsIgnoreCase(s.getName(), name))
+                .filter(s -> containsIgnoreCase(s.getStudentNo(), studentNo))
+                .filter(s -> adminClassId == null
+                        || (s.getSchoolClass() != null && Objects.equals(s.getSchoolClass().getId(), adminClassId)))
+                .filter(s -> containsIgnoreCase(s.getElectiveClass(), electiveClass))
+                .filter(s -> isBlank(studentStatus)
+                        || normalizeText(studentStatus).equals(normalizeText(s.getStudentStatus())))
+                .collect(Collectors.toList());
         List<Map<String, Object>> result = students.stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", s.getId());
             m.put("name", s.getName());
             m.put("studentNo", s.getStudentNo());
+            m.put("version", s.getVersion() == null ? -1L : s.getVersion());
             m.put("gender", s.getGender());
             m.put("electiveClass", s.getElectiveClass());
             m.put("studentStatus", s.getStudentStatus());
@@ -666,6 +746,20 @@ public class TeacherApiController {
         if ("缂哄嫟".equals(status) || "缺勤".equals(status)) return "缺勤";
         if ("璇峰亣".equals(status) || "请假".equals(status)) return "请假";
         return status;
+    }
+
+    private boolean containsIgnoreCase(String source, String keyword) {
+        if (isBlank(keyword)) return true;
+        if (source == null) return false;
+        return normalizeText(source).contains(normalizeText(keyword));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {
