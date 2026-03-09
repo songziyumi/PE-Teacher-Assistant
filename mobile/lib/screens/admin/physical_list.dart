@@ -114,7 +114,7 @@ class _PhysicalListScreenState extends State<PhysicalListScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _semester.isEmpty ? null : _semester,
+                        initialValue: _semester.isEmpty ? null : _semester,
                         decoration: const InputDecoration(
                           labelText: '学期', isDense: true, border: OutlineInputBorder()),
                         items: [
@@ -153,7 +153,9 @@ class _PhysicalListScreenState extends State<PhysicalListScreen> {
                                   ? Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: levelColor.withOpacity(0.15),
+                                        color: levelColor.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(pt.level!,

@@ -62,8 +62,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             const SnackBar(content: Text('考勤保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

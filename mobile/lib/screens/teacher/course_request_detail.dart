@@ -128,7 +128,8 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _statusColor(req.status).withOpacity(0.12),
+                              color: _statusColor(req.status)
+                                  .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -176,9 +177,11 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              border: Border.all(color: color.withOpacity(0.3)),
+                              border: Border.all(
+                                color: color.withValues(alpha: 0.3),
+                              ),
                               borderRadius: BorderRadius.circular(10),
-                              color: color.withOpacity(0.06),
+                              color: color.withValues(alpha: 0.06),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
