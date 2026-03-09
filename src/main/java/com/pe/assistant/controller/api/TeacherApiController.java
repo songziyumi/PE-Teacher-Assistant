@@ -359,6 +359,18 @@ public class TeacherApiController {
         private String remark;
     }
 
+    @Data
+    static class BatchStudentStatusRequest {
+        private List<Long> studentIds;
+        private String studentStatus;
+    }
+
+    @Data
+    static class BatchStudentElectiveClassRequest {
+        private List<Long> studentIds;
+        private String electiveClass;
+    }
+
     private Map<String, Object> toCourseRequestMap(InternalMessage msg) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", msg.getId());
@@ -377,6 +389,16 @@ public class TeacherApiController {
         m.put("handledAt", msg.getHandledAt());
         m.put("handleRemark", msg.getHandleRemark());
         return m;
+    }
+
+    private Map<String, Object> buildBatchStudentResult(List<Long> studentIds, int successCount) {
+        List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(studentIds));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalCount", deduplicatedIds.size());
+        result.put("successCount", successCount);
+        result.put("failedCount", Math.max(0, deduplicatedIds.size() - successCount));
+        result.put("studentIds", deduplicatedIds);
+        return result;
     }
 
     private Map<String, Object> toTeacherMessageMap(InternalMessage msg) {
@@ -462,6 +484,36 @@ public class TeacherApiController {
     }
 
     // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
+
+    @PostMapping("/students/batch-update-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentStatus(
+            @RequestBody BatchStudentStatusRequest body) {
+        try {
+            if (body == null || body.getStudentIds() == null || body.getStudentIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            School school = currentUserService.getCurrentSchool();
+            int updated = studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(body.getStudentIds(), updated)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/students/batch-update-elective-class")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentElectiveClass(
+            @RequestBody BatchStudentElectiveClassRequest body) {
+        try {
+            if (body == null || body.getStudentIds() == null || body.getStudentIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            School school = currentUserService.getCurrentSchool();
+            int updated = studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(body.getStudentIds(), updated)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
 
     @GetMapping("/classes/{classId}/students")
     public ApiResponse<List<Map<String, Object>>> students(

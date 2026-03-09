@@ -3,6 +3,7 @@ package com.pe.assistant.controller.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pe.assistant.entity.CourseRequestAudit;
 import com.pe.assistant.entity.InternalMessage;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.TeacherRepository;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -293,6 +295,57 @@ class TeacherApiControllerRegressionTest {
         verify(messageService, times(2)).rejectRequest(anyLong(), eq(teacher), remarkCaptor.capture());
         assertEquals(blankRemark, remarkCaptor.getAllValues().get(0));
         assertEquals(longRemark, remarkCaptor.getAllValues().get(1));
+    }
+
+    @Test
+    void batchUpdateStudentStatusShouldDelegateToService() throws Exception {
+        School school = new School();
+        school.setId(1L);
+        when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(studentService.batchUpdateStudentStatus(eq(school), eq(List.of(101L, 102L)), eq("在籍")))
+                .thenReturn(2);
+
+        mockMvc.perform(post("/api/teacher/students/batch-update-status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "studentIds", List.of(101, 102),
+                                "studentStatus", "在籍"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.successCount").value(2))
+                .andExpect(jsonPath("$.data.failedCount").value(0));
+    }
+
+    @Test
+    void batchUpdateStudentElectiveClassShouldAllowClearingElectiveClass() throws Exception {
+        School school = new School();
+        school.setId(1L);
+        when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(studentService.batchUpdateElectiveClass(eq(school), eq(List.of(101L)), eq(null)))
+                .thenReturn(1);
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("studentIds", List.of(101));
+        request.put("electiveClass", null);
+
+        mockMvc.perform(post("/api/teacher/students/batch-update-elective-class")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.successCount").value(1));
+    }
+
+    @Test
+    void batchUpdateStudentStatusShouldValidateEmptySelection() throws Exception {
+        mockMvc.perform(post("/api/teacher/students/batch-update-status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "studentIds", List.of(),
+                                "studentStatus", "在籍"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     private Teacher buildTeacher(Long id, String name) {

@@ -343,6 +343,38 @@ public class StudentService {
                 normalized, school, effectiveExcludeId);
     }
 
+    @Transactional
+    public int batchUpdateStudentStatus(School school, List<Long> studentIds, String studentStatus) {
+        if (studentIds == null || studentIds.isEmpty()) return 0;
+        String normalizedStatus = normalizeStatusForSave(studentStatus);
+        int updated = 0;
+        for (Long studentId : new LinkedHashSet<>(studentIds)) {
+            if (studentId == null) continue;
+            Student student = findStudentForBatchUpdate(school, studentId);
+            student.setStudentStatus(normalizedStatus);
+            saveStudentWithDuplicateGuard(student);
+            updated++;
+        }
+        return updated;
+    }
+
+    @Transactional
+    public int batchUpdateElectiveClass(School school, List<Long> studentIds, String electiveClass) {
+        if (studentIds == null || studentIds.isEmpty()) return 0;
+        String normalizedElectiveClass = electiveClass == null || electiveClass.isBlank()
+                ? null
+                : electiveClass.trim();
+        int updated = 0;
+        for (Long studentId : new LinkedHashSet<>(studentIds)) {
+            if (studentId == null) continue;
+            Student student = findStudentForBatchUpdate(school, studentId);
+            student.setElectiveClass(normalizedElectiveClass);
+            saveStudentWithDuplicateGuard(student);
+            updated++;
+        }
+        return updated;
+    }
+
     private String normalizeStatusForSave(String status) {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
@@ -382,6 +414,15 @@ public class StudentService {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
         return LEGACY_STATUS_ALIASES.getOrDefault(normalized, normalized);
+    }
+
+    private Student findStudentForBatchUpdate(School school, Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("学生不存在: " + studentId));
+        if (school != null && !Objects.equals(student.getSchool(), school)) {
+            throw new IllegalArgumentException("无权批量修改其他学校学生");
+        }
+        return student;
     }
 
     private School resolveStudentSchool(Student student, Long classId) {
