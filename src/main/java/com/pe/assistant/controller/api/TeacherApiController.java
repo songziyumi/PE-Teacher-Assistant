@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/teacher")
 @RequiredArgsConstructor
 public class TeacherApiController {
+    private static final Map<String, String> LEGACY_STUDENT_STATUS_ALIASES = Map.of(
+            "\u5916\u51fa\u501f\u8bfb", "\u5728\u5916\u501f\u8bfb",
+            "\u5916\u6821\u501f\u8bfb", "\u501f\u8bfb");
 
     private final ClassService classService;
     private final StudentService studentService;
@@ -391,13 +394,18 @@ public class TeacherApiController {
         return m;
     }
 
-    private Map<String, Object> buildBatchStudentResult(List<Long> studentIds, int successCount) {
-        List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(studentIds));
+    private Map<String, Object> buildBatchStudentResult(StudentService.BatchStudentOperationResult batchResult) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("totalCount", deduplicatedIds.size());
-        result.put("successCount", successCount);
-        result.put("failedCount", Math.max(0, deduplicatedIds.size() - successCount));
-        result.put("studentIds", deduplicatedIds);
+        result.put("totalCount", batchResult.getTotalCount());
+        result.put("successCount", batchResult.getSuccessCount());
+        result.put("failedCount", batchResult.getFailedCount());
+        result.put("studentIds", batchResult.getStudentIds());
+        result.put("failedItems", batchResult.getFailedItems().stream().map(item -> {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("id", item.getStudentId());
+            failure.put("reason", item.getReason());
+            return failure;
+        }).collect(Collectors.toList()));
         return result;
     }
 
@@ -493,8 +501,9 @@ public class TeacherApiController {
                 return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
             }
             School school = currentUserService.getCurrentSchool();
-            int updated = studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
-            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(body.getStudentIds(), updated)));
+            StudentService.BatchStudentOperationResult updated =
+                    studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
@@ -508,8 +517,9 @@ public class TeacherApiController {
                 return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
             }
             School school = currentUserService.getCurrentSchool();
-            int updated = studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
-            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(body.getStudentIds(), updated)));
+            StudentService.BatchStudentOperationResult updated =
+                    studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
@@ -539,7 +549,7 @@ public class TeacherApiController {
                         || (s.getSchoolClass() != null && Objects.equals(s.getSchoolClass().getId(), adminClassId)))
                 .filter(s -> containsIgnoreCase(s.getElectiveClass(), electiveClass))
                 .filter(s -> isBlank(studentStatus)
-                        || normalizeText(studentStatus).equals(normalizeText(s.getStudentStatus())))
+                        || normalizeStudentStatusText(studentStatus).equals(normalizeStudentStatusText(s.getStudentStatus())))
                 .collect(Collectors.toList());
         List<Map<String, Object>> result = students.stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -812,6 +822,11 @@ public class TeacherApiController {
 
     private String normalizeText(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeStudentStatusText(String value) {
+        String normalized = normalizeText(value);
+        return LEGACY_STUDENT_STATUS_ALIASES.getOrDefault(normalized, normalized);
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {

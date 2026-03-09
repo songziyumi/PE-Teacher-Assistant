@@ -11,6 +11,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -343,36 +344,112 @@ public class StudentService {
                 normalized, school, effectiveExcludeId);
     }
 
-    @Transactional
-    public int batchUpdateStudentStatus(School school, List<Long> studentIds, String studentStatus) {
-        if (studentIds == null || studentIds.isEmpty()) return 0;
-        String normalizedStatus = normalizeStatusForSave(studentStatus);
-        int updated = 0;
-        for (Long studentId : new LinkedHashSet<>(studentIds)) {
-            if (studentId == null) continue;
-            Student student = findStudentForBatchUpdate(school, studentId);
-            student.setStudentStatus(normalizedStatus);
-            saveStudentWithDuplicateGuard(student);
-            updated++;
+    public static final class BatchStudentFailure {
+        private final Long studentId;
+        private final String reason;
+
+        public BatchStudentFailure(Long studentId, String reason) {
+            this.studentId = studentId;
+            this.reason = reason;
         }
-        return updated;
+
+        public Long getStudentId() {
+            return studentId;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+    }
+
+    public static final class BatchStudentOperationResult {
+        private final List<Long> studentIds;
+        private final List<BatchStudentFailure> failedItems = new ArrayList<>();
+        private int successCount;
+
+        public BatchStudentOperationResult(List<Long> studentIds) {
+            this.studentIds = studentIds == null
+                    ? Collections.emptyList()
+                    : Collections.unmodifiableList(new ArrayList<>(new LinkedHashSet<>(studentIds)));
+        }
+
+        public void addSuccess() {
+            successCount++;
+        }
+
+        public void addFailure(Long studentId, String reason) {
+            failedItems.add(new BatchStudentFailure(studentId, reason));
+        }
+
+        public List<Long> getStudentIds() {
+            return studentIds;
+        }
+
+        public int getTotalCount() {
+            return studentIds.size();
+        }
+
+        public int getSuccessCount() {
+            return successCount;
+        }
+
+        public int getFailedCount() {
+            return failedItems.size();
+        }
+
+        public List<BatchStudentFailure> getFailedItems() {
+            return Collections.unmodifiableList(failedItems);
+        }
     }
 
     @Transactional
-    public int batchUpdateElectiveClass(School school, List<Long> studentIds, String electiveClass) {
-        if (studentIds == null || studentIds.isEmpty()) return 0;
+    public BatchStudentOperationResult batchUpdateStudentStatus(School school, List<Long> studentIds, String studentStatus) {
+        BatchStudentOperationResult result = new BatchStudentOperationResult(studentIds);
+        if (result.getStudentIds().isEmpty()) {
+            return result;
+        }
+        String normalizedStatus = normalizeStatusForSave(studentStatus);
+        for (Long studentId : result.getStudentIds()) {
+            if (studentId == null) {
+                result.addFailure(null, "\u5b66\u751fID\u4e0d\u80fd\u4e3a\u7a7a");
+                continue;
+            }
+            try {
+                Student student = findStudentForBatchUpdate(school, studentId);
+                student.setStudentStatus(normalizedStatus);
+                saveStudentWithDuplicateGuard(student);
+                result.addSuccess();
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                result.addFailure(studentId, ex.getMessage());
+            }
+        }
+        return result;
+    }
+
+    @Transactional
+    public BatchStudentOperationResult batchUpdateElectiveClass(School school, List<Long> studentIds, String electiveClass) {
+        BatchStudentOperationResult result = new BatchStudentOperationResult(studentIds);
+        if (result.getStudentIds().isEmpty()) {
+            return result;
+        }
         String normalizedElectiveClass = electiveClass == null || electiveClass.isBlank()
                 ? null
                 : electiveClass.trim();
-        int updated = 0;
-        for (Long studentId : new LinkedHashSet<>(studentIds)) {
-            if (studentId == null) continue;
-            Student student = findStudentForBatchUpdate(school, studentId);
-            student.setElectiveClass(normalizedElectiveClass);
-            saveStudentWithDuplicateGuard(student);
-            updated++;
+        for (Long studentId : result.getStudentIds()) {
+            if (studentId == null) {
+                result.addFailure(null, "\u5b66\u751fID\u4e0d\u80fd\u4e3a\u7a7a");
+                continue;
+            }
+            try {
+                Student student = findStudentForBatchUpdate(school, studentId);
+                student.setElectiveClass(normalizedElectiveClass);
+                saveStudentWithDuplicateGuard(student);
+                result.addSuccess();
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                result.addFailure(studentId, ex.getMessage());
+            }
         }
-        return updated;
+        return result;
     }
 
     private String normalizeStatusForSave(String status) {
