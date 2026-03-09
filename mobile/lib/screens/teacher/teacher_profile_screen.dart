@@ -262,7 +262,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String?>(
-                          value: _gender,
+                          initialValue: _gender,
                           decoration: const InputDecoration(
                             labelText: '性别',
                             border: OutlineInputBorder(),
