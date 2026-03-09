@@ -22,7 +22,10 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
 
   String _selectedStatus = 'PENDING';
   bool _loading = true;
+  bool _batchMode = false;
+  bool _batchSubmitting = false;
   List<CourseRequest> _requests = [];
+  final Set<int> _selectedRequestIds = <int>{};
 
   @override
   void initState() {
@@ -36,7 +39,16 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
       final result =
           await TeacherService.getCourseRequests(status: _selectedStatus);
       if (!mounted) return;
-      setState(() => _requests = result);
+      setState(() {
+        _requests = result;
+        if (_selectedStatus != 'PENDING') {
+          _batchMode = false;
+          _selectedRequestIds.clear();
+        } else {
+          _selectedRequestIds
+              .removeWhere((id) => !_requests.any((req) => req.id == id));
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -47,11 +59,132 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   }
 
   Future<void> _openDetail(CourseRequest req) async {
+    if (_batchMode && _selectedStatus == 'PENDING') {
+      _toggleSelected(req.id);
+      return;
+    }
     final changed = await context.push('/teacher/course-requests/${req.id}');
     if (!mounted) return;
     if (changed == true) {
       _load();
     }
+  }
+
+  void _toggleBatchMode() {
+    if (_batchSubmitting || _selectedStatus != 'PENDING') return;
+    setState(() {
+      _batchMode = !_batchMode;
+      if (!_batchMode) {
+        _selectedRequestIds.clear();
+      }
+    });
+  }
+
+  void _toggleSelected(int id) {
+    if (_batchSubmitting || _selectedStatus != 'PENDING') return;
+    setState(() {
+      if (_selectedRequestIds.contains(id)) {
+        _selectedRequestIds.remove(id);
+      } else {
+        _selectedRequestIds.add(id);
+      }
+    });
+  }
+
+  void _selectAll() {
+    if (_batchSubmitting || _selectedStatus != 'PENDING') return;
+    setState(() {
+      _selectedRequestIds.clear();
+      _selectedRequestIds.addAll(_requests.map((e) => e.id));
+    });
+  }
+
+  void _clearSelection() {
+    if (_batchSubmitting) return;
+    setState(() => _selectedRequestIds.clear());
+  }
+
+  Future<void> _batchHandle(bool approve) async {
+    if (_batchSubmitting || _selectedStatus != 'PENDING') return;
+    if (_selectedRequestIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择至少一条待审批记录')),
+      );
+      return;
+    }
+
+    final remark = await _showBatchRemarkDialog(approve);
+    if (!mounted || remark == null) return;
+
+    setState(() => _batchSubmitting = true);
+    try {
+      final result = await TeacherService.batchHandleCourseRequests(
+        _selectedRequestIds.toList(),
+        approve: approve,
+        remark: remark.isEmpty ? null : remark,
+      );
+      if (!mounted) return;
+
+      final successCount = _toInt(result['successCount']);
+      final failedCount = _toInt(result['failedCount']);
+      final failedItems = (result['failedItems'] is List)
+          ? (result['failedItems'] as List)
+          : const [];
+      final failedIds = failedItems
+          .map((e) => (e is Map ? e['messageId'] : null)?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .take(5)
+          .toList();
+      final failedSuffix =
+          failedIds.isEmpty ? '' : '，失败ID：${failedIds.join(', ')}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '批量${approve ? '同意' : '拒绝'}完成：成功$successCount，失败$failedCount$failedSuffix',
+          ),
+        ),
+      );
+      _selectedRequestIds.clear();
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('批量操作失败: $e')));
+    } finally {
+      if (mounted) setState(() => _batchSubmitting = false);
+    }
+  }
+
+  Future<String?> _showBatchRemarkDialog(bool approve) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('批量${approve ? '同意' : '拒绝'}'),
+        content: TextField(
+          controller: controller,
+          maxLength: 500,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: '统一备注（可选）',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   String _formatDate(DateTime? dt) {
@@ -71,10 +204,28 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     }
   }
 
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isPendingTab = _selectedStatus == 'PENDING';
+    final isAllSelected =
+        _requests.isNotEmpty && _selectedRequestIds.length == _requests.length;
     return Scaffold(
-      appBar: AppBar(title: const Text('选课审批中心')),
+      appBar: AppBar(
+        title: const Text('选课审批中心'),
+        actions: [
+          if (isPendingTab)
+            TextButton(
+              onPressed: _batchSubmitting ? null : _toggleBatchMode,
+              child: Text(_batchMode ? '完成' : '批量'),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           const SizedBox(height: 12),
@@ -90,14 +241,59 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                     label: Text(_tabLabels[status] ?? status),
                     selected: selected,
                     onSelected: (_) {
-                      setState(() => _selectedStatus = status);
-                      _load();
+                      if (_selectedStatus != status) {
+                        setState(() {
+                          _selectedStatus = status;
+                          if (status != 'PENDING') {
+                            _batchMode = false;
+                            _selectedRequestIds.clear();
+                          }
+                        });
+                        _load();
+                      }
                     },
                   ),
                 );
               }).toList(),
             ),
           ),
+          if (isPendingTab && _batchMode) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('已选 ${_selectedRequestIds.length}/${_requests.length}'),
+                    OutlinedButton(
+                      onPressed:
+                          _batchSubmitting ? null : (isAllSelected ? _clearSelection : _selectAll),
+                      child: Text(isAllSelected ? '取消全选' : '全选'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _batchSubmitting ? null : () => _batchHandle(false),
+                      style:
+                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('批量拒绝'),
+                    ),
+                    ElevatedButton(
+                      onPressed: _batchSubmitting ? null : () => _batchHandle(true),
+                      child: Text(_batchSubmitting ? '处理中...' : '批量同意'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Expanded(
             child: _loading
@@ -115,6 +311,15 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                               margin: const EdgeInsets.only(bottom: 10),
                               child: ListTile(
                                 onTap: () => _openDetail(req),
+                                leading: (_batchMode && isPendingTab)
+                                    ? Checkbox(
+                                        value:
+                                            _selectedRequestIds.contains(req.id),
+                                        onChanged: _batchSubmitting
+                                            ? null
+                                            : (_) => _toggleSelected(req.id),
+                                      )
+                                    : null,
                                 contentPadding: const EdgeInsets.all(12),
                                 title: Row(
                                   children: [
@@ -160,7 +365,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                                     ],
                                   ),
                                 ),
-                                trailing: const Icon(Icons.chevron_right),
+                                trailing: (_batchMode && isPendingTab)
+                                    ? null
+                                    : const Icon(Icons.chevron_right),
                               ),
                             );
                           },

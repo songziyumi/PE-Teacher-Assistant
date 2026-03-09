@@ -37,6 +37,9 @@ public class Student {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @Version
+    private Long version;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "class_id", nullable = false)
     private SchoolClass schoolClass;

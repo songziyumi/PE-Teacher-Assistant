@@ -81,6 +81,7 @@ class TeacherService {
     String? studentStatus,
     int? classId,
     String? electiveClass,
+    int? version,
   }) async {
     await ApiService.put('/teacher/students/$studentId', {
       if (name != null) 'name': name,
@@ -88,6 +89,7 @@ class TeacherService {
       if (studentNo != null) 'studentNo': studentNo,
       if (studentStatus != null) 'studentStatus': studentStatus,
       if (classId != null) 'classId': classId,
+      if (version != null) 'version': version,
       'electiveClass': electiveClass,
     });
   }
@@ -109,10 +111,34 @@ class TeacherService {
     };
   }
 
-  // 班级学生
-  static Future<List<Student>> getStudents(int classId) async {
+  // 班级学生（支持多条件筛选）
+  static Future<List<Student>> getStudents(
+    int classId, {
+    String? name,
+    String? studentNo,
+    int? adminClassId,
+    String? electiveClass,
+    String? studentStatus,
+  }) async {
+    final params = <String>[];
+    if (name != null && name.trim().isNotEmpty) {
+      params.add('name=${Uri.encodeComponent(name.trim())}');
+    }
+    if (studentNo != null && studentNo.trim().isNotEmpty) {
+      params.add('studentNo=${Uri.encodeComponent(studentNo.trim())}');
+    }
+    if (adminClassId != null) {
+      params.add('adminClassId=$adminClassId');
+    }
+    if (electiveClass != null && electiveClass.trim().isNotEmpty) {
+      params.add('electiveClass=${Uri.encodeComponent(electiveClass.trim())}');
+    }
+    if (studentStatus != null && studentStatus.trim().isNotEmpty) {
+      params.add('studentStatus=${Uri.encodeComponent(studentStatus.trim())}');
+    }
+    final query = params.isEmpty ? '' : '?${params.join('&')}';
     final data =
-        await ApiService.get('/teacher/classes/$classId/students') as List;
+        await ApiService.get('/teacher/classes/$classId/students$query') as List;
     return data.map((e) => Student.fromJson(e)).toList();
   }
 
@@ -156,12 +182,27 @@ class TeacherService {
     return _toInt(data['unreadCount']);
   }
 
-  static Future<List<TeacherMessage>> getTeacherMessages(
-      {bool unreadOnly = false}) async {
+  static Future<List<TeacherMessage>> getTeacherMessages({
+    bool unreadOnly = false,
+    String type = 'ALL',
+  }) async {
     final data = await ApiService.get(
-      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}',
+      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(type)}',
     ) as List;
     return data.map((e) => TeacherMessage.fromJson(e)).toList();
+  }
+
+  static Future<Map<String, dynamic>> batchHandleCourseRequests(
+    List<int> messageIds, {
+    required bool approve,
+    String? remark,
+  }) async {
+    final data = await ApiService.post('/teacher/course-requests/batch-handle', {
+      'messageIds': messageIds,
+      'action': approve ? 'APPROVE' : 'REJECT',
+      if (remark != null) 'remark': remark,
+    }) as Map;
+    return Map<String, dynamic>.from(data);
   }
 
   static Future<void> markTeacherMessageRead(int id) async {

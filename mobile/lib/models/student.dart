@@ -4,6 +4,7 @@ class Student {
   final String? studentNo;
   final String? gender;
   final String? studentStatus;
+  final int? version;
   final String? className;
   final String? gradeName;
   final int? classId;
@@ -15,6 +16,7 @@ class Student {
     this.studentNo,
     this.gender,
     this.studentStatus,
+    this.version,
     this.className,
     this.gradeName,
     this.classId,
@@ -27,6 +29,7 @@ class Student {
         studentNo: json['studentNo'],
         gender: json['gender'],
         studentStatus: json['studentStatus'],
+        version: (json['version'] as num?)?.toInt(),
         className:
             json['schoolClass'] != null ? json['schoolClass']['name'] : null,
         gradeName: json['schoolClass']?['grade']?['name'],
