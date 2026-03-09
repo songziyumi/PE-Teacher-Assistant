@@ -171,7 +171,7 @@ class TeacherApiControllerRegressionTest {
 
         when(studentService.findById(100L)).thenReturn(current);
         doThrow(new IllegalArgumentException("学号已存在"))
-                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any());
+                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(put("/api/teacher/students/100")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +179,93 @@ class TeacherApiControllerRegressionTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("学号已存在"));
+    }
+
+    @Test
+    void updateStudentShouldFailWhenNameBlank() throws Exception {
+        Student current = new Student();
+        current.setId(100L);
+        current.setName("Student-A");
+        current.setGender("男");
+        current.setStudentNo("S-100");
+        current.setStudentStatus("在籍");
+
+        when(studentService.findById(100L)).thenReturn(current);
+        doThrow(new IllegalArgumentException("学生姓名不能为空"))
+                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any(), any());
+
+        mockMvc.perform(put("/api/teacher/students/100")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "   "))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("学生姓名不能为空"));
+    }
+
+    @Test
+    void updateStudentShouldFailWhenStudentNoBlank() throws Exception {
+        Student current = new Student();
+        current.setId(100L);
+        current.setName("Student-A");
+        current.setGender("男");
+        current.setStudentNo("S-100");
+        current.setStudentStatus("在籍");
+
+        when(studentService.findById(100L)).thenReturn(current);
+        doThrow(new IllegalArgumentException("学号不能为空"))
+                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any(), any());
+
+        mockMvc.perform(put("/api/teacher/students/100")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("studentNo", "   "))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("学号不能为空"));
+    }
+
+    @Test
+    void updateStudentShouldFailWhenStudentNoContainsWhitespace() throws Exception {
+        Student current = new Student();
+        current.setId(100L);
+        current.setName("Student-A");
+        current.setGender("男");
+        current.setStudentNo("S-100");
+        current.setStudentStatus("在籍");
+
+        when(studentService.findById(100L)).thenReturn(current);
+        doThrow(new IllegalArgumentException("学号不能包含空格"))
+                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any(), any());
+
+        mockMvc.perform(put("/api/teacher/students/100")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("studentNo", "S 200"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("学号不能包含空格"));
+    }
+
+    @Test
+    void updateStudentShouldFailWhenVersionStale() throws Exception {
+        Student current = new Student();
+        current.setId(100L);
+        current.setName("Student-A");
+        current.setGender("男");
+        current.setStudentNo("S-100");
+        current.setStudentStatus("在籍");
+        current.setVersion(5L);
+
+        when(studentService.findById(100L)).thenReturn(current);
+        doThrow(new IllegalStateException("该学生已被其他设备修改，请刷新后重试"))
+                .when(studentService).update(eq(100L), any(), any(), any(), any(), any(), any(), any(), any());
+
+        mockMvc.perform(put("/api/teacher/students/100")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "studentNo", "S-200",
+                                "version", 4))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("该学生已被其他设备修改，请刷新后重试"));
     }
 
     @Test
