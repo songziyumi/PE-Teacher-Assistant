@@ -81,6 +81,7 @@ class TeacherService {
     String? studentStatus,
     int? classId,
     String? electiveClass,
+    int? version,
   }) async {
     await ApiService.put('/teacher/students/$studentId', {
       if (name != null) 'name': name,
@@ -88,6 +89,7 @@ class TeacherService {
       if (studentNo != null) 'studentNo': studentNo,
       if (studentStatus != null) 'studentStatus': studentStatus,
       if (classId != null) 'classId': classId,
+      if (version != null) 'version': version,
       'electiveClass': electiveClass,
     });
   }

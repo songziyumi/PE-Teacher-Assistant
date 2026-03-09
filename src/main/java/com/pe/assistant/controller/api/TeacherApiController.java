@@ -446,13 +446,16 @@ public class TeacherApiController {
         String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
         String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
+        Long version = body.get("version") != null ? Long.valueOf(body.get("version").toString()) : null;
         String electiveClass = body.containsKey("electiveClass")
                 ? (String) body.get("electiveClass")
                 : current.getElectiveClass();
         try {
             studentService.update(id, name, gender, studentNo, current.getIdCard(),
-                    electiveClass, classId, studentStatus);
+                    electiveClass, classId, studentStatus, version);
             return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409).body(ApiResponse.error(409, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
@@ -491,6 +494,7 @@ public class TeacherApiController {
             m.put("id", s.getId());
             m.put("name", s.getName());
             m.put("studentNo", s.getStudentNo());
+            m.put("version", s.getVersion() == null ? -1L : s.getVersion());
             m.put("gender", s.getGender());
             m.put("electiveClass", s.getElectiveClass());
             m.put("studentStatus", s.getStudentStatus());

@@ -3,9 +3,11 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -22,6 +25,8 @@ public class StudentService {
 
     private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "毕业", "在外借读", "借读");
     private static final Set<String> AVAILABLE_STATUS_SET = Set.copyOf(AVAILABLE_STATUSES);
+    private static final int STUDENT_NAME_MAX_LENGTH = 50;
+    private static final int STUDENT_NO_MAX_LENGTH = 50;
     private static final Map<String, String> LEGACY_STATUS_ALIASES = Map.of(
             "外出借读", "在外借读",
             "外校借读", "借读");
@@ -124,11 +129,12 @@ public class StudentService {
     public Student create(String name, String gender, String studentNo, String idCard,
             String electiveClass, Long classId, School school, String studentStatus) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
-        String normalizedStudentNo = (studentNo == null) ? null : studentNo.trim();
+        String normalizedName = normalizeStudentName(name);
+        String normalizedStudentNo = normalizeStudentNo(studentNo);
         School effectiveSchool = school != null ? school : sc.getSchool();
         ensureStudentNoUniqueBySchool(effectiveSchool, normalizedStudentNo, null);
         Student s = new Student();
-        s.setName(name);
+        s.setName(normalizedName);
         s.setGender(gender);
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
@@ -136,7 +142,7 @@ public class StudentService {
         s.setStudentStatus(normalizeStatusForSave(studentStatus));
         s.setSchoolClass(sc);
         s.setSchool(effectiveSchool);
-        return studentRepository.save(s);
+        return saveStudentWithDuplicateGuard(s);
     }
 
     /**
@@ -179,18 +185,26 @@ public class StudentService {
     @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId) {
-        return update(id, name, gender, studentNo, idCard, electiveClass, classId, null);
+        return update(id, name, gender, studentNo, idCard, electiveClass, classId, null, null);
     }
 
     @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId, String studentStatus) {
+        return update(id, name, gender, studentNo, idCard, electiveClass, classId, studentStatus, null);
+    }
+
+    @Transactional
+    public Student update(Long id, String name, String gender, String studentNo,
+            String idCard, String electiveClass, Long classId, String studentStatus, Long expectedVersion) {
         Student s = studentRepository.findById(id).orElseThrow();
-        String normalizedStudentNo = (studentNo == null) ? null : studentNo.trim();
+        ensureVersionMatch(s, expectedVersion);
+        String normalizedName = normalizeStudentName(name);
+        String normalizedStudentNo = normalizeStudentNo(studentNo);
         School effectiveSchool = resolveStudentSchool(s, classId);
         ensureStudentNoUniqueBySchool(effectiveSchool, normalizedStudentNo, s.getId());
 
-        s.setName(name);
+        s.setName(normalizedName);
         s.setGender(gender);
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
@@ -209,7 +223,7 @@ public class StudentService {
         } else if (s.getSchool() == null) {
             s.setSchool(effectiveSchool);
         }
-        return studentRepository.save(s);
+        return saveStudentWithDuplicateGuard(s);
     }
 
     @Transactional
@@ -339,6 +353,31 @@ public class StudentService {
         return normalized;
     }
 
+    private String normalizeStudentName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("学生姓名不能为空");
+        }
+        String normalized = name.trim();
+        if (normalized.length() > STUDENT_NAME_MAX_LENGTH) {
+            throw new IllegalArgumentException("学生姓名不能超过" + STUDENT_NAME_MAX_LENGTH + "个字符");
+        }
+        return normalized;
+    }
+
+    private String normalizeStudentNo(String studentNo) {
+        if (studentNo == null || studentNo.isBlank()) {
+            throw new IllegalArgumentException("学号不能为空");
+        }
+        String normalized = studentNo.trim();
+        if (normalized.length() > STUDENT_NO_MAX_LENGTH) {
+            throw new IllegalArgumentException("学号不能超过" + STUDENT_NO_MAX_LENGTH + "个字符");
+        }
+        if (normalized.chars().anyMatch(Character::isWhitespace)) {
+            throw new IllegalArgumentException("学号不能包含空格");
+        }
+        return normalized;
+    }
+
     private String normalizeStatusForDisplay(String status) {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();
@@ -372,6 +411,26 @@ public class StudentService {
         if (current.getSchool() == null) return;
         if (studentRepository.existsByStudentNoAndSchoolAndIdNot(studentNo, current.getSchool(), current.getId())) {
             throw new IllegalArgumentException("学号已存在");
+        }
+    }
+
+    private void ensureVersionMatch(Student current, Long expectedVersion) {
+        if (expectedVersion == null) {
+            return;
+        }
+        Long currentVersion = current.getVersion() == null ? -1L : current.getVersion();
+        if (!Objects.equals(currentVersion, expectedVersion)) {
+            throw new IllegalStateException("该学生已被其他设备修改，请刷新后重试");
+        }
+    }
+
+    private Student saveStudentWithDuplicateGuard(Student student) {
+        try {
+            return studentRepository.saveAndFlush(student);
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalArgumentException("学号已存在", ex);
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            throw new IllegalStateException("该学生已被其他设备修改，请刷新后重试", ex);
         }
     }
 }
