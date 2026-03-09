@@ -35,10 +35,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _nameFilterCtrl = TextEditingController();
   final TextEditingController _studentNoFilterCtrl = TextEditingController();
+  final Set<int> _selectedStudentIds = <int>{};
   int? _selectedAdminClassId;
   String? _selectedElectiveClass;
   String? _selectedStudentStatus;
   bool _filterExpanded = false;
+  bool _batchSubmitting = false;
 
   @override
   void initState() {
@@ -76,23 +78,31 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     try {
       final students = await _fetchStudents();
       if (!mounted) return;
-      setState(() => _students = students);
+      setState(() {
+        _students = students;
+        _syncSelectedStudentIds(students);
+      });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('加载失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载失败: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _reloadKeepPosition() async {
-    final offset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final offset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
     try {
       final students = await _fetchStudents();
       if (!mounted) return;
-      setState(() => _students = students);
+      setState(() {
+        _students = students;
+        _syncSelectedStudentIds(students);
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_scrollController.hasClients) return;
         final max = _scrollController.position.maxScrollExtent;
@@ -101,9 +111,36 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('加载失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载失败: $e')));
     }
+  }
+
+  void _syncSelectedStudentIds(List<Student> students) {
+    final visibleIds = students.map((student) => student.id).toSet();
+    _selectedStudentIds.removeWhere((id) => !visibleIds.contains(id));
+  }
+
+  void _toggleStudentSelection(int studentId, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedStudentIds.add(studentId);
+      } else {
+        _selectedStudentIds.remove(studentId);
+      }
+    });
+  }
+
+  void _toggleSelectAllVisible(List<Student> students, bool selected) {
+    setState(() {
+      final visibleIds = students.map((student) => student.id);
+      if (selected) {
+        _selectedStudentIds.addAll(visibleIds);
+      } else {
+        _selectedStudentIds.removeAll(visibleIds);
+      }
+    });
   }
 
   Future<List<Student>> _fetchStudents() {
@@ -251,6 +288,312 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     return '修改失败：$message';
   }
 
+  List<int> get _selectedStudentIdList {
+    final ids = _selectedStudentIds.toList()..sort();
+    return ids;
+  }
+
+  bool _areAllVisibleStudentsSelected(List<Student> students) {
+    return students.isNotEmpty &&
+        students.every((student) => _selectedStudentIds.contains(student.id));
+  }
+
+  Future<void> _showBatchStatusDialog() async {
+    if (_selectedStudentIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('\u8bf7\u5148\u9009\u62e9\u5b66\u751f')),
+      );
+      return;
+    }
+
+    var selectedStatus =
+        _selectedStudentStatus != null &&
+            _studentStatuses.contains(_selectedStudentStatus)
+        ? _selectedStudentStatus!
+        : _studentStatuses.first;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('\u6279\u91cf\u66f4\u65b0\u5b66\u7c4d'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedStatus,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: '\u5b66\u7c4d\u72b6\u6001',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _studentStatuses
+                .map(
+                  (status) => DropdownMenuItem<String>(
+                    value: status,
+                    child: Text(status),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setDialogState(() {
+              selectedStatus = value ?? _studentStatuses.first;
+            }),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('\u53d6\u6d88'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('\u786e\u5b9a'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    await _runBatchStudentOperation(
+      actionLabel: '\u6279\u91cf\u66f4\u65b0\u5b66\u7c4d',
+      operation: (studentIds) =>
+          TeacherService.batchUpdateStudentStatus(studentIds, selectedStatus),
+    );
+  }
+
+  Future<void> _showBatchElectiveClassDialog() async {
+    if (_selectedStudentIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('\u8bf7\u5148\u9009\u62e9\u5b66\u751f')),
+      );
+      return;
+    }
+
+    final electiveClasses = _sortedElectiveClasses;
+    if (electiveClasses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '\u6682\u65e0\u53ef\u5206\u914d\u7684\u9009\u4fee\u73ed',
+          ),
+        ),
+      );
+      return;
+    }
+
+    var selectedElective = _selectedElectiveClass;
+    if (!electiveClasses.any((item) => item.storedName == selectedElective)) {
+      selectedElective = electiveClasses.first.storedName;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('\u6279\u91cf\u5206\u914d\u9009\u4fee\u73ed'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedElective,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: '\u9009\u4fee\u73ed',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: electiveClasses
+                .map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item.storedName,
+                    child: Text(item.displayName),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setDialogState(() {
+              selectedElective = value;
+            }),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('\u53d6\u6d88'),
+            ),
+            ElevatedButton(
+              onPressed: selectedElective == null
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: const Text('\u786e\u5b9a'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || selectedElective == null) return;
+    await _runBatchStudentOperation(
+      actionLabel: '\u6279\u91cf\u5206\u914d\u9009\u4fee\u73ed',
+      operation: (studentIds) => TeacherService.batchUpdateStudentElectiveClass(
+        studentIds,
+        electiveClass: selectedElective,
+      ),
+    );
+  }
+
+  Future<void> _confirmBatchClearElectiveClass() async {
+    if (_selectedStudentIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('\u8bf7\u5148\u9009\u62e9\u5b66\u751f')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('\u6279\u91cf\u6e05\u7a7a\u9009\u4fee\u73ed'),
+        content: Text(
+          '\u786e\u5b9a\u6e05\u7a7a ${_selectedStudentIds.length} \u540d\u5b66\u751f\u7684\u9009\u4fee\u73ed\u5417\uff1f',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u786e\u8ba4\u6e05\u7a7a'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await _runBatchStudentOperation(
+      actionLabel: '\u6279\u91cf\u6e05\u7a7a\u9009\u4fee\u73ed',
+      operation: (studentIds) => TeacherService.batchUpdateStudentElectiveClass(
+        studentIds,
+        electiveClass: null,
+      ),
+    );
+  }
+
+  Future<void> _runBatchStudentOperation({
+    required String actionLabel,
+    required Future<Map<String, dynamic>> Function(List<int> studentIds)
+    operation,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final selectedIds = _selectedStudentIdList;
+    if (selectedIds.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('\u8bf7\u5148\u9009\u62e9\u5b66\u751f')),
+      );
+      return;
+    }
+
+    setState(() => _batchSubmitting = true);
+    try {
+      final result = await operation(selectedIds);
+      if (!mounted) return;
+
+      await _reloadKeepPosition();
+      if (!mounted) return;
+
+      final failedItems =
+          ((result['failedItems'] as List?) ?? const <dynamic>[])
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList(growable: false);
+      final failedIds = failedItems
+          .map((item) => item['id'])
+          .whereType<num>()
+          .map((id) => id.toInt())
+          .toSet();
+
+      setState(() {
+        _selectedStudentIds
+          ..clear()
+          ..addAll(
+            _students
+                .where((student) => failedIds.contains(student.id))
+                .map((student) => student.id),
+          );
+      });
+
+      await _showBatchResultDialog(actionLabel, result);
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('$actionLabel\u5931\u8d25: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _batchSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _showBatchResultDialog(
+    String actionLabel,
+    Map<String, dynamic> result,
+  ) {
+    final totalCount = result['totalCount'] ?? 0;
+    final successCount = result['successCount'] ?? 0;
+    final failedCount = result['failedCount'] ?? 0;
+    final failedItems = ((result['failedItems'] as List?) ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(actionLabel),
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('\u603b\u8ba1\uff1a$totalCount'),
+              Text('\u6210\u529f\uff1a$successCount'),
+              Text('\u5931\u8d25\uff1a$failedCount'),
+              if (failedItems.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  '\u5931\u8d25\u660e\u7ec6',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 160,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: failedItems.length,
+                    separatorBuilder: (_, __) => const Divider(height: 12),
+                    itemBuilder: (_, index) {
+                      final item = failedItems[index];
+                      final idText = item['id'] == null
+                          ? '-'
+                          : item['id'].toString();
+                      final reason = item['reason']?.toString() ?? '';
+                      return Text(
+                        'ID $idText\uff1a$reason',
+                        style: const TextStyle(fontSize: 13),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('\u6211\u77e5\u9053\u4e86'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterPanel() {
     final adminClasses = _sortedAdminClasses;
     final electiveClasses = _sortedElectiveClasses;
@@ -388,6 +731,81 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     );
   }
 
+  Widget _buildBatchActionBar(List<Student> displayStudents) {
+    final selectedCount = _selectedStudentIds.length;
+    final allVisibleSelected = _areAllVisibleStudentsSelected(displayStudents);
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '\u5df2\u9009 $selectedCount \u540d\u5b66\u751f',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                TextButton(
+                  onPressed:
+                      _loading || displayStudents.isEmpty || _batchSubmitting
+                      ? null
+                      : () => _toggleSelectAllVisible(
+                          displayStudents,
+                          !allVisibleSelected,
+                        ),
+                  child: Text(
+                    allVisibleSelected
+                        ? '\u53d6\u6d88\u5168\u9009'
+                        : '\u5168\u9009\u5f53\u524d',
+                  ),
+                ),
+                TextButton(
+                  onPressed: selectedCount == 0 || _batchSubmitting
+                      ? null
+                      : () => setState(_selectedStudentIds.clear),
+                  child: const Text('\u6e05\u7a7a'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: selectedCount == 0 || _batchSubmitting
+                      ? null
+                      : _showBatchStatusDialog,
+                  icon: const Icon(Icons.sync_alt),
+                  label: const Text('\u6279\u91cf\u6539\u5b66\u7c4d'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: selectedCount == 0 || _batchSubmitting
+                      ? null
+                      : _showBatchElectiveClassDialog,
+                  icon: const Icon(Icons.assignment_turned_in_outlined),
+                  label: const Text('\u6279\u91cf\u5206\u73ed'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: selectedCount == 0 || _batchSubmitting
+                      ? null
+                      : _confirmBatchClearElectiveClass,
+                  icon: const Icon(Icons.layers_clear_outlined),
+                  label: const Text('\u6e05\u7a7a\u9009\u4fee\u73ed'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showEditDialog(Student s) async {
     final messenger = ScaffoldMessenger.of(context);
     final nameCtrl = TextEditingController(text: s.name);
@@ -402,15 +820,17 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     int? adminGradeId = _findAdminGradeIdByClassId(s.classId);
     adminGradeId ??= _grades.isNotEmpty ? _grades.first.id : null;
     int? selectedClassId = s.classId;
-    List<SchoolClass> filteredAdminClasses =
-        _adminClasses.where((c) => c.gradeId == adminGradeId).toList();
+    List<SchoolClass> filteredAdminClasses = _adminClasses
+        .where((c) => c.gradeId == adminGradeId)
+        .toList();
 
     int? electiveGradeId = _findElectiveGradeIdByStoredName(s.electiveClass);
     electiveGradeId ??= adminGradeId;
     electiveGradeId ??= _grades.isNotEmpty ? _grades.first.id : null;
     String? selectedElective = s.electiveClass;
-    List<ElectiveClass> filteredElective =
-        _electiveClasses.where((c) => c.gradeId == electiveGradeId).toList();
+    List<ElectiveClass> filteredElective = _electiveClasses
+        .where((c) => c.gradeId == electiveGradeId)
+        .toList();
 
     Timer? studentNoCheckDebounce;
     bool studentNoChecking = false;
@@ -465,8 +885,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         safeSetDialogState(setDialogState, () {
           studentNoChecking = false;
           studentNoAvailable = result['available'] == true;
-          studentNoError =
-              studentNoAvailable == true ? null : result['message']?.toString();
+          studentNoError = studentNoAvailable == true
+              ? null
+              : result['message']?.toString();
         });
       } catch (_) {
         if (!dialogAlive) return;
@@ -503,11 +924,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
               Widget buildFieldPair(Widget first, Widget second) {
                 if (isNarrow) {
                   return Column(
-                    children: [
-                      first,
-                      const SizedBox(height: 12),
-                      second,
-                    ],
+                    children: [first, const SizedBox(height: 12), second],
                   );
                 }
                 return Row(
@@ -526,11 +943,15 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('当前学号：${s.studentNo ?? '-'}',
-                          style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        '当前学号：${s.studentNo ?? '-'}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
                       const SizedBox(height: 16),
-                      const Text('基础信息',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        '基础信息',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: nameCtrl,
@@ -575,8 +996,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             isDense: true,
                           ),
                           items: _studentStatuses
-                              .map((status) => DropdownMenuItem(
-                                  value: status, child: Text(status)))
+                              .map(
+                                (status) => DropdownMenuItem(
+                                  value: status,
+                                  child: Text(status),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setDialogState(
                             () => selectedStatus = v ?? _studentStatuses.first,
@@ -602,25 +1027,27 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 )
                               : (studentNoAvailable == null
-                                  ? null
-                                  : Icon(
-                                      studentNoAvailable == true
-                                          ? Icons.check_circle
-                                          : Icons.cancel,
-                                      color: studentNoAvailable == true
-                                          ? Colors.green
-                                          : Colors.red,
-                                    )),
+                                    ? null
+                                    : Icon(
+                                        studentNoAvailable == true
+                                            ? Icons.check_circle
+                                            : Icons.cancel,
+                                        color: studentNoAvailable == true
+                                            ? Colors.green
+                                            : Colors.red,
+                                      )),
                         ),
                         onChanged: (v) {
                           setDialogState(() {
                             formError = null;
                             studentNoError = null;
-                            if (v.trim().isEmpty || v.trim() == originalStudentNo) {
+                            if (v.trim().isEmpty ||
+                                v.trim() == originalStudentNo) {
                               studentNoAvailable = null;
                             }
                           });
@@ -638,8 +1065,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      const Text('行政班',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        '行政班',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 6),
                       buildFieldPair(
                         DropdownButtonFormField<int?>(
@@ -651,10 +1080,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             isDense: true,
                           ),
                           items: _grades
-                              .map((g) => DropdownMenuItem(
-                                    value: g.id,
-                                    child: Text(g.name),
-                                  ))
+                              .map(
+                                (g) => DropdownMenuItem(
+                                  value: g.id,
+                                  child: Text(g.name),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setDialogState(() {
                             adminGradeId = v;
@@ -668,16 +1099,19 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             filteredElective = _electiveClasses
                                 .where((c) => c.gradeId == electiveGradeId)
                                 .toList();
-                            if (!filteredElective
-                                .any((c) => c.storedName == selectedElective)) {
+                            if (!filteredElective.any(
+                              (c) => c.storedName == selectedElective,
+                            )) {
                               selectedElective = null;
                             }
                             formError = null;
                           }),
                         ),
                         DropdownButtonFormField<int?>(
-                          initialValue: filteredAdminClasses
-                                  .any((c) => c.id == selectedClassId)
+                          initialValue:
+                              filteredAdminClasses.any(
+                                (c) => c.id == selectedClassId,
+                              )
                               ? selectedClassId
                               : null,
                           isExpanded: true,
@@ -687,10 +1121,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             isDense: true,
                           ),
                           items: filteredAdminClasses
-                              .map((c) => DropdownMenuItem(
-                                    value: c.id,
-                                    child: Text(c.name),
-                                  ))
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setDialogState(() {
                             selectedClassId = v;
@@ -699,8 +1135,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text('选修班',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        '选修班',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 6),
                       buildFieldPair(
                         DropdownButtonFormField<int?>(
@@ -712,10 +1150,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             isDense: true,
                           ),
                           items: _grades
-                              .map((g) => DropdownMenuItem(
-                                    value: g.id,
-                                    child: Text(g.name),
-                                  ))
+                              .map(
+                                (g) => DropdownMenuItem(
+                                  value: g.id,
+                                  child: Text(g.name),
+                                ),
+                              )
                               .toList(),
                           onChanged: (v) => setDialogState(() {
                             electiveGradeId = v;
@@ -726,8 +1166,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                           }),
                         ),
                         DropdownButtonFormField<String?>(
-                          initialValue: filteredElective
-                                  .any((c) => c.storedName == selectedElective)
+                          initialValue:
+                              filteredElective.any(
+                                (c) => c.storedName == selectedElective,
+                              )
                               ? selectedElective
                               : null,
                           isExpanded: true,
@@ -741,10 +1183,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                               value: null,
                               child: Text('（不参加选修）'),
                             ),
-                            ...filteredElective.map((c) => DropdownMenuItem(
-                                  value: c.storedName,
-                                  child: Text(c.name),
-                                )),
+                            ...filteredElective.map(
+                              (c) => DropdownMenuItem(
+                                value: c.storedName,
+                                child: Text(c.name),
+                              ),
+                            ),
                           ],
                           onChanged: (v) =>
                               setDialogState(() => selectedElective = v),
@@ -772,8 +1216,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       final newName = nameCtrl.text.trim();
                       final newStudentNo = studentNoCtrl.text.trim();
                       final validatedNameError = _validateStudentName(newName);
-                      final validatedStudentNoError =
-                          _validateStudentNo(newStudentNo);
+                      final validatedStudentNoError = _validateStudentNo(
+                        newStudentNo,
+                      );
 
                       if (validatedNameError != null ||
                           validatedStudentNoError != null) {
@@ -792,9 +1237,11 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                         return;
                       }
 
-                      final duplicated = _students.any((item) =>
-                          item.id != s.id &&
-                          (item.studentNo ?? '').trim() == newStudentNo);
+                      final duplicated = _students.any(
+                        (item) =>
+                            item.id != s.id &&
+                            (item.studentNo ?? '').trim() == newStudentNo,
+                      );
                       if (duplicated) {
                         safeSetDialogState(setDialogState, () {
                           studentNoAvailable = false;
@@ -812,9 +1259,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                         try {
                           final check =
                               await TeacherService.checkStudentNoAvailability(
-                            newStudentNo,
-                            excludeId: s.id,
-                          );
+                                newStudentNo,
+                                excludeId: s.id,
+                              );
                           if (!dialogAlive) return;
                           if (check['available'] != true) {
                             safeSetDialogState(setDialogState, () {
@@ -864,8 +1311,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       } catch (error) {
                         safeSetDialogState(setDialogState, () {
                           saving = false;
-                          final message =
-                              _buildStudentSaveErrorMessage(error);
+                          final message = _buildStudentSaveErrorMessage(error);
                           if (message.contains('学号已存在')) {
                             studentNoAvailable = false;
                             studentNoError = '学号已存在，请修改后重试';
@@ -937,7 +1383,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
             }
 
             final data = snapshot.data!;
-            final stats = (data['stats'] as Map?)?.cast<String, dynamic>() ??
+            final stats =
+                (data['stats'] as Map?)?.cast<String, dynamic>() ??
                 <String, dynamic>{};
             final records = (data['records'] as List?) ?? const [];
 
@@ -962,7 +1409,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                   children: [
                     Text('近90天共 ${stats['total'] ?? 0} 次'),
                     Text(
-                        '出勤：${stats['present'] ?? 0}  缺勤：${stats['absent'] ?? 0}  请假：${stats['leave'] ?? 0}'),
+                      '出勤：${stats['present'] ?? 0}  缺勤：${stats['absent'] ?? 0}  请假：${stats['leave'] ?? 0}',
+                    ),
                     Text('出勤率：${stats['rate'] ?? '0.0'}%'),
                     const SizedBox(height: 10),
                     if (records.isEmpty)
@@ -973,8 +1421,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                         child: ListView.builder(
                           itemCount: records.length,
                           itemBuilder: (_, i) {
-                            final item =
-                                (records[i] as Map).cast<String, dynamic>();
+                            final item = (records[i] as Map)
+                                .cast<String, dynamic>();
                             final status = item['status']?.toString() ?? '-';
                             return ListTile(
                               dense: true,
@@ -1030,99 +1478,130 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       body: Column(
         children: [
           _buildFilterPanel(),
+          _buildBatchActionBar(displayStudents),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : displayStudents.isEmpty
-                    ? const Center(child: Text('暂无学生'))
-                    : RefreshIndicator(
-                        onRefresh: _reloadKeepPosition,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          itemCount: displayStudents.length,
-                          itemBuilder: (_, i) {
-                            final s = displayStudents[i];
-                            final classKey = _classGroupKey(s);
-                            final prevClassKey =
-                                i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
-                            final isClassStart = i > 0 && classKey != prevClassKey;
-                            final subtitleWidgets = <Widget>[
-                              if (s.displayClass.isNotEmpty)
-                                Text(
-                                  '行政班：${s.displayClass}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.blueGrey),
-                                ),
-                              if (s.electiveClass != null &&
-                                  s.electiveClass!.isNotEmpty)
-                                Text(
-                                  '选修班：${s.electiveClass}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.orange),
-                                ),
-                            ];
-                            final titleText = (s.studentNo ?? '').trim().isEmpty
-                                ? s.name
-                                : '${s.name}（${s.studentNo}）';
-
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: classGroupColors[classKey] ?? Colors.white,
-                                border: isClassStart
-                                    ? const Border(
-                                        top: BorderSide(
-                                            color: Colors.black26, width: 2),
-                                      )
-                                    : null,
+                ? const Center(child: Text('暂无学生'))
+                : RefreshIndicator(
+                    onRefresh: _reloadKeepPosition,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: displayStudents.length,
+                      itemBuilder: (_, i) {
+                        final s = displayStudents[i];
+                        final classKey = _classGroupKey(s);
+                        final prevClassKey = i > 0
+                            ? _classGroupKey(displayStudents[i - 1])
+                            : null;
+                        final isClassStart = i > 0 && classKey != prevClassKey;
+                        final subtitleWidgets = <Widget>[
+                          if (s.displayClass.isNotEmpty)
+                            Text(
+                              '行政班：${s.displayClass}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.blueGrey,
                               ),
-                              child: ListTile(
-                                leading: CircleAvatar(
+                            ),
+                          if (s.electiveClass != null &&
+                              s.electiveClass!.isNotEmpty)
+                            Text(
+                              '选修班：${s.electiveClass}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange,
+                              ),
+                            ),
+                        ];
+                        final titleText = (s.studentNo ?? '').trim().isEmpty
+                            ? s.name
+                            : '${s.name}（${s.studentNo}）';
+
+                        final selected = _selectedStudentIds.contains(s.id);
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: classGroupColors[classKey] ?? Colors.white,
+                            border: isClassStart
+                                ? const Border(
+                                    top: BorderSide(
+                                      color: Colors.black26,
+                                      width: 2,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          child: ListTile(
+                            selected: selected,
+                            onLongPress: _batchSubmitting
+                                ? null
+                                : () =>
+                                      _toggleStudentSelection(s.id, !selected),
+                            leading: Checkbox(
+                              value: selected,
+                              onChanged: _batchSubmitting
+                                  ? null
+                                  : (value) => _toggleStudentSelection(
+                                      s.id,
+                                      value ?? false,
+                                    ),
+                            ),
+                            title: Row(
+                              children: [
+                                CircleAvatar(
                                   backgroundColor: s.isMale
                                       ? Colors.blue.shade100
                                       : Colors.pink.shade100,
                                   child: Text(
                                     s.gender ?? '?',
                                     style: TextStyle(
-                                      color: s.isMale ? Colors.blue : Colors.pink,
+                                      color: s.isMale
+                                          ? Colors.blue
+                                          : Colors.pink,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                title: Text(titleText),
-                                subtitle: subtitleWidgets.isEmpty
-                                    ? null
-                                    : Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: subtitleWidgets,
-                                      ),
-                                isThreeLine: subtitleWidgets.length > 1,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      tooltip: '出勤记录',
-                                      icon: const Icon(
-                                        Icons.fact_check_outlined,
-                                        color: Colors.green,
-                                      ),
-                                      onPressed: () => _showAttendanceDialog(s),
-                                    ),
-                                    IconButton(
-                                      tooltip: '编辑',
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: () => _showEditDialog(s),
-                                    ),
-                                  ],
+                                const SizedBox(width: 12),
+                                Expanded(child: Text(titleText)),
+                              ],
+                            ),
+                            subtitle: subtitleWidgets.isEmpty
+                                ? null
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: subtitleWidgets,
+                                  ),
+                            isThreeLine: subtitleWidgets.length > 1,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: '出勤记录',
+                                  icon: const Icon(
+                                    Icons.fact_check_outlined,
+                                    color: Colors.green,
+                                  ),
+                                  onPressed: () => _showAttendanceDialog(s),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                                IconButton(
+                                  tooltip: '编辑',
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () => _showEditDialog(s),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
