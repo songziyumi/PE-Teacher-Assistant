@@ -6,6 +6,7 @@ import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,7 @@ public class DataInitializer implements CommandLineRunner {
     private final SchoolClassRepository classRepository;
     private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.admin.default-password:Admin@2024!}")
     private String adminDefaultPassword;
@@ -28,6 +30,8 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        jdbcTemplate.update("UPDATE students SET version = 0 WHERE version IS NULL");
+
         // 1. 创建超级管理员
         if (!teacherRepository.existsByUsername("superadmin")) {
             Teacher superAdmin = new Teacher();

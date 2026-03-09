@@ -172,6 +172,18 @@ public class MessageService {
         return messageRepo.findByRecipientTypeAndRecipientIdOrderBySentAtDesc("TEACHER", teacher.getId());
     }
 
+    public List<InternalMessage> getTeacherInbox(Teacher teacher, String type) {
+        if (type == null || type.isBlank() || "ALL".equalsIgnoreCase(type)) {
+            return getTeacherInbox(teacher);
+        }
+        String normalizedType = type.trim().toUpperCase();
+        if (!"GENERAL".equals(normalizedType) && !"COURSE_REQUEST".equals(normalizedType)) {
+            return getTeacherInbox(teacher);
+        }
+        return messageRepo.findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(
+                "TEACHER", teacher.getId(), normalizedType);
+    }
+
     public List<InternalMessage> getTeacherCourseRequests(Teacher teacher, String status) {
         if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
             return messageRepo.findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(

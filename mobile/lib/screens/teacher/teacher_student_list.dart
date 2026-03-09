@@ -24,6 +24,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   static const List<String> _studentStatuses = ['在籍', '休学', '毕业', '在外借读', '借读'];
   static const Color _classGroupColorA = Color(0xFFDDEEFF);
   static const Color _classGroupColorB = Color(0xFFFFE2C2);
+  static const int _studentNameMaxLength = 50;
+  static const int _studentNoMaxLength = 50;
 
   List<Student> _students = [];
   bool _loading = true;
@@ -31,6 +33,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   List<SchoolClass> _adminClasses = [];
   List<ElectiveClass> _electiveClasses = [];
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _nameFilterCtrl = TextEditingController();
+  final TextEditingController _studentNoFilterCtrl = TextEditingController();
+  int? _selectedAdminClassId;
+  String? _selectedElectiveClass;
+  String? _selectedStudentStatus;
+  bool _filterExpanded = false;
 
   @override
   void initState() {
@@ -42,6 +50,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _nameFilterCtrl.dispose();
+    _studentNoFilterCtrl.dispose();
     super.dispose();
   }
 
@@ -64,7 +74,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final students = await TeacherService.getStudents(widget.classId);
+      final students = await _fetchStudents();
       if (!mounted) return;
       setState(() => _students = students);
     } catch (e) {
@@ -80,7 +90,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     final offset =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
     try {
-      final students = await TeacherService.getStudents(widget.classId);
+      final students = await _fetchStudents();
       if (!mounted) return;
       setState(() => _students = students);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +104,68 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('加载失败: $e')));
     }
+  }
+
+  Future<List<Student>> _fetchStudents() {
+    return TeacherService.getStudents(
+      widget.classId,
+      name: _nameFilterCtrl.text,
+      studentNo: _studentNoFilterCtrl.text,
+      adminClassId: _selectedAdminClassId,
+      electiveClass: _selectedElectiveClass,
+      studentStatus: _selectedStudentStatus,
+    );
+  }
+
+  void _applyFilters() {
+    _load();
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _nameFilterCtrl.clear();
+      _studentNoFilterCtrl.clear();
+      _selectedAdminClassId = null;
+      _selectedElectiveClass = null;
+      _selectedStudentStatus = null;
+    });
+    _load();
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_nameFilterCtrl.text.trim().isNotEmpty) count++;
+    if (_studentNoFilterCtrl.text.trim().isNotEmpty) count++;
+    if (_selectedAdminClassId != null) count++;
+    if (_selectedElectiveClass != null && _selectedElectiveClass!.isNotEmpty) {
+      count++;
+    }
+    if (_selectedStudentStatus != null && _selectedStudentStatus!.isNotEmpty) {
+      count++;
+    }
+    return count;
+  }
+
+  int _compareSchoolClass(SchoolClass a, SchoolClass b) {
+    final gradeCompare = (a.gradeName ?? '').compareTo(b.gradeName ?? '');
+    if (gradeCompare != 0) return gradeCompare;
+    return a.name.compareTo(b.name);
+  }
+
+  List<SchoolClass> get _sortedAdminClasses {
+    final list = List<SchoolClass>.from(_adminClasses);
+    list.sort(_compareSchoolClass);
+    return list;
+  }
+
+  List<ElectiveClass> get _sortedElectiveClasses {
+    final list = List<ElectiveClass>.from(_electiveClasses);
+    list.sort((a, b) {
+      final gradeCompare = (a.gradeName ?? '').compareTo(b.gradeName ?? '');
+      if (gradeCompare != 0) return gradeCompare;
+      return a.name.compareTo(b.name);
+    });
+    return list;
   }
 
   int? _findAdminGradeIdByClassId(int? classId) {
@@ -143,7 +215,181 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     return colors;
   }
 
+  String? _validateStudentName(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '学生姓名不能为空';
+    }
+    if (trimmed.length > _studentNameMaxLength) {
+      return '学生姓名不能超过 $_studentNameMaxLength 个字符';
+    }
+    return null;
+  }
+
+  String? _validateStudentNo(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '学号不能为空';
+    }
+    if (trimmed.length > _studentNoMaxLength) {
+      return '学号不能超过 $_studentNoMaxLength 个字符';
+    }
+    if (trimmed.contains(RegExp(r'\s'))) {
+      return '学号不能包含空格';
+    }
+    return null;
+  }
+
+  String _buildStudentSaveErrorMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.contains('学号已存在')) {
+      return '学号已存在，请修改后重试';
+    }
+    if (message.contains('学籍状态不合法')) {
+      return '学籍状态不合法，请重新选择';
+    }
+    return '修改失败：$message';
+  }
+
+  Widget _buildFilterPanel() {
+    final adminClasses = _sortedAdminClasses;
+    final electiveClasses = _sortedElectiveClasses;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: ExpansionTile(
+        initiallyExpanded: _filterExpanded,
+        onExpansionChanged: (expanded) =>
+            setState(() => _filterExpanded = expanded),
+        title: Text('筛选条件（已启用 $_activeFilterCount 项）'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameFilterCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '姓名',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _applyFilters(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _studentNoFilterCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '学号',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _applyFilters(),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int?>(
+                  initialValue: _selectedAdminClassId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '行政班',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('全部行政班'),
+                    ),
+                    ...adminClasses.map(
+                      (c) => DropdownMenuItem<int?>(
+                        value: c.id,
+                        child: Text(c.displayName),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedAdminClassId = v),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedElectiveClass,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '选修班',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('全部选修班'),
+                    ),
+                    ...electiveClasses.map(
+                      (c) => DropdownMenuItem<String?>(
+                        value: c.storedName,
+                        child: Text(c.displayName),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedElectiveClass = v),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedStudentStatus,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '学籍状态',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('全部状态'),
+                    ),
+                    ..._studentStatuses.map(
+                      (status) => DropdownMenuItem<String?>(
+                        value: status,
+                        child: Text(status),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedStudentStatus = v),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : _resetFilters,
+                        child: const Text('重置'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _applyFilters,
+                        child: const Text('查询'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showEditDialog(Student s) async {
+    final messenger = ScaffoldMessenger.of(context);
     final nameCtrl = TextEditingController(text: s.name);
     final studentNoCtrl = TextEditingController(text: s.studentNo ?? '');
     final originalStudentNo = (s.studentNo ?? '').trim();
@@ -169,7 +415,11 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     Timer? studentNoCheckDebounce;
     bool studentNoChecking = false;
     bool? studentNoAvailable;
+    bool saving = false;
     bool dialogAlive = true;
+    String? nameError;
+    String? studentNoError;
+    String? formError;
 
     void safeSetDialogState(
       void Function(void Function()) setDialogState,
@@ -189,6 +439,17 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         safeSetDialogState(setDialogState, () {
           studentNoChecking = false;
           studentNoAvailable = null;
+          studentNoError = null;
+        });
+        return;
+      }
+
+      final validationError = _validateStudentNo(value);
+      if (validationError != null) {
+        safeSetDialogState(setDialogState, () {
+          studentNoChecking = false;
+          studentNoAvailable = null;
+          studentNoError = validationError;
         });
         return;
       }
@@ -204,6 +465,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         safeSetDialogState(setDialogState, () {
           studentNoChecking = false;
           studentNoAvailable = result['available'] == true;
+          studentNoError =
+              studentNoAvailable == true ? null : result['message']?.toString();
         });
       } catch (_) {
         if (!dialogAlive) return;
@@ -211,6 +474,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         safeSetDialogState(setDialogState, () {
           studentNoChecking = false;
           studentNoAvailable = null;
+          studentNoError = null;
         });
       }
     }
@@ -270,11 +534,20 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: nameCtrl,
-                        decoration: const InputDecoration(
+                        maxLength: _studentNameMaxLength,
+                        decoration: InputDecoration(
                           labelText: '学生姓名',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
                           isDense: true,
+                          errorText: nameError,
                         ),
+                        onChanged: (_) {
+                          if (nameError == null && formError == null) return;
+                          setDialogState(() {
+                            nameError = null;
+                            formError = null;
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
                       buildFieldPair(
@@ -313,6 +586,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: studentNoCtrl,
+                        maxLength: _studentNoMaxLength,
                         decoration: InputDecoration(
                           labelText: '学号',
                           border: const OutlineInputBorder(),
@@ -320,8 +594,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                           helperText: studentNoChecking
                               ? '正在校验学号...'
                               : (studentNoAvailable == true ? '学号可用' : null),
-                          errorText:
-                              studentNoAvailable == false ? '学号已存在' : null,
+                          errorText: studentNoError,
                           suffixIcon: studentNoChecking
                               ? const Padding(
                                   padding: EdgeInsets.all(12),
@@ -343,9 +616,27 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                           : Colors.red,
                                     )),
                         ),
-                        onChanged: (v) =>
-                            scheduleStudentNoCheck(v, setDialogState),
+                        onChanged: (v) {
+                          setDialogState(() {
+                            formError = null;
+                            studentNoError = null;
+                            if (v.trim().isEmpty || v.trim() == originalStudentNo) {
+                              studentNoAvailable = null;
+                            }
+                          });
+                          scheduleStudentNoCheck(v, setDialogState);
+                        },
                       ),
+                      if (formError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          formError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const Text('行政班',
                           style: TextStyle(fontWeight: FontWeight.bold)),
@@ -381,6 +672,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 .any((c) => c.storedName == selectedElective)) {
                               selectedElective = null;
                             }
+                            formError = null;
                           }),
                         ),
                         DropdownButtonFormField<int?>(
@@ -400,8 +692,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                     child: Text(c.name),
                                   ))
                               .toList(),
-                          onChanged: (v) =>
-                              setDialogState(() => selectedClassId = v),
+                          onChanged: (v) => setDialogState(() {
+                            selectedClassId = v;
+                            formError = null;
+                          }),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -472,12 +766,128 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
               child: const Text('取消'),
             ),
             ElevatedButton(
-              onPressed: () {
-                dialogAlive = false;
-                studentNoCheckDebounce?.cancel();
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('保存'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final newName = nameCtrl.text.trim();
+                      final newStudentNo = studentNoCtrl.text.trim();
+                      final validatedNameError = _validateStudentName(newName);
+                      final validatedStudentNoError =
+                          _validateStudentNo(newStudentNo);
+
+                      if (validatedNameError != null ||
+                          validatedStudentNoError != null) {
+                        safeSetDialogState(setDialogState, () {
+                          nameError = validatedNameError;
+                          studentNoError = validatedStudentNoError;
+                          formError = null;
+                        });
+                        return;
+                      }
+
+                      if (selectedClassId == null) {
+                        safeSetDialogState(setDialogState, () {
+                          formError = '行政班不能为空，请先选择行政班';
+                        });
+                        return;
+                      }
+
+                      final duplicated = _students.any((item) =>
+                          item.id != s.id &&
+                          (item.studentNo ?? '').trim() == newStudentNo);
+                      if (duplicated) {
+                        safeSetDialogState(setDialogState, () {
+                          studentNoAvailable = false;
+                          studentNoError = '学号已存在';
+                          formError = null;
+                        });
+                        return;
+                      }
+
+                      if (newStudentNo != originalStudentNo) {
+                        safeSetDialogState(setDialogState, () {
+                          studentNoChecking = true;
+                          studentNoError = null;
+                        });
+                        try {
+                          final check =
+                              await TeacherService.checkStudentNoAvailability(
+                            newStudentNo,
+                            excludeId: s.id,
+                          );
+                          if (!dialogAlive) return;
+                          if (check['available'] != true) {
+                            safeSetDialogState(setDialogState, () {
+                              studentNoChecking = false;
+                              studentNoAvailable = false;
+                              studentNoError =
+                                  check['message']?.toString() ?? '学号已存在';
+                            });
+                            return;
+                          }
+                          safeSetDialogState(setDialogState, () {
+                            studentNoChecking = false;
+                            studentNoAvailable = true;
+                          });
+                        } catch (error) {
+                          safeSetDialogState(setDialogState, () {
+                            studentNoChecking = false;
+                            formError = '学号校验失败：$error';
+                          });
+                          return;
+                        }
+                      }
+
+                      safeSetDialogState(setDialogState, () {
+                        saving = true;
+                        nameError = null;
+                        studentNoError = null;
+                        formError = null;
+                      });
+
+                      try {
+                        await TeacherService.updateStudent(
+                          s.id,
+                          name: newName,
+                          gender: selectedGender,
+                          studentNo: newStudentNo,
+                          studentStatus: selectedStatus,
+                          classId: selectedClassId,
+                          electiveClass: selectedElective,
+                          version: s.version,
+                        );
+                        if (!dialogAlive) return;
+                        if (!ctx.mounted) return;
+                        dialogAlive = false;
+                        studentNoCheckDebounce?.cancel();
+                        Navigator.pop(ctx, true);
+                      } catch (error) {
+                        safeSetDialogState(setDialogState, () {
+                          saving = false;
+                          final message =
+                              _buildStudentSaveErrorMessage(error);
+                          if (message.contains('学号已存在')) {
+                            studentNoAvailable = false;
+                            studentNoError = '学号已存在，请修改后重试';
+                            formError = null;
+                          } else if (message.contains('该学生已被其他设备修改')) {
+                            formError = '该学生已被其他设备修改，请关闭后重新打开再保存';
+                          } else if (message.contains('学号不能为空') ||
+                              message.contains('学号不能超过') ||
+                              message.contains('学号不能包含空格')) {
+                            studentNoError = message;
+                            formError = null;
+                          } else if (message.contains('学生姓名不能为空') ||
+                              message.contains('学生姓名不能超过')) {
+                            nameError = message;
+                            formError = null;
+                          } else {
+                            formError = message;
+                          }
+                        });
+                      }
+                    },
+              child: Text(saving ? '保存中...' : '保存'),
             ),
           ],
         ),
@@ -486,89 +896,14 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
 
     dialogAlive = false;
 
-    if (confirmed == true) {
-      final newName = nameCtrl.text.trim();
-      final newStudentNo = studentNoCtrl.text.trim();
-
-      if (newName.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('学生姓名不能为空')));
-        }
-      } else {
-        if (newStudentNo.isNotEmpty && newStudentNo != originalStudentNo) {
-          try {
-            final check = await TeacherService.checkStudentNoAvailability(
-              newStudentNo,
-              excludeId: s.id,
-            );
-            if (check['available'] != true) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(check['message']?.toString() ?? '学号已存在'),
-                  ),
-                );
-              }
-              studentNoCheckDebounce?.cancel();
-              nameCtrl.dispose();
-              studentNoCtrl.dispose();
-              return;
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text('学号校验失败: $e')));
-            }
-            studentNoCheckDebounce?.cancel();
-            nameCtrl.dispose();
-            studentNoCtrl.dispose();
-            return;
-          }
-        }
-
-        final duplicated = newStudentNo.isNotEmpty &&
-            _students.any((item) =>
-                item.id != s.id &&
-                (item.studentNo ?? '').trim() == newStudentNo);
-        if (duplicated) {
-          if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('学号已存在，请检查后重试')));
-          }
-          studentNoCheckDebounce?.cancel();
-          nameCtrl.dispose();
-          studentNoCtrl.dispose();
-          return;
-        }
-
-        try {
-          await TeacherService.updateStudent(
-            s.id,
-            name: newName,
-            gender: selectedGender,
-            studentNo: newStudentNo,
-            studentStatus: selectedStatus,
-            classId: selectedClassId,
-            electiveClass: selectedElective,
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('修改成功')));
-            _reloadKeepPosition();
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('修改失败: $e')));
-          }
-        }
-      }
-    }
-
     studentNoCheckDebounce?.cancel();
     nameCtrl.dispose();
     studentNoCtrl.dispose();
+
+    if (confirmed == true && mounted) {
+      messenger.showSnackBar(const SnackBar(content: Text('修改成功')));
+      _reloadKeepPosition();
+    }
   }
 
   Future<void> _showAttendanceDialog(Student s) async {
@@ -692,93 +1027,105 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           ),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : displayStudents.isEmpty
-              ? const Center(child: Text('暂无学生'))
-              : RefreshIndicator(
-                  onRefresh: _reloadKeepPosition,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    itemCount: displayStudents.length,
-                    itemBuilder: (_, i) {
-                      final s = displayStudents[i];
-                      final classKey = _classGroupKey(s);
-                      final prevClassKey =
-                          i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
-                      final isClassStart = i > 0 && classKey != prevClassKey;
-                      final subtitleWidgets = <Widget>[
-                        if (s.displayClass.isNotEmpty)
-                          Text(
-                            '行政班：${s.displayClass}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.blueGrey),
-                          ),
-                        if (s.electiveClass != null &&
-                            s.electiveClass!.isNotEmpty)
-                          Text(
-                            '选修班：${s.electiveClass}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.orange),
-                          ),
-                      ];
-                      final titleText = (s.studentNo ?? '').trim().isEmpty
-                          ? s.name
-                          : '${s.name}（${s.studentNo}）';
-
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: classGroupColors[classKey] ?? Colors.white,
-                          border: isClassStart
-                              ? const Border(
-                                  top: BorderSide(
-                                      color: Colors.black26, width: 2),
-                                )
-                              : null,
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: s.isMale
-                                ? Colors.blue.shade100
-                                : Colors.pink.shade100,
-                            child: Text(
-                              s.gender ?? '?',
-                              style: TextStyle(
-                                color: s.isMale ? Colors.blue : Colors.pink,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(titleText),
-                          subtitle: subtitleWidgets.isEmpty
-                              ? null
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: subtitleWidgets,
+      body: Column(
+        children: [
+          _buildFilterPanel(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : displayStudents.isEmpty
+                    ? const Center(child: Text('暂无学生'))
+                    : RefreshIndicator(
+                        onRefresh: _reloadKeepPosition,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount: displayStudents.length,
+                          itemBuilder: (_, i) {
+                            final s = displayStudents[i];
+                            final classKey = _classGroupKey(s);
+                            final prevClassKey =
+                                i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
+                            final isClassStart = i > 0 && classKey != prevClassKey;
+                            final subtitleWidgets = <Widget>[
+                              if (s.displayClass.isNotEmpty)
+                                Text(
+                                  '行政班：${s.displayClass}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.blueGrey),
                                 ),
-                          isThreeLine: subtitleWidgets.length > 1,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: '出勤记录',
-                                icon: const Icon(Icons.fact_check_outlined,
-                                    color: Colors.green),
-                                onPressed: () => _showAttendanceDialog(s),
+                              if (s.electiveClass != null &&
+                                  s.electiveClass!.isNotEmpty)
+                                Text(
+                                  '选修班：${s.electiveClass}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.orange),
+                                ),
+                            ];
+                            final titleText = (s.studentNo ?? '').trim().isEmpty
+                                ? s.name
+                                : '${s.name}（${s.studentNo}）';
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: classGroupColors[classKey] ?? Colors.white,
+                                border: isClassStart
+                                    ? const Border(
+                                        top: BorderSide(
+                                            color: Colors.black26, width: 2),
+                                      )
+                                    : null,
                               ),
-                              IconButton(
-                                tooltip: '编辑',
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showEditDialog(s),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: s.isMale
+                                      ? Colors.blue.shade100
+                                      : Colors.pink.shade100,
+                                  child: Text(
+                                    s.gender ?? '?',
+                                    style: TextStyle(
+                                      color: s.isMale ? Colors.blue : Colors.pink,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(titleText),
+                                subtitle: subtitleWidgets.isEmpty
+                                    ? null
+                                    : Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: subtitleWidgets,
+                                      ),
+                                isThreeLine: subtitleWidgets.length > 1,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: '出勤记录',
+                                      icon: const Icon(
+                                        Icons.fact_check_outlined,
+                                        color: Colors.green,
+                                      ),
+                                      onPressed: () => _showAttendanceDialog(s),
+                                    ),
+                                    IconButton(
+                                      tooltip: '编辑',
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () => _showEditDialog(s),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }

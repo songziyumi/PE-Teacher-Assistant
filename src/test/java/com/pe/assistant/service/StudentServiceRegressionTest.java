@@ -18,9 +18,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -72,6 +74,98 @@ class StudentServiceRegressionTest {
         assertThrows(IllegalArgumentException.class,
                 () -> studentService.update(100L, "Name", "M", "S-200", "IDCARD", null, null, null));
 
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShouldFailWhenNameBlank() {
+        Student current = new Student();
+        current.setId(100L);
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> studentService.update(100L, "   ", "M", "S-200", "IDCARD", null, null, null));
+
+        assertEquals("学生姓名不能为空", error.getMessage());
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShouldFailWhenStudentNoBlank() {
+        Student current = new Student();
+        current.setId(100L);
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> studentService.update(100L, "Name", "M", "   ", "IDCARD", null, null, null));
+
+        assertEquals("学号不能为空", error.getMessage());
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShouldFailWhenStudentNoTooLong() {
+        Student current = new Student();
+        current.setId(100L);
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> studentService.update(100L, "Name", "M", "S".repeat(51), "IDCARD", null, null, null));
+
+        assertEquals("学号不能超过50个字符", error.getMessage());
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShouldFailWhenStudentNoContainsWhitespace() {
+        Student current = new Student();
+        current.setId(100L);
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> studentService.update(100L, "Name", "M", "S 200", "IDCARD", null, null, null));
+
+        assertEquals("学号不能包含空格", error.getMessage());
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateShouldTranslateDatabaseUniqueConstraintToReadableMessage() {
+        School school = new School();
+        school.setId(1L);
+        Student current = new Student();
+        current.setId(100L);
+        current.setSchool(school);
+        current.setStudentNo("S-100");
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+        when(studentRepository.existsByStudentNoAndSchoolAndIdNot("S-200", school, 100L))
+                .thenReturn(false);
+        when(studentRepository.saveAndFlush(any(Student.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_students_school_student_no"));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> studentService.update(100L, "Name", "M", "S-200", "IDCARD", null, null, null));
+
+        assertEquals("学号已存在", error.getMessage());
+    }
+
+    @Test
+    void updateShouldFailWhenExpectedVersionStale() {
+        Student current = new Student();
+        current.setId(100L);
+        current.setVersion(3L);
+
+        when(studentRepository.findById(100L)).thenReturn(Optional.of(current));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> studentService.update(100L, "Name", "M", "S-200", "IDCARD", null, null, null, 2L));
+
+        assertEquals("该学生已被其他设备修改，请刷新后重试", error.getMessage());
         verify(studentRepository, never()).save(any());
     }
 }
