@@ -8,7 +8,7 @@
 - 再完善效率、可追溯和体验能力。
 
 ## 当前总体进度（真实代码口径）
-- P0：约 85%（核心功能已上线到代码，主要剩联调与数据库约束补齐）
+- P0：约 90%（核心功能与关键回归已具备，主要剩真机联调与验收打勾）
 - P1：约 20%（消息未读筛选已具备，其他仍待开发）
 - P2：约 0%（尚未启动）
 
@@ -48,9 +48,9 @@
 - [ ] 消息点击后可直接进入对应审批详情，不出现“找不到数据”
 
 ## P0 收尾任务（本周必须完成）
-- [ ] 数据库唯一索引补齐：`students(school_id, student_no)`（防并发脏写）
-- [ ] 完成 1 轮教师账号真机联调（审批链路 + 消息跳转 + 学生编辑）
-- [ ] 补 6 条接口回归用例：
+- [x] 数据库唯一索引补齐：`students(school_id, student_no)`（核验/修复脚本已补；本机与目标库均验证 `OK`）
+- [-] 完成 1 轮教师账号真机联调（审批链路 + 消息跳转 + 学生编辑）
+- [x] 补 6 条接口回归用例（接口层已补：`TeacherApiControllerRegressionTest`）：
   - 审批重复提交应失败
   - 非归属教师审批应失败
   - 审批后消息已读状态正确
@@ -93,7 +93,7 @@
 
 ### 数据与审计
 - [x] 审批日志表 + 消息审批字段（处理人/时间/备注）
-- [ ] 学号唯一索引（学校维度）
+- [x] 学号唯一索引（学校维度，脚本已补且本机/目标库验证 `OK`）
 - [x] 审批状态机约束（待审批 -> 同意/拒绝）
 
 ### Flutter 端
@@ -126,7 +126,7 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://192.168.2.101:8080
 ##  构建正式版APK
 flutter build apk --release --dart-define=API_BASE_URL=http://192.168.2.101:8080
 ##  将apk推送到手机
-C:\Users\28970\AppData\Local\Android\Sdk\platform-tools\adb.exe push C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA\mobile\build\app\outputs\flutter-apk\app-debug.apk /sdcard/Download/ 
+C:\Users\28970\AppData\Local\Android\Sdk\platform-tools\adb.exe push C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA\mobile\build\app\outputs\apk\release\app-release.apk /sdcard/Download/ 
 
 ##  直接执行（在 mobile 目录）                                                                                                                      
   1. 生成 keystore + key.properties                                                                                                               

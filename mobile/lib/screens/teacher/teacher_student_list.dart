@@ -22,6 +22,8 @@ class TeacherStudentListScreen extends StatefulWidget {
 
 class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   static const List<String> _studentStatuses = ['在籍', '休学', '毕业', '在外借读', '借读'];
+  static const Color _classGroupColorA = Color(0xFFDDEEFF);
+  static const Color _classGroupColorB = Color(0xFFFFE2C2);
 
   List<Student> _students = [];
   bool _loading = true;
@@ -108,6 +110,37 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       if (c.storedName == storedName) return c.gradeId;
     }
     return null;
+  }
+
+  String _classGroupKey(Student s) {
+    final key = s.displayClass.trim();
+    return key.isEmpty ? '未分班' : key;
+  }
+
+  List<Student> _buildDisplayStudents() {
+    final sorted = List<Student>.from(_students);
+    sorted.sort((a, b) {
+      final classCompare = _classGroupKey(a).compareTo(_classGroupKey(b));
+      if (classCompare != 0) return classCompare;
+      final nameCompare = a.name.compareTo(b.name);
+      if (nameCompare != 0) return nameCompare;
+      return (a.studentNo ?? '').compareTo(b.studentNo ?? '');
+    });
+    return sorted;
+  }
+
+  Map<String, Color> _buildClassGroupColors(List<Student> students) {
+    final colors = <String, Color>{};
+    var classIndex = 0;
+    for (final s in students) {
+      final key = _classGroupKey(s);
+      colors.putIfAbsent(key, () {
+        final color = classIndex.isEven ? _classGroupColorA : _classGroupColorB;
+        classIndex++;
+        return color;
+      });
+    }
+    return colors;
   }
 
   Future<void> _showEditDialog(Student s) async {
@@ -642,6 +675,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final displayStudents = _buildDisplayStudents();
+    final classGroupColors = _buildClassGroupColors(displayStudents);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.className),
@@ -650,7 +686,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '共 ${_students.length} 名学生',
+              '共 ${displayStudents.length} 名学生',
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
@@ -658,71 +694,86 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _students.isEmpty
+          : displayStudents.isEmpty
               ? const Center(child: Text('暂无学生'))
               : RefreshIndicator(
                   onRefresh: _reloadKeepPosition,
                   child: ListView.builder(
                     controller: _scrollController,
-                    itemCount: _students.length,
+                    itemCount: displayStudents.length,
                     itemBuilder: (_, i) {
-                      final s = _students[i];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: s.isMale
-                              ? Colors.blue.shade100
-                              : Colors.pink.shade100,
-                          child: Text(
-                            s.gender ?? '?',
-                            style: TextStyle(
-                              color: s.isMale ? Colors.blue : Colors.pink,
-                              fontWeight: FontWeight.bold,
+                      final s = displayStudents[i];
+                      final classKey = _classGroupKey(s);
+                      final prevClassKey =
+                          i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
+                      final isClassStart = i > 0 && classKey != prevClassKey;
+                      final subtitleWidgets = <Widget>[
+                        if (s.displayClass.isNotEmpty)
+                          Text(
+                            '行政班：${s.displayClass}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.blueGrey),
+                          ),
+                        if (s.electiveClass != null &&
+                            s.electiveClass!.isNotEmpty)
+                          Text(
+                            '选修班：${s.electiveClass}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.orange),
+                          ),
+                      ];
+                      final titleText = (s.studentNo ?? '').trim().isEmpty
+                          ? s.name
+                          : '${s.name}（${s.studentNo}）';
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: classGroupColors[classKey] ?? Colors.white,
+                          border: isClassStart
+                              ? const Border(
+                                  top: BorderSide(
+                                      color: Colors.black26, width: 2),
+                                )
+                              : null,
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: s.isMale
+                                ? Colors.blue.shade100
+                                : Colors.pink.shade100,
+                            child: Text(
+                              s.gender ?? '?',
+                              style: TextStyle(
+                                color: s.isMale ? Colors.blue : Colors.pink,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(s.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.studentNo ?? '-'),
-                            if (s.studentStatus != null &&
-                                s.studentStatus!.isNotEmpty)
-                              Text(
-                                '学籍状态：${s.studentStatus}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.deepPurple),
+                          title: Text(titleText),
+                          subtitle: subtitleWidgets.isEmpty
+                              ? null
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: subtitleWidgets,
+                                ),
+                          isThreeLine: subtitleWidgets.length > 1,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: '出勤记录',
+                                icon: const Icon(Icons.fact_check_outlined,
+                                    color: Colors.green),
+                                onPressed: () => _showAttendanceDialog(s),
                               ),
-                            if (s.displayClass.isNotEmpty)
-                              Text(
-                                '行政班：${s.displayClass}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.blueGrey),
+                              IconButton(
+                                tooltip: '编辑',
+                                icon:
+                                    const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showEditDialog(s),
                               ),
-                            if (s.electiveClass != null &&
-                                s.electiveClass!.isNotEmpty)
-                              Text(
-                                '选修班：${s.electiveClass}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.orange),
-                              ),
-                          ],
-                        ),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: '出勤记录',
-                              icon: const Icon(Icons.fact_check_outlined,
-                                  color: Colors.green),
-                              onPressed: () => _showAttendanceDialog(s),
-                            ),
-                            IconButton(
-                              tooltip: '编辑',
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _showEditDialog(s),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     },
