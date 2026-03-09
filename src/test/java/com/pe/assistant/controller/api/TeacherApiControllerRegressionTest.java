@@ -28,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +37,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -173,6 +175,121 @@ class TeacherApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.auditLogs", hasSize(2)))
                 .andExpect(jsonPath("$.data.auditLogs[0].action").value("REJECT"))
                 .andExpect(jsonPath("$.data.auditLogs[1].action").value("APPROVE"));
+    }
+
+    @Test
+    void messagesShouldRejectInvalidType() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(messageService.getTeacherInbox(teacher, "NOTICE", false))
+                .thenThrow(new IllegalArgumentException("\u6d88\u606f\u7c7b\u578b\u4ec5\u652f\u6301 ALL\u3001GENERAL\u3001COURSE_REQUEST"));
+
+        mockMvc.perform(get("/api/teacher/messages").param("type", "NOTICE"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("\u6d88\u606f\u7c7b\u578b\u4ec5\u652f\u6301 ALL\u3001GENERAL\u3001COURSE_REQUEST"));
+    }
+
+    @Test
+    void messagesShouldKeepUnreadOnlyAndTypeFiltersStable() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        InternalMessage unreadGeneral = buildGeneralMessage(11L, false);
+        InternalMessage readGeneral = buildGeneralMessage(12L, true);
+        InternalMessage unreadCourseRequest = buildCourseRequestMessage(13L, "PENDING", false);
+
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doAnswer(invocation -> {
+            String type = invocation.getArgument(1, String.class);
+            boolean unreadOnly = invocation.getArgument(2, Boolean.class);
+            return List.of(unreadGeneral, readGeneral, unreadCourseRequest).stream()
+                    .filter(msg -> "ALL".equals(type) || type.equals(msg.getType()))
+                    .filter(msg -> !unreadOnly || !Boolean.TRUE.equals(msg.getIsRead()))
+                    .toList();
+        }).when(messageService).getTeacherInbox(eq(teacher), any(), anyBoolean());
+
+        mockMvc.perform(get("/api/teacher/messages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data", hasSize(3)));
+
+        mockMvc.perform(get("/api/teacher/messages").param("type", "GENERAL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(2)))
+                .andExpect(jsonPath("$.data[0].type").value("GENERAL"))
+                .andExpect(jsonPath("$.data[1].type").value("GENERAL"));
+
+        mockMvc.perform(get("/api/teacher/messages")
+                        .param("type", "GENERAL")
+                        .param("unreadOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(11))
+                .andExpect(jsonPath("$.data[0].isRead").value(false));
+
+        mockMvc.perform(get("/api/teacher/messages")
+                        .param("type", "COURSE_REQUEST")
+                        .param("unreadOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(13))
+                .andExpect(jsonPath("$.data[0].type").value("COURSE_REQUEST"));
+    }
+
+    @Test
+    void markReadShouldKeepUnreadCountAndInboxStateConsistent() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        List<InternalMessage> inbox = new ArrayList<>(List.of(
+                buildGeneralMessage(21L, false),
+                buildCourseRequestMessage(22L, "PENDING", true)));
+
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        doAnswer(invocation -> inbox.stream()
+                .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
+                .count()).when(messageService).getUnreadCount("TEACHER", teacher.getId());
+        doAnswer(invocation -> {
+            Long messageId = invocation.getArgument(0, Long.class);
+            inbox.stream()
+                    .filter(msg -> messageId.equals(msg.getId()))
+                    .findFirst()
+                    .ifPresent(msg -> msg.setIsRead(true));
+            return null;
+        }).when(messageService).markTeacherMessageRead(21L, teacher);
+        doAnswer(invocation -> {
+            String type = invocation.getArgument(1, String.class);
+            boolean unreadOnly = invocation.getArgument(2, Boolean.class);
+            return inbox.stream()
+                    .filter(msg -> "ALL".equals(type) || type.equals(msg.getType()))
+                    .filter(msg -> !unreadOnly || !Boolean.TRUE.equals(msg.getIsRead()))
+                    .toList();
+        }).when(messageService).getTeacherInbox(eq(teacher), any(), anyBoolean());
+
+        mockMvc.perform(get("/api/teacher/messages/unread-count"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(1));
+
+        mockMvc.perform(post("/api/teacher/messages/21/read")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        mockMvc.perform(get("/api/teacher/messages/unread-count"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.unreadCount").value(0));
+
+        mockMvc.perform(get("/api/teacher/messages")
+                        .param("type", "GENERAL")
+                        .param("unreadOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(0)));
+
+        mockMvc.perform(get("/api/teacher/messages")
+                        .param("type", "GENERAL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(21))
+                .andExpect(jsonPath("$.data[0].isRead").value(true));
     }
 
     @Test
@@ -611,6 +728,22 @@ class TeacherApiControllerRegressionTest {
         msg.setSubject("Course Request");
         msg.setContent("Please review");
         msg.setSentAt(LocalDateTime.of(2026, 3, 8, 9, 0, 0));
+        return msg;
+    }
+
+    private InternalMessage buildGeneralMessage(Long id, boolean isRead) {
+        InternalMessage msg = new InternalMessage();
+        msg.setId(id);
+        msg.setType("GENERAL");
+        msg.setIsRead(isRead);
+        msg.setSenderType("SYSTEM");
+        msg.setSenderId(1L);
+        msg.setSenderName("System");
+        msg.setRecipientType("TEACHER");
+        msg.setRecipientId(10L);
+        msg.setSubject("General notice");
+        msg.setContent("Please check the message center");
+        msg.setSentAt(LocalDateTime.of(2026, 3, 8, 10, 0, 0));
         return msg;
     }
 

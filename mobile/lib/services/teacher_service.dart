@@ -218,11 +218,10 @@ class TeacherService {
     bool unreadOnly = false,
     String type = 'ALL',
   }) async {
-    final data =
-        await ApiService.get(
-              '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(type)}',
-            )
-            as List;
+    final normalizedType = type.trim().isEmpty ? 'ALL' : type.trim().toUpperCase();
+    final data = await ApiService.get(
+      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(normalizedType)}',
+    ) as List;
     return data.map((e) => TeacherMessage.fromJson(e)).toList();
   }
 
