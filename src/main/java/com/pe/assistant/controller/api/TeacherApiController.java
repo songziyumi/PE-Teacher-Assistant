@@ -461,16 +461,31 @@ public class TeacherApiController {
     // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
 
     @GetMapping("/classes/{classId}/students")
-    public ApiResponse<List<Map<String, Object>>> students(@PathVariable Long classId) {
+    public ApiResponse<List<Map<String, Object>>> students(
+            @PathVariable Long classId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String studentNo,
+            @RequestParam(required = false) Long adminClassId,
+            @RequestParam(required = false) String electiveClass,
+            @RequestParam(required = false) String studentStatus) {
         School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Student> students;
         if (isElectiveType(sc.getType())) {
-            String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            students = studentService.findByElectiveClassForTeacher(school, name);
+            String electiveClassName = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
+            students = studentService.findByElectiveClassForTeacher(school, electiveClassName);
         } else {
             students = studentService.findByClassIdForTeacher(school, classId);
         }
+        students = students.stream()
+                .filter(s -> containsIgnoreCase(s.getName(), name))
+                .filter(s -> containsIgnoreCase(s.getStudentNo(), studentNo))
+                .filter(s -> adminClassId == null
+                        || (s.getSchoolClass() != null && Objects.equals(s.getSchoolClass().getId(), adminClassId)))
+                .filter(s -> containsIgnoreCase(s.getElectiveClass(), electiveClass))
+                .filter(s -> isBlank(studentStatus)
+                        || normalizeText(studentStatus).equals(normalizeText(s.getStudentStatus())))
+                .collect(Collectors.toList());
         List<Map<String, Object>> result = students.stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", s.getId());
@@ -727,6 +742,20 @@ public class TeacherApiController {
         if ("缂哄嫟".equals(status) || "缺勤".equals(status)) return "缺勤";
         if ("璇峰亣".equals(status) || "请假".equals(status)) return "请假";
         return status;
+    }
+
+    private boolean containsIgnoreCase(String source, String keyword) {
+        if (isBlank(keyword)) return true;
+        if (source == null) return false;
+        return normalizeText(source).contains(normalizeText(keyword));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {

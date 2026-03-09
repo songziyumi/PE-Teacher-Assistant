@@ -109,10 +109,34 @@ class TeacherService {
     };
   }
 
-  // 班级学生
-  static Future<List<Student>> getStudents(int classId) async {
+  // 班级学生（支持多条件筛选）
+  static Future<List<Student>> getStudents(
+    int classId, {
+    String? name,
+    String? studentNo,
+    int? adminClassId,
+    String? electiveClass,
+    String? studentStatus,
+  }) async {
+    final params = <String>[];
+    if (name != null && name.trim().isNotEmpty) {
+      params.add('name=${Uri.encodeComponent(name.trim())}');
+    }
+    if (studentNo != null && studentNo.trim().isNotEmpty) {
+      params.add('studentNo=${Uri.encodeComponent(studentNo.trim())}');
+    }
+    if (adminClassId != null) {
+      params.add('adminClassId=$adminClassId');
+    }
+    if (electiveClass != null && electiveClass.trim().isNotEmpty) {
+      params.add('electiveClass=${Uri.encodeComponent(electiveClass.trim())}');
+    }
+    if (studentStatus != null && studentStatus.trim().isNotEmpty) {
+      params.add('studentStatus=${Uri.encodeComponent(studentStatus.trim())}');
+    }
+    final query = params.isEmpty ? '' : '?${params.join('&')}';
     final data =
-        await ApiService.get('/teacher/classes/$classId/students') as List;
+        await ApiService.get('/teacher/classes/$classId/students$query') as List;
     return data.map((e) => Student.fromJson(e)).toList();
   }
 

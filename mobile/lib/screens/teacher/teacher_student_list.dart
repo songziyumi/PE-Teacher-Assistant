@@ -31,6 +31,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   List<SchoolClass> _adminClasses = [];
   List<ElectiveClass> _electiveClasses = [];
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _nameFilterCtrl = TextEditingController();
+  final TextEditingController _studentNoFilterCtrl = TextEditingController();
+  int? _selectedAdminClassId;
+  String? _selectedElectiveClass;
+  String? _selectedStudentStatus;
+  bool _filterExpanded = false;
 
   @override
   void initState() {
@@ -42,6 +48,8 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _nameFilterCtrl.dispose();
+    _studentNoFilterCtrl.dispose();
     super.dispose();
   }
 
@@ -64,7 +72,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final students = await TeacherService.getStudents(widget.classId);
+      final students = await _fetchStudents();
       if (!mounted) return;
       setState(() => _students = students);
     } catch (e) {
@@ -80,7 +88,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     final offset =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
     try {
-      final students = await TeacherService.getStudents(widget.classId);
+      final students = await _fetchStudents();
       if (!mounted) return;
       setState(() => _students = students);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +102,68 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('加载失败: $e')));
     }
+  }
+
+  Future<List<Student>> _fetchStudents() {
+    return TeacherService.getStudents(
+      widget.classId,
+      name: _nameFilterCtrl.text,
+      studentNo: _studentNoFilterCtrl.text,
+      adminClassId: _selectedAdminClassId,
+      electiveClass: _selectedElectiveClass,
+      studentStatus: _selectedStudentStatus,
+    );
+  }
+
+  void _applyFilters() {
+    _load();
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _nameFilterCtrl.clear();
+      _studentNoFilterCtrl.clear();
+      _selectedAdminClassId = null;
+      _selectedElectiveClass = null;
+      _selectedStudentStatus = null;
+    });
+    _load();
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_nameFilterCtrl.text.trim().isNotEmpty) count++;
+    if (_studentNoFilterCtrl.text.trim().isNotEmpty) count++;
+    if (_selectedAdminClassId != null) count++;
+    if (_selectedElectiveClass != null && _selectedElectiveClass!.isNotEmpty) {
+      count++;
+    }
+    if (_selectedStudentStatus != null && _selectedStudentStatus!.isNotEmpty) {
+      count++;
+    }
+    return count;
+  }
+
+  int _compareSchoolClass(SchoolClass a, SchoolClass b) {
+    final gradeCompare = (a.gradeName ?? '').compareTo(b.gradeName ?? '');
+    if (gradeCompare != 0) return gradeCompare;
+    return a.name.compareTo(b.name);
+  }
+
+  List<SchoolClass> get _sortedAdminClasses {
+    final list = List<SchoolClass>.from(_adminClasses);
+    list.sort(_compareSchoolClass);
+    return list;
+  }
+
+  List<ElectiveClass> get _sortedElectiveClasses {
+    final list = List<ElectiveClass>.from(_electiveClasses);
+    list.sort((a, b) {
+      final gradeCompare = (a.gradeName ?? '').compareTo(b.gradeName ?? '');
+      if (gradeCompare != 0) return gradeCompare;
+      return a.name.compareTo(b.name);
+    });
+    return list;
   }
 
   int? _findAdminGradeIdByClassId(int? classId) {
@@ -141,6 +211,143 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       });
     }
     return colors;
+  }
+
+  Widget _buildFilterPanel() {
+    final adminClasses = _sortedAdminClasses;
+    final electiveClasses = _sortedElectiveClasses;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: ExpansionTile(
+        initiallyExpanded: _filterExpanded,
+        onExpansionChanged: (expanded) =>
+            setState(() => _filterExpanded = expanded),
+        title: Text('筛选条件（已启用 $_activeFilterCount 项）'),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameFilterCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '姓名',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _applyFilters(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _studentNoFilterCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '学号',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onSubmitted: (_) => _applyFilters(),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int?>(
+                  initialValue: _selectedAdminClassId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '行政班',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('全部行政班'),
+                    ),
+                    ...adminClasses.map(
+                      (c) => DropdownMenuItem<int?>(
+                        value: c.id,
+                        child: Text(c.displayName),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedAdminClassId = v),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedElectiveClass,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '选修班',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('全部选修班'),
+                    ),
+                    ...electiveClasses.map(
+                      (c) => DropdownMenuItem<String?>(
+                        value: c.storedName,
+                        child: Text(c.displayName),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedElectiveClass = v),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedStudentStatus,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '学籍状态',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('全部状态'),
+                    ),
+                    ..._studentStatuses.map(
+                      (status) => DropdownMenuItem<String?>(
+                        value: status,
+                        child: Text(status),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setState(() => _selectedStudentStatus = v),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _loading ? null : _resetFilters,
+                        child: const Text('重置'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _loading ? null : _applyFilters,
+                        child: const Text('查询'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showEditDialog(Student s) async {
@@ -692,93 +899,105 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           ),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : displayStudents.isEmpty
-              ? const Center(child: Text('暂无学生'))
-              : RefreshIndicator(
-                  onRefresh: _reloadKeepPosition,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    itemCount: displayStudents.length,
-                    itemBuilder: (_, i) {
-                      final s = displayStudents[i];
-                      final classKey = _classGroupKey(s);
-                      final prevClassKey =
-                          i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
-                      final isClassStart = i > 0 && classKey != prevClassKey;
-                      final subtitleWidgets = <Widget>[
-                        if (s.displayClass.isNotEmpty)
-                          Text(
-                            '行政班：${s.displayClass}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.blueGrey),
-                          ),
-                        if (s.electiveClass != null &&
-                            s.electiveClass!.isNotEmpty)
-                          Text(
-                            '选修班：${s.electiveClass}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.orange),
-                          ),
-                      ];
-                      final titleText = (s.studentNo ?? '').trim().isEmpty
-                          ? s.name
-                          : '${s.name}（${s.studentNo}）';
-
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: classGroupColors[classKey] ?? Colors.white,
-                          border: isClassStart
-                              ? const Border(
-                                  top: BorderSide(
-                                      color: Colors.black26, width: 2),
-                                )
-                              : null,
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: s.isMale
-                                ? Colors.blue.shade100
-                                : Colors.pink.shade100,
-                            child: Text(
-                              s.gender ?? '?',
-                              style: TextStyle(
-                                color: s.isMale ? Colors.blue : Colors.pink,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(titleText),
-                          subtitle: subtitleWidgets.isEmpty
-                              ? null
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: subtitleWidgets,
+      body: Column(
+        children: [
+          _buildFilterPanel(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : displayStudents.isEmpty
+                    ? const Center(child: Text('暂无学生'))
+                    : RefreshIndicator(
+                        onRefresh: _reloadKeepPosition,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount: displayStudents.length,
+                          itemBuilder: (_, i) {
+                            final s = displayStudents[i];
+                            final classKey = _classGroupKey(s);
+                            final prevClassKey =
+                                i > 0 ? _classGroupKey(displayStudents[i - 1]) : null;
+                            final isClassStart = i > 0 && classKey != prevClassKey;
+                            final subtitleWidgets = <Widget>[
+                              if (s.displayClass.isNotEmpty)
+                                Text(
+                                  '行政班：${s.displayClass}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.blueGrey),
                                 ),
-                          isThreeLine: subtitleWidgets.length > 1,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: '出勤记录',
-                                icon: const Icon(Icons.fact_check_outlined,
-                                    color: Colors.green),
-                                onPressed: () => _showAttendanceDialog(s),
+                              if (s.electiveClass != null &&
+                                  s.electiveClass!.isNotEmpty)
+                                Text(
+                                  '选修班：${s.electiveClass}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.orange),
+                                ),
+                            ];
+                            final titleText = (s.studentNo ?? '').trim().isEmpty
+                                ? s.name
+                                : '${s.name}（${s.studentNo}）';
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: classGroupColors[classKey] ?? Colors.white,
+                                border: isClassStart
+                                    ? const Border(
+                                        top: BorderSide(
+                                            color: Colors.black26, width: 2),
+                                      )
+                                    : null,
                               ),
-                              IconButton(
-                                tooltip: '编辑',
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showEditDialog(s),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: s.isMale
+                                      ? Colors.blue.shade100
+                                      : Colors.pink.shade100,
+                                  child: Text(
+                                    s.gender ?? '?',
+                                    style: TextStyle(
+                                      color: s.isMale ? Colors.blue : Colors.pink,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(titleText),
+                                subtitle: subtitleWidgets.isEmpty
+                                    ? null
+                                    : Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: subtitleWidgets,
+                                      ),
+                                isThreeLine: subtitleWidgets.length > 1,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: '出勤记录',
+                                      icon: const Icon(
+                                        Icons.fact_check_outlined,
+                                        color: Colors.green,
+                                      ),
+                                      onPressed: () => _showAttendanceDialog(s),
+                                    ),
+                                    IconButton(
+                                      tooltip: '编辑',
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () => _showEditDialog(s),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }
