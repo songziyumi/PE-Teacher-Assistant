@@ -46,6 +46,10 @@ public class GradeService {
     @Transactional
     public Grade update(Long id, String name) {
         Grade g = gradeRepository.findById(id).orElseThrow();
+        School school = g.getSchool();
+        if (school != null && gradeRepository.existsByNameAndSchoolAndIdNot(name, school, id)) {
+            throw new IllegalArgumentException("骞寸骇宸插瓨鍦?");
+        }
         g.setName(name);
         return gradeRepository.save(g);
     }
