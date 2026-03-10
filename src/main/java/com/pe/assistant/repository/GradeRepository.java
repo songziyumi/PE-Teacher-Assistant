@@ -10,4 +10,5 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
     List<Grade> findBySchool(School school);
     Optional<Grade> findByNameAndSchool(String name, School school);
     boolean existsByNameAndSchool(String name, School school);
+    boolean existsByNameAndSchoolAndIdNot(String name, School school, Long id);
 }
