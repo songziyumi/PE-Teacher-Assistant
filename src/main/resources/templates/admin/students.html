@@ -102,7 +102,27 @@
             border: 1px solid #e5e7eb;
             padding: 10px;
         }
-
+        .delete-all-verify {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border: 1px dashed #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+        }
+        .delete-all-verify .verify-code {
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #dc2626;
+        }
+        .delete-all-verify input {
+            width: 90px;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+        }
         .setting-card {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
@@ -225,6 +245,11 @@
         <form th:action="@{/admin/students/delete-all}" method="post" style="display:inline"
               onsubmit="return confirm('确认删除全部学生数据？此操作不可恢复！')">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <span class="delete-all-verify">
+                <span>验证码</span>
+                <span class="verify-code" th:text="${deleteAllStudentsCode}">00000</span>
+                <input type="text" name="verifyCode" maxlength="5" pattern="\d{5}" required placeholder="输入验证码">
+            </span>
             <button type="submit" class="btn btn-danger">删除全部</button>
         </form>
     </div>
