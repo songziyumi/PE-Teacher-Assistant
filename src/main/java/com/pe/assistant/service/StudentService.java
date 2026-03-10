@@ -154,35 +154,47 @@ public class StudentService {
     public boolean importCreateOrUpdate(String name, String gender, String studentNo, String idCard,
             String electiveClass, Long classId, School school) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
-        return studentRepository.findByStudentNoAndSchool(studentNo, school)
-                .map(s -> {
-                    s.setName(name);
-                    s.setGender(gender);
-                    s.setIdCard(idCard);
-                    s.setElectiveClass(electiveClass);
-                    if (s.getStudentStatus() == null || s.getStudentStatus().isBlank()) {
-                        s.setStudentStatus("在籍");
-                    }
-                    s.setSchoolClass(sc);
-                    studentRepository.save(s);
-                    return false;
-                })
-                .orElseGet(() -> {
-                    Student s = new Student();
-                    s.setName(name);
-                    s.setGender(gender);
-                    s.setStudentNo(studentNo);
-                    s.setIdCard(idCard);
-                    s.setElectiveClass(electiveClass);
-                    s.setStudentStatus("在籍");
-                    s.setSchoolClass(sc);
-                    s.setSchool(school);
-                    studentRepository.save(s);
-                    return true;
-                });
+        School effectiveSchool = school != null ? school : sc.getSchool();
+        String normalizedStudentNo = studentNo == null ? "" : studentNo.trim();
+        if (normalizedStudentNo.isBlank()) {
+            throw new IllegalArgumentException("??????");
+        }
+        Optional<Student> existing = studentRepository.findByStudentNoAndSchool(normalizedStudentNo, effectiveSchool);
+        if (existing.isEmpty()) {
+            // ???????student_no ??? school_id ??
+            existing = studentRepository.findByStudentNo(normalizedStudentNo)
+                    .filter(s -> s.getSchool() == null
+                            || (effectiveSchool != null && Objects.equals(s.getSchool().getId(), effectiveSchool.getId())));
+        }
+        if (existing.isPresent()) {
+            Student s = existing.get();
+            s.setName(name);
+            s.setGender(gender);
+            s.setStudentNo(normalizedStudentNo);
+            s.setIdCard(idCard);
+            s.setElectiveClass(electiveClass);
+            if (s.getStudentStatus() == null || s.getStudentStatus().isBlank()) {
+                s.setStudentStatus("??");
+            }
+            s.setSchoolClass(sc);
+            if (s.getSchool() == null && effectiveSchool != null) {
+                s.setSchool(effectiveSchool);
+            }
+            studentRepository.save(s);
+            return false;
+        }
+        Student s = new Student();
+        s.setName(name);
+        s.setGender(gender);
+        s.setStudentNo(normalizedStudentNo);
+        s.setIdCard(idCard);
+        s.setElectiveClass(electiveClass);
+        s.setStudentStatus("??");
+        s.setSchoolClass(sc);
+        s.setSchool(effectiveSchool);
+        studentRepository.save(s);
+        return true;
     }
-
-    @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId) {
         return update(id, name, gender, studentNo, idCard, electiveClass, classId, null, null);

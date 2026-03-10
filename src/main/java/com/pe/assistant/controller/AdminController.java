@@ -14,15 +14,19 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Controller
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 public class AdminController {
+
+    private static final String DELETE_ALL_STUDENTS_CODE_KEY = "deleteAllStudentsCode";
 
     private final TeacherService teacherService;
     private final ClassService classService;
@@ -39,7 +43,7 @@ public class AdminController {
 
     // ===== Dashboard =====
     @GetMapping
-    public String adminDashboard(Model model) {
+    public String adminDashboard(Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         model.addAttribute("teacherCount", teacherService.findAll(school).size());
         model.addAttribute("classCount", classService.findAll(school).size());
@@ -49,7 +53,7 @@ public class AdminController {
 
     // ===== 年级管理 =====
     @GetMapping("/grades")
-    public String grades(Model model) {
+    public String grades(Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         model.addAttribute("grades", gradeService.findAll(school));
         return "admin/grades";
@@ -83,7 +87,7 @@ public class AdminController {
                           @RequestParam(required = false) Long gradeId,
                           @RequestParam(defaultValue = "") String name,
                           @RequestParam(defaultValue = "0") int page,
-                          Model model) {
+                          Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         Page<SchoolClass> classPage = classService.findByFilters(school, type, gradeId, name, page, 15);
         model.addAttribute("classPage", classPage);
@@ -137,7 +141,7 @@ public class AdminController {
                            @RequestParam(required = false) String username,
                            @RequestParam(required = false) String phone,
                            @RequestParam(defaultValue = "0") int page,
-                           Model model) {
+                           Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         int pageSize = 15;
         Page<Teacher> teacherPage = teacherService.findByFilters(school, name, username, phone, page, pageSize);
@@ -230,7 +234,7 @@ public class AdminController {
                            @RequestParam(defaultValue = "") String studentStatus,
                            @RequestParam(defaultValue = "0") int page,
                            @RequestParam(defaultValue = "15") int size,
-                           Model model) {
+                           Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         int pageSize = normalizePageSize(size);
         StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
@@ -256,6 +260,11 @@ public class AdminController {
         model.addAttribute("showOutgoingBorrowOnTeacherPage", !Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage()));
         model.addAttribute("electiveClasses", classService.findAll(school).stream()
             .filter(c -> "选修课".equals(c.getType())).toList());
+        String deleteAllCode = generateDeleteAllStudentsCode();
+        if (session != null) {
+            session.setAttribute(DELETE_ALL_STUDENTS_CODE_KEY, deleteAllCode);
+        }
+        model.addAttribute("deleteAllStudentsCode", deleteAllCode);
         return "admin/students";
     }
 
@@ -270,7 +279,16 @@ public class AdminController {
     }
 
     @PostMapping("/students/delete-all")
-    public String deleteAllStudents(RedirectAttributes ra) {
+    public String deleteAllStudents(@RequestParam(required = false) String verifyCode, HttpSession session, RedirectAttributes ra) {
+        String expected = session == null ? null : (String) session.getAttribute(DELETE_ALL_STUDENTS_CODE_KEY);
+        if (session != null) {
+            session.removeAttribute(DELETE_ALL_STUDENTS_CODE_KEY);
+        }
+        String submitted = verifyCode == null ? "" : verifyCode.trim();
+        if (expected == null || submitted.isEmpty() || !expected.equals(submitted)) {
+            ra.addFlashAttribute("error", "验证码错误");
+            return "redirect:/admin/students";
+        }
         try {
             studentService.deleteAll();
             ra.addFlashAttribute("success", "已删除全部学生数据");
@@ -399,7 +417,7 @@ public class AdminController {
                         @RequestParam(defaultValue = "") String studentNo,
                         @RequestParam(defaultValue = "") String idCard,
                         @RequestParam(defaultValue = "0") int page,
-                        Model model) {
+                        Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
                 "", "", "");
@@ -433,7 +451,7 @@ public class AdminController {
     @GetMapping("/stats/absent")
     public String absentQuery(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end,
-                              Model model) {
+                              Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         if (start == null) start = LocalDate.now();
         if (end == null)   end   = LocalDate.now();
@@ -825,6 +843,10 @@ public class AdminController {
                 safeTrim(normalizedElective), safeTrim(studentStatus));
     }
 
+    private String generateDeleteAllStudentsCode() {
+        int code = ThreadLocalRandom.current().nextInt(10000, 100000);
+        return String.valueOf(code);
+    }
     private int normalizePageSize(int size) {
         List<Integer> allowed = List.of(10, 15, 30, 50);
         return allowed.contains(size) ? size : 15;
