@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../models/teacher_message.dart';
 import '../../services/teacher_service.dart';
 import '../../widgets/teacher_bottom_nav.dart';
@@ -15,10 +16,24 @@ class TeacherMessageCenterScreen extends StatefulWidget {
 class _TeacherMessageCenterScreenState
     extends State<TeacherMessageCenterScreen> {
   static const Map<String, String> _typeLabels = {
-    'ALL': '全部类型',
-    'COURSE_REQUEST': '选课申请',
-    'GENERAL': '普通消息',
+    'ALL': '\u5168\u90e8\u7c7b\u578b',
+    'COURSE_REQUEST': '\u9009\u8bfe\u7533\u8bf7',
+    'GENERAL': '\u666e\u901a\u6d88\u606f',
   };
+
+  static const _messageCenterTitle = '\u7ad9\u5185\u6d88\u606f';
+  static const _allLabel = '\u5168\u90e8';
+  static const _unreadOnlyLabel = '\u4ec5\u672a\u8bfb';
+  static const _messageDetailTitle = '\u6d88\u606f\u8be6\u60c5';
+  static const _emptyContentText = '\u6682\u65e0\u5185\u5bb9';
+  static const _closeLabel = '\u5173\u95ed';
+  static const _emptyListText = '\u6682\u65e0\u6d88\u606f';
+  static const _untitledText = '\uff08\u65e0\u4e3b\u9898\uff09';
+  static const _loadFailedPrefix = '\u52a0\u8f7d\u6d88\u606f\u5931\u8d25: ';
+  static const _markReadFailedPrefix = '\u6807\u8bb0\u5df2\u8bfb\u5931\u8d25: ';
+  static const _courseRequestFallbackMessage =
+      '\u5173\u8054\u7684\u9009\u8bfe\u7533\u8bf7\u5df2\u4e0d\u5b58\u5728\uff0c'
+      '\u5df2\u4e3a\u4f60\u663e\u793a\u6d88\u606f\u8be6\u60c5';
 
   bool _loading = true;
   bool _unreadOnly = false;
@@ -31,8 +46,10 @@ class _TeacherMessageCenterScreenState
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() => _loading = true);
+    }
     try {
       final result = await TeacherService.getTeacherMessages(
         unreadOnly: _unreadOnly,
@@ -41,68 +58,91 @@ class _TeacherMessageCenterScreenState
       if (!mounted) return;
       setState(() => _messages = result);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('加载消息失败: $e')));
+      _showSnackBar('$_loadFailedPrefix$e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
-  Future<void> _onTapMessage(TeacherMessage msg) async {
-    final router = GoRouter.of(context);
-    if (!msg.isRead) {
-      try {
-        await TeacherService.markTeacherMessageRead(msg.id);
-        final idx = _messages.indexWhere((m) => m.id == msg.id);
-        if (idx >= 0 && mounted) {
-          setState(() {
-            _messages[idx] = TeacherMessage(
-              id: msg.id,
-              subject: msg.subject,
-              content: msg.content,
-              type: msg.type,
-              status: msg.status,
-              isRead: true,
-              sentAt: msg.sentAt,
-              senderType: msg.senderType,
-              senderId: msg.senderId,
-              senderName: msg.senderName,
-              relatedCourseId: msg.relatedCourseId,
-              relatedCourseName: msg.relatedCourseName,
-              businessTargetType: msg.businessTargetType,
-              businessTargetId: msg.businessTargetId,
-            );
-          });
-        }
-      } catch (_) {}
-    }
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
-    if (msg.canJumpToCourseRequest) {
-      await router.push('/teacher/course-requests/${msg.businessTargetId}');
-      if (!mounted) return;
-      _load();
+  void _markMessageReadLocally(TeacherMessage msg) {
+    final index = _messages.indexWhere((item) => item.id == msg.id);
+    if (index < 0 || !mounted) {
       return;
     }
+    setState(() {
+      if (_unreadOnly) {
+        _messages.removeAt(index);
+      } else {
+        _messages[index] = _messages[index].copyWith(isRead: true);
+      }
+    });
+  }
 
+  Future<void> _showMessageDetailDialog(TeacherMessage msg) async {
     if (!mounted) return;
-    showDialog(
+    await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(msg.subject ?? '消息详情'),
+        title: Text(msg.subject ?? _messageDetailTitle),
         content: Text(
           (msg.content == null || msg.content!.trim().isEmpty)
-              ? '暂无内容'
+              ? _emptyContentText
               : msg.content!,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('关闭'),
+            child: const Text(_closeLabel),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _openCourseRequestOrFallback(TeacherMessage msg) async {
+    final targetId = msg.businessTargetId;
+    if (targetId == null) {
+      await _showMessageDetailDialog(msg);
+      return;
+    }
+    try {
+      await TeacherService.getCourseRequestDetail(targetId);
+      if (!mounted) return;
+      await GoRouter.of(context).push('/teacher/course-requests/$targetId');
+      if (!mounted) return;
+      await _load(showLoading: false);
+    } catch (_) {
+      _showSnackBar(_courseRequestFallbackMessage);
+      await _showMessageDetailDialog(msg);
+    }
+  }
+
+  Future<void> _onTapMessage(TeacherMessage msg) async {
+    if (!msg.isRead) {
+      _markMessageReadLocally(msg);
+      try {
+        await TeacherService.markTeacherMessageRead(msg.id);
+      } catch (e) {
+        _showSnackBar('$_markReadFailedPrefix$e');
+        await _load(showLoading: false);
+      }
+    }
+
+    if (msg.canJumpToCourseRequest) {
+      await _openCourseRequestOrFallback(msg);
+      return;
+    }
+
+    await _showMessageDetailDialog(msg);
   }
 
   String _formatDate(DateTime? dt) {
@@ -111,10 +151,64 @@ class _TeacherMessageCenterScreenState
     return local.length >= 16 ? local.substring(0, 16) : local;
   }
 
+  Widget _buildMessageList() {
+    if (_messages.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        children: const [
+          SizedBox(height: 120),
+          Center(child: Text(_emptyListText)),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(12),
+      itemCount: _messages.length,
+      itemBuilder: (_, i) {
+        final msg = _messages[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: ListTile(
+            onTap: () => _onTapMessage(msg),
+            leading: Icon(
+              msg.canJumpToCourseRequest ? Icons.approval : Icons.mail,
+              color: msg.isRead ? Colors.grey : Colors.blueAccent,
+            ),
+            title: Text(msg.subject ?? _untitledText),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  (msg.content == null || msg.content!.trim().isEmpty)
+                      ? _emptyContentText
+                      : msg.content!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatDate(msg.sentAt),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            trailing: msg.canJumpToCourseRequest
+                ? const Icon(Icons.chevron_right)
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('站内消息')),
+      appBar: AppBar(title: const Text(_messageCenterTitle)),
       body: Column(
         children: [
           const SizedBox(height: 12),
@@ -123,7 +217,7 @@ class _TeacherMessageCenterScreenState
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('全部'),
+                  label: const Text(_allLabel),
                   selected: !_unreadOnly,
                   onSelected: (_) {
                     if (_unreadOnly) {
@@ -134,7 +228,7 @@ class _TeacherMessageCenterScreenState
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('仅未读'),
+                  label: const Text(_unreadOnlyLabel),
                   selected: _unreadOnly,
                   onSelected: (_) {
                     if (!_unreadOnly) {
@@ -175,58 +269,10 @@ class _TeacherMessageCenterScreenState
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
-                    ? const Center(child: Text('暂无消息'))
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _messages.length,
-                          itemBuilder: (_, i) {
-                            final msg = _messages[i];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: ListTile(
-                                onTap: () => _onTapMessage(msg),
-                                leading: Icon(
-                                  msg.canJumpToCourseRequest
-                                      ? Icons.approval
-                                      : Icons.mail,
-                                  color: msg.isRead
-                                      ? Colors.grey
-                                      : Colors.blueAccent,
-                                ),
-                                title: Text(msg.subject ?? '（无主题）'),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      (msg.content == null ||
-                                              msg.content!.trim().isEmpty)
-                                          ? '暂无内容'
-                                          : msg.content!,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _formatDate(msg.sentAt),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing: msg.canJumpToCourseRequest
-                                    ? const Icon(Icons.chevron_right)
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                : RefreshIndicator(
+                    onRefresh: () => _load(showLoading: false),
+                    child: _buildMessageList(),
+                  ),
           ),
         ],
       ),
