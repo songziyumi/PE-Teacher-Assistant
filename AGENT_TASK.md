@@ -1,53 +1,53 @@
-# Agent Task: Students
+# Agent Task: Approval
 
-You are working in the `feature/teacher-p1-students` worktree.
+You are working in the `feature/teacher-p1-approval` worktree.
 
 ## Goal
 
-Complete the teacher-side P1 first batch for student management:
-- multi-filter student list verification and completion
-- batch student operations
+Complete the teacher-side P1 first batch for approval workflow:
+- batch approval API behavior
+- batch approval UI flow
+- partial failure handling
 
 ## Scope
 
 Primary files:
 - `src/main/java/com/pe/assistant/controller/api/TeacherApiController.java`
-- `src/main/java/com/pe/assistant/service/StudentService.java`
+- `src/main/java/com/pe/assistant/service/MessageService.java`
 - `src/test/java/com/pe/assistant/controller/api/TeacherApiControllerRegressionTest.java`
 - `mobile/lib/services/teacher_service.dart`
-- `mobile/lib/screens/teacher/teacher_student_list.dart`
+- `mobile/lib/screens/teacher/course_request_center.dart`
 
 ## Required Outcomes
 
-- Confirm all filters work correctly:
-  - `name`
-  - `studentNo`
-  - `adminClassId`
-  - `electiveClass`
-  - `studentStatus`
-- Complete batch student actions:
-  - batch update student status
-  - batch assign elective class
-  - batch clear elective class
-- Show readable batch result feedback:
-  - `totalCount`
-  - `successCount`
-  - `failedCount`
-  - failed item summary or IDs
+- Review and complete `/teacher/course-requests/batch-handle`
+- Make partial failures explicit:
+  - already processed
+  - not owned by current teacher
+  - not found
+  - invalid message type
+- Complete batch approval UI:
+  - multi-select
+  - select all
+  - clear selection
+  - batch approve
+  - batch reject
+  - disable repeated submit while running
+  - readable partial failure feedback
 - Add regression coverage for:
-  - empty selection
-  - duplicated student IDs
-  - `electiveClass = null`
-  - cross-school rejection
+  - batch approve success
+  - batch reject success
+  - partial failure
+  - duplicated message IDs
+  - blank and overlong remark handling
 
 ## Hard Boundaries
 
 Do not modify:
-- `mobile/lib/screens/teacher/course_request_center.dart`
-- `mobile/lib/screens/teacher/course_request_detail.dart`
+- `mobile/lib/screens/teacher/teacher_student_list.dart`
+- `mobile/lib/models/student.dart`
 - `mobile/lib/screens/teacher/teacher_message_center.dart`
-- `mobile/lib/models/teacher_message.dart`
-- `src/main/java/com/pe/assistant/service/MessageService.java`
+- `src/main/java/com/pe/assistant/service/StudentService.java`
 
 ## Validation
 
@@ -63,5 +63,5 @@ dart analyze --no-fatal-warnings
 Use:
 
 ```text
-students: <change>
+approval: <change>
 ```
