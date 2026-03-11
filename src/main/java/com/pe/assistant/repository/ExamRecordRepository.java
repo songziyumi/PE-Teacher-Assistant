@@ -1,8 +1,10 @@
 package com.pe.assistant.repository;
 
 import com.pe.assistant.entity.ExamRecord;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -30,4 +32,8 @@ public interface ExamRecordRepository extends JpaRepository<ExamRecord, Long> {
     
     @Query("SELECT e FROM ExamRecord e WHERE e.examName = :examName AND e.student.schoolClass.id = :classId ORDER BY e.totalScore DESC")
     List<ExamRecord> findByExamNameAndClassIdOrderByScore(@Param("examName") String examName, @Param("classId") Long classId);
+
+    @Modifying
+    @Query("DELETE FROM ExamRecord e WHERE e.student.school = :school")
+    void deleteAllBySchool(@Param("school") School school);
 }

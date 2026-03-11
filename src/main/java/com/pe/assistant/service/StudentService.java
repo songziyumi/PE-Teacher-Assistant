@@ -301,25 +301,19 @@ public class StudentService {
     }
 
     @Transactional
-    public void deleteAll() {
-        courseSelectionRepository.deleteAll();
-        eventStudentRepository.deleteAll();
-        attendanceRepository.deleteAll();
-        termGradeRepository.deleteAll();
-        physicalTestRepository.deleteAll();
-        healthTestRecordRepository.deleteAll();
-        examRecordRepository.deleteAll();
+    public void deleteAll(School school) {
+        courseSelectionRepository.deleteAllBySchool(school);
+        eventStudentRepository.deleteAllBySchool(school);
+        attendanceRepository.deleteAllBySchool(school);
+        termGradeRepository.deleteAllBySchool(school);
+        physicalTestRepository.deleteAllBySchool(school);
+        healthTestRecordRepository.deleteAllBySchool(school);
+        examRecordRepository.deleteAllBySchool(school);
 
-        courseClassCapacityRepository.findAll().forEach(capacity -> {
-            capacity.setCurrentCount(0);
-            courseClassCapacityRepository.save(capacity);
-        });
-        courseRepository.findAll().forEach(course -> {
-            course.setCurrentCount(0);
-            courseRepository.save(course);
-        });
+        courseClassCapacityRepository.resetCountsBySchool(school);
+        courseRepository.resetCountsBySchool(school);
 
-        studentRepository.deleteAll();
+        studentRepository.deleteAllBySchool(school);
     }
 
     @Transactional
