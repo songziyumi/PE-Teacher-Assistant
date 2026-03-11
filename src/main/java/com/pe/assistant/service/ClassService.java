@@ -18,6 +18,7 @@ public class ClassService {
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
     private final AttendanceRepository attendanceRepository;
+    private final StudentService studentService;
 
     public List<SchoolClass> findAll(School school) {
         return classRepository.findBySchool(school);
@@ -92,9 +93,8 @@ public class ClassService {
     }
 
     @Transactional
-    public void deleteAll() {
-        attendanceRepository.deleteAll();
-        studentRepository.deleteAll();
-        classRepository.deleteAll();
+    public void deleteAll(School school) {
+        studentService.deleteAll(school);
+        classRepository.deleteAll(classRepository.findBySchool(school));
     }
 }

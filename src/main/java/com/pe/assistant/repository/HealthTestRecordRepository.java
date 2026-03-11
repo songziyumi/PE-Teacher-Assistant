@@ -1,8 +1,10 @@
 package com.pe.assistant.repository;
 
 import com.pe.assistant.entity.HealthTestRecord;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,4 +29,8 @@ public interface HealthTestRecordRepository extends JpaRepository<HealthTestReco
     
     @Query("SELECT h FROM HealthTestRecord h WHERE h.student.schoolClass.grade.id = :gradeId ORDER BY h.testDate DESC")
     List<HealthTestRecord> findByGradeId(@Param("gradeId") Long gradeId);
+
+    @Modifying
+    @Query("DELETE FROM HealthTestRecord h WHERE h.student.school = :school")
+    void deleteAllBySchool(@Param("school") School school);
 }

@@ -6,6 +6,7 @@ import com.pe.assistant.entity.Teacher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
@@ -81,4 +82,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     long countBySchool(School school);
 
     List<Student> findBySchoolOrderByStudentNo(School school);
+
+    @Modifying
+    @Query("DELETE FROM Student s WHERE s.school = :school")
+    void deleteAllBySchool(@Param("school") School school);
 }
