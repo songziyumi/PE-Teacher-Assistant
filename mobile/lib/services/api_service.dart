@@ -73,7 +73,15 @@ class ApiService {
   }
 
   static dynamic _handle(http.Response res) {
-    final decoded = jsonDecode(utf8.decode(res.bodyBytes));
+    final body = utf8.decode(res.bodyBytes);
+    // Guard against HTML error pages (e.g. Spring Boot's 404/500 ErrorController)
+    if (body.trimLeft().startsWith('<')) {
+      if (res.statusCode == 401) throw ApiException(401, '未授权，请先登录');
+      if (res.statusCode == 403) throw ApiException(403, '权限不足');
+      if (res.statusCode == 404) throw ApiException(404, '接口不存在');
+      throw ApiException(res.statusCode, '服务器错误 (${res.statusCode})');
+    }
+    final decoded = jsonDecode(body);
 
     if (decoded is Map<String, dynamic>) {
       final code = decoded['code'];
