@@ -20,37 +20,39 @@ class ApiService {
     };
   }
 
+  /// 发送 HTTP 请求，禁止自动跟随重定向（防止 302→HTML 被误当成 200 成功）
+  static Future<http.Response> _send(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+    bool json = true,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.apiBase}$path');
+    final request = http.Request(method, uri);
+    request.headers.addAll(await _headers(json: json));
+    request.followRedirects = false;
+    if (body != null) request.body = jsonEncode(body);
+    final streamed = await http.Client().send(request);
+    return http.Response.fromStream(streamed);
+  }
+
   static Future<dynamic> get(String path) async {
-    final res = await http.get(
-      Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(json: true),
-    );
+    final res = await _send('GET', path);
     return _handle(res);
   }
 
   static Future<dynamic> post(String path, Map<String, dynamic> body) async {
-    final res = await http.post(
-      Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(json: true),
-      body: jsonEncode(body),
-    );
+    final res = await _send('POST', path, body: body);
     return _handle(res);
   }
 
   static Future<dynamic> put(String path, Map<String, dynamic> body) async {
-    final res = await http.put(
-      Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(json: true),
-      body: jsonEncode(body),
-    );
+    final res = await _send('PUT', path, body: body);
     return _handle(res);
   }
 
   static Future<dynamic> delete(String path) async {
-    final res = await http.delete(
-      Uri.parse('${ApiConfig.apiBase}$path'),
-      headers: await _headers(json: true),
-    );
+    final res = await _send('DELETE', path);
     return _handle(res);
   }
 
@@ -73,6 +75,10 @@ class ApiService {
   }
 
   static dynamic _handle(http.Response res) {
+    // 302 重定向通常意味着 session 过期被踢到登录页，等同于 401
+    if (res.statusCode >= 300 && res.statusCode < 400) {
+      throw ApiException(401, '未授权，请重新登录');
+    }
     final body = utf8.decode(res.bodyBytes);
     // Guard against HTML error pages (e.g. Spring Boot's 404/500 ErrorController)
     if (body.trimLeft().startsWith('<')) {
