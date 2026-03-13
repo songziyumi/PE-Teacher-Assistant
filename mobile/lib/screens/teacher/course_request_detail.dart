@@ -49,7 +49,18 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
   }
 
   Future<void> _handle(bool approve) async {
+    await _submitHandle(approve);
+  }
+
+  Future<void> _submitHandle(
+    bool approve, {
+    bool skipConfirm = false,
+  }) async {
     if (_request == null || _submitting) return;
+    if (!skipConfirm) {
+      final confirmed = await _confirmHandle(approve);
+      if (confirmed != true) return;
+    }
     setState(() => _submitting = true);
     try {
       final remark = _remarkController.text.trim();
@@ -65,16 +76,57 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
         );
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(approve ? '已同意申请' : '已拒绝申请')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(approve ? '已同意申请' : '已拒绝申请')),
+      );
       context.pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('操作失败: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('操作失败: $e'),
+          action: SnackBarAction(
+            label: '重试',
+            onPressed: () => _submitHandle(approve, skipConfirm: true),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Future<bool?> _confirmHandle(bool approve) {
+    final remark = _remarkController.text.trim();
+    final actionLabel =
+        approve ? '\u540c\u610f' : '\u62d2\u7edd';
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('\u786e\u8ba4$actionLabel'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('\u786e\u8ba4$actionLabel\u8be5\u7533\u8bf7\u5417\uff1f'),
+            if (remark.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('\u5907\u6ce8\uff1a$remark'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u786e\u8ba4'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDate(DateTime? dt) {
@@ -231,7 +283,9 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed:
-                                    _submitting ? null : () => _handle(false),
+                                    _submitting
+                                        ? null
+                                        : () => _submitHandle(false),
                                 style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.red),
                                 child: const Text('拒绝'),
@@ -241,7 +295,7 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
                             Expanded(
                               child: ElevatedButton(
                                 onPressed:
-                                    _submitting ? null : () => _handle(true),
+                                    _submitting ? null : () => _submitHandle(true),
                                 child: Text(_submitting ? '处理中...' : '同意'),
                               ),
                             ),

@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/teacher")
 @RequiredArgsConstructor
 public class TeacherApiController {
+    private static final Map<String, String> LEGACY_STUDENT_STATUS_ALIASES = Map.of(
+            "\u5916\u51fa\u501f\u8bfb", "\u5728\u5916\u501f\u8bfb",
+            "\u5916\u6821\u501f\u8bfb", "\u501f\u8bfb");
 
     private final ClassService classService;
     private final StudentService studentService;
@@ -240,20 +243,18 @@ public class TeacherApiController {
     }
 
     @GetMapping("/messages")
-    public ApiResponse<List<Map<String, Object>>> messages(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> messages(
             @RequestParam(defaultValue = "false") boolean unreadOnly,
             @RequestParam(defaultValue = "ALL") String type) {
-        Teacher teacher = currentUserService.getCurrentTeacher();
-        List<InternalMessage> list = messageService.getTeacherInbox(teacher, type);
-        if (unreadOnly) {
-            list = list.stream()
-                    .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            List<Map<String, Object>> result = messageService.getTeacherInbox(teacher, type, unreadOnly).stream()
+                    .map(this::toTeacherMessageMap)
                     .collect(Collectors.toList());
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
-        List<Map<String, Object>> result = list.stream()
-                .map(this::toTeacherMessageMap)
-                .collect(Collectors.toList());
-        return ApiResponse.ok(result);
     }
 
     @PostMapping("/messages/{id:\\d+}/read")
@@ -317,13 +318,16 @@ public class TeacherApiController {
                 return ResponseEntity.badRequest().body(ApiResponse.error(400, "批量操作类型仅支持 APPROVE 或 REJECT"));
             }
 
-            List<Long> deduplicatedIds = new ArrayList<>(new LinkedHashSet<>(body.getMessageIds()));
+            List<Long> deduplicatedIds = body.getMessageIds().stream()
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (deduplicatedIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "\u8bf7\u9009\u62e9\u8981\u5904\u7406\u7684\u5ba1\u6279\u8bb0\u5f55"));
+            }
             List<Long> successIds = new ArrayList<>();
             List<Map<String, Object>> failedItems = new ArrayList<>();
             for (Long messageId : deduplicatedIds) {
-                if (messageId == null) {
-                    continue;
-                }
                 try {
                     if (approve) {
                         messageService.approveRequest(messageId, teacher, body.getRemark());
@@ -333,6 +337,7 @@ public class TeacherApiController {
                     successIds.add(messageId);
                 } catch (Exception ex) {
                     Map<String, Object> failed = new LinkedHashMap<>();
+                    failed.put("id", messageId);
                     failed.put("messageId", messageId);
                     failed.put("reason", ex.getMessage() == null ? "处理失败" : ex.getMessage());
                     failedItems.add(failed);
@@ -359,6 +364,18 @@ public class TeacherApiController {
         private String remark;
     }
 
+    @Data
+    static class BatchStudentStatusRequest {
+        private List<Long> studentIds;
+        private String studentStatus;
+    }
+
+    @Data
+    static class BatchStudentElectiveClassRequest {
+        private List<Long> studentIds;
+        private String electiveClass;
+    }
+
     private Map<String, Object> toCourseRequestMap(InternalMessage msg) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", msg.getId());
@@ -377,6 +394,21 @@ public class TeacherApiController {
         m.put("handledAt", msg.getHandledAt());
         m.put("handleRemark", msg.getHandleRemark());
         return m;
+    }
+
+    private Map<String, Object> buildBatchStudentResult(StudentService.BatchStudentOperationResult batchResult) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalCount", batchResult.getTotalCount());
+        result.put("successCount", batchResult.getSuccessCount());
+        result.put("failedCount", batchResult.getFailedCount());
+        result.put("studentIds", batchResult.getStudentIds());
+        result.put("failedItems", batchResult.getFailedItems().stream().map(item -> {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("id", item.getStudentId());
+            failure.put("reason", item.getReason());
+            return failure;
+        }).collect(Collectors.toList()));
+        return result;
     }
 
     private Map<String, Object> toTeacherMessageMap(InternalMessage msg) {
@@ -463,6 +495,38 @@ public class TeacherApiController {
 
     // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
 
+    @PostMapping("/students/batch-update-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentStatus(
+            @RequestBody BatchStudentStatusRequest body) {
+        try {
+            if (body == null || body.getStudentIds() == null || body.getStudentIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            School school = currentUserService.getCurrentSchool();
+            StudentService.BatchStudentOperationResult updated =
+                    studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/students/batch-update-elective-class")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentElectiveClass(
+            @RequestBody BatchStudentElectiveClassRequest body) {
+        try {
+            if (body == null || body.getStudentIds() == null || body.getStudentIds().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            School school = currentUserService.getCurrentSchool();
+            StudentService.BatchStudentOperationResult updated =
+                    studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
     @GetMapping("/classes/{classId}/students")
     public ApiResponse<List<Map<String, Object>>> students(
             @PathVariable Long classId,
@@ -487,7 +551,7 @@ public class TeacherApiController {
                         || (s.getSchoolClass() != null && Objects.equals(s.getSchoolClass().getId(), adminClassId)))
                 .filter(s -> containsIgnoreCase(s.getElectiveClass(), electiveClass))
                 .filter(s -> isBlank(studentStatus)
-                        || normalizeText(studentStatus).equals(normalizeText(s.getStudentStatus())))
+                        || normalizeStudentStatusText(studentStatus).equals(normalizeStudentStatusText(s.getStudentStatus())))
                 .collect(Collectors.toList());
         List<Map<String, Object>> result = students.stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -760,6 +824,11 @@ public class TeacherApiController {
 
     private String normalizeText(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeStudentStatusText(String value) {
+        String normalized = normalizeText(value);
+        return LEGACY_STUDENT_STATUS_ALIASES.getOrDefault(normalized, normalized);
     }
 
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {

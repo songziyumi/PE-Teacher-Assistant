@@ -2,9 +2,11 @@ package com.pe.assistant.repository;
 
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.CourseSelection;
+import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
@@ -45,4 +47,8 @@ public interface CourseSelectionRepository extends JpaRepository<CourseSelection
     @Query("SELECT cs FROM CourseSelection cs WHERE cs.course = :course AND cs.status = 'PENDING' AND cs.round = 1 AND cs.student.schoolClass.id = :classId ORDER BY cs.selectedAt ASC")
     List<CourseSelection> findPendingByClassId(
             @Param("course") Course course, @Param("classId") Long classId);
+
+    @Modifying
+    @Query("DELETE FROM CourseSelection cs WHERE cs.student.school = :school")
+    void deleteAllBySchool(@Param("school") School school);
 }
