@@ -36,8 +36,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final result =
-          await TeacherService.getCourseRequests(status: _selectedStatus);
+      final result = await TeacherService.getCourseRequests(
+        status: _selectedStatus,
+      );
       if (!mounted) return;
       setState(() {
         _requests = result;
@@ -45,14 +46,16 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
           _batchMode = false;
           _selectedRequestIds.clear();
         } else {
-          _selectedRequestIds
-              .removeWhere((id) => !_requests.any((req) => req.id == id));
+          _selectedRequestIds.removeWhere(
+            (id) => !_requests.any((req) => req.id == id),
+          );
         }
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('加载审批数据失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('加载审批数据失败: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -107,54 +110,145 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   Future<void> _batchHandle(bool approve) async {
     if (_batchSubmitting || _selectedStatus != 'PENDING') return;
     if (_selectedRequestIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先选择至少一条待审批记录')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('璇峰厛閫夋嫨鑷冲皯涓€鏉″緟瀹℃壒璁板綍')));
       return;
     }
 
     final remark = await _showBatchRemarkDialog(approve);
     if (!mounted || remark == null) return;
+    final confirmed = await _confirmBatchAction(
+      approve: approve,
+      count: _selectedRequestIds.length,
+      remark: remark.trim(),
+    );
+    if (!confirmed) return;
+    await _executeBatchHandle(
+      ids: _selectedRequestIds.toList(),
+      approve: approve,
+      remark: remark.trim().isEmpty ? null : remark.trim(),
+    );
+  }
 
+  Future<void> _executeBatchHandle({
+    required List<int> ids,
+    required bool approve,
+    required String? remark,
+  }) async {
+    if (_batchSubmitting || ids.isEmpty) return;
     setState(() => _batchSubmitting = true);
     try {
       final result = await TeacherService.batchHandleCourseRequests(
-        _selectedRequestIds.toList(),
+        ids,
         approve: approve,
-        remark: remark.isEmpty ? null : remark,
+        remark: remark,
       );
       if (!mounted) return;
 
+      final actionLabel =
+          approve ? '\u540c\u610f' : '\u62d2\u7edd';
       final successCount = _toInt(result['successCount']);
       final failedCount = _toInt(result['failedCount']);
       final failedItems = (result['failedItems'] is List)
           ? (result['failedItems'] as List)
           : const [];
       final failedIds = failedItems
-          .map((e) => (e is Map ? e['messageId'] : null)?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .take(5)
-          .toList();
-      final failedSuffix =
-          failedIds.isEmpty ? '' : '，失败ID：${failedIds.join(', ')}';
+          .map((item) {
+            if (item is! Map) return null;
+            final id =
+                item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+            if (id is num) return id.toInt();
+            return int.tryParse(id?.toString() ?? '');
+          })
+          .whereType<int>()
+          .toSet();
+
+      _selectedRequestIds.clear();
+      await _load();
+      if (!mounted) return;
+      if (failedIds.isNotEmpty) {
+        setState(() {
+          _selectedRequestIds
+            ..clear()
+            ..addAll(
+              failedIds.where(
+                (id) => _requests.any((req) => req.id == id),
+              ),
+            );
+        });
+      }
+
+      if (failedCount > 0) {
+        await _showBatchFailureDialog(
+          approve: approve,
+          remark: remark,
+          actionLabel: actionLabel,
+          successCount: successCount,
+          failedCount: failedCount,
+          failedItems: failedItems,
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '批量${approve ? '同意' : '拒绝'}完成：成功$successCount，失败$failedCount$failedSuffix',
+            '\u6279\u91cf$actionLabel\u5b8c\u6210\uff1a\u6210\u529f$successCount\u6761',
           ),
         ),
       );
-      _selectedRequestIds.clear();
-      await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('批量操作失败: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text('\u6279\u91cf\u64cd\u4f5c\u5931\u8d25: $e'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _batchSubmitting = false);
     }
   }
 
+  Future<bool> _confirmBatchAction({
+    required bool approve,
+    required int count,
+    required String remark,
+  }) async {
+    final actionLabel =
+        approve ? '\u540c\u610f' : '\u62d2\u7edd';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('\u786e\u8ba4$actionLabel'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '\u786e\u8ba4$actionLabel $count \u6761\u5ba1\u6279\u8bb0\u5f55\u5417\uff1f',
+            ),
+            if (remark.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('\u5907\u6ce8\uff1a$remark'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u786e\u8ba4'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
   Future<String?> _showBatchRemarkDialog(bool approve) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
@@ -185,6 +279,127 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     );
     controller.dispose();
     return result;
+  }
+
+  Future<void> _showBatchFailureDialog({
+    required bool approve,
+    required String? remark,
+    required String actionLabel,
+    required int successCount,
+    required int failedCount,
+    required List failedItems,
+  }) {
+    final failureLines = failedItems
+        .map(_formatFailedItem)
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final failedIds = failedItems
+        .map((item) {
+          if (item is! Map) return null;
+          final id =
+              item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+          if (id is num) return id.toInt();
+          return int.tryParse(id?.toString() ?? '');
+        })
+        .whereType<int>()
+        .toList();
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('\u90e8\u5206\u5904\u7406\u5931\u8d25'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '\u6279\u91cf$actionLabel\u5df2\u5b8c\u6210\uff1a'
+                '\u6210\u529f$successCount\u6761\uff0c'
+                '\u5931\u8d25$failedCount\u6761\u3002',
+              ),
+              if (failureLines.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('\u5931\u8d25\u660e\u7ec6\uff1a'),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  child: SingleChildScrollView(
+                    child: Text(failureLines.join('\n')),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (failedIds.isNotEmpty)
+            TextButton(
+              onPressed: _batchSubmitting
+                  ? null
+                  : () async {
+                      Navigator.of(dialogContext).pop();
+                      final retryConfirmed = await _confirmRetryBatchAction(
+                        approve: approve,
+                        count: failedIds.length,
+                      );
+                      if (!retryConfirmed) return;
+                      await _executeBatchHandle(
+                        ids: failedIds,
+                        approve: approve,
+                        remark: remark,
+                      );
+                    },
+              child: const Text('\u91cd\u8bd5\u5931\u8d25\u9879'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('\u6211\u77e5\u9053\u4e86'),
+          ),
+        ],
+      ),
+    );
+  }
+  Future<bool> _confirmRetryBatchAction({
+    required bool approve,
+    required int count,
+  }) async {
+    final actionLabel =
+        approve ? '\u540c\u610f' : '\u62d2\u7edd';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('\u91cd\u8bd5\u5931\u8d25\u9879'),
+        content: Text(
+          '\u786e\u8ba4\u91cd\u8bd5$actionLabel $count '
+          '\u6761\u5931\u8d25\u8bb0\u5f55\u5417\uff1f',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u91cd\u8bd5'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+  String _formatFailedItem(dynamic item) {
+    if (item is! Map) {
+      return '';
+    }
+    final id =
+        item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+    final reason = item['reason']?.toString().trim();
+    final idText = id == null ? '未知记录' : 'ID $id';
+    if (reason == null || reason.isEmpty) {
+      return idText;
+    }
+    return '$idText：$reason';
   }
 
   String _formatDate(DateTime? dt) {
@@ -273,20 +488,34 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
                   runSpacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text('已选 ${_selectedRequestIds.length}/${_requests.length}'),
-                    OutlinedButton(
-                      onPressed:
-                          _batchSubmitting ? null : (isAllSelected ? _clearSelection : _selectAll),
-                      child: Text(isAllSelected ? '取消全选' : '全选'),
+                    Text(
+                      '已选 ${_selectedRequestIds.length}/${_requests.length}',
                     ),
                     OutlinedButton(
-                      onPressed: _batchSubmitting ? null : () => _batchHandle(false),
-                      style:
-                          OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('批量拒绝'),
+                      onPressed: _batchSubmitting || isAllSelected
+                          ? null
+                          : _selectAll,
+                      child: Text(isAllSelected ? '已全选' : '全选'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _batchSubmitting || _selectedRequestIds.isEmpty
+                          ? null
+                          : _clearSelection,
+                      child: const Text('清空选择'),
+                    ),
+                    OutlinedButton(
+                      onPressed: _batchSubmitting
+                          ? null
+                          : () => _batchHandle(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                      child: Text(_batchSubmitting ? '处理中...' : '批量拒绝'),
                     ),
                     ElevatedButton(
-                      onPressed: _batchSubmitting ? null : () => _batchHandle(true),
+                      onPressed: _batchSubmitting
+                          ? null
+                          : () => _batchHandle(true),
                       child: Text(_batchSubmitting ? '处理中...' : '批量同意'),
                     ),
                   ],
@@ -299,80 +528,81 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _requests.isEmpty
-                    ? const Center(child: Text('暂无数据'))
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _requests.length,
-                          itemBuilder: (_, i) {
-                            final req = _requests[i];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              child: ListTile(
-                                onTap: () => _openDetail(req),
-                                leading: (_batchMode && isPendingTab)
-                                    ? Checkbox(
-                                        value:
-                                            _selectedRequestIds.contains(req.id),
-                                        onChanged: _batchSubmitting
-                                            ? null
-                                            : (_) => _toggleSelected(req.id),
-                                      )
-                                    : null,
-                                contentPadding: const EdgeInsets.all(12),
-                                title: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        req.senderName ?? '未知学生',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                ? const Center(child: Text('暂无数据'))
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _requests.length,
+                      itemBuilder: (_, i) {
+                        final req = _requests[i];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            onTap: () => _openDetail(req),
+                            leading: (_batchMode && isPendingTab)
+                                ? Checkbox(
+                                    value: _selectedRequestIds.contains(req.id),
+                                    onChanged: _batchSubmitting
+                                        ? null
+                                        : (_) => _toggleSelected(req.id),
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.all(12),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    req.senderName ?? '未知学生',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: _statusColor(req.status)
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        req.statusLabel,
-                                        style: TextStyle(
-                                          color: _statusColor(req.status),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('课程：${req.relatedCourseName ?? '-'}'),
-                                      const SizedBox(height: 4),
-                                      Text('主题：${req.subject ?? '-'}'),
-                                      const SizedBox(height: 4),
-                                      Text('申请时间：${_formatDate(req.sentAt)}'),
-                                    ],
                                   ),
                                 ),
-                                trailing: (_batchMode && isPendingTab)
-                                    ? null
-                                    : const Icon(Icons.chevron_right),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(
+                                      req.status,
+                                    ).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    req.statusLabel,
+                                    style: TextStyle(
+                                      color: _statusColor(req.status),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('课程：${req.relatedCourseName ?? '-'}'),
+                                  const SizedBox(height: 4),
+                                  Text('主题：${req.subject ?? '-'}'),
+                                  const SizedBox(height: 4),
+                                  Text('申请时间：${_formatDate(req.sentAt)}'),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                            trailing: (_batchMode && isPendingTab)
+                                ? null
+                                : const Icon(Icons.chevron_right),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -380,3 +610,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     );
   }
 }
+
+
+
+
+
+

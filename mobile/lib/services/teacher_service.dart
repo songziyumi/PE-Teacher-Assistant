@@ -36,11 +36,13 @@ class TeacherService {
   }
 
   static Future<String?> uploadProfilePhoto(String filePath) async {
-    final data = await ApiService.postMultipart(
-      '/teacher/profile/photo',
-      fileField: 'photo',
-      filePath: filePath,
-    ) as Map;
+    final data =
+        await ApiService.postMultipart(
+              '/teacher/profile/photo',
+              fileField: 'photo',
+              filePath: filePath,
+            )
+            as Map;
     return data['photoUrl']?.toString();
   }
 
@@ -138,15 +140,45 @@ class TeacherService {
     }
     final query = params.isEmpty ? '' : '?${params.join('&')}';
     final data =
-        await ApiService.get('/teacher/classes/$classId/students$query') as List;
+        await ApiService.get('/teacher/classes/$classId/students$query')
+            as List;
     return data.map((e) => Student.fromJson(e)).toList();
   }
 
-  static Future<List<CourseRequest>> getCourseRequests(
-      {String status = 'PENDING'}) async {
-    final data = await ApiService.get(
-            '/teacher/course-requests?status=${Uri.encodeComponent(status)}')
-        as List;
+  static Future<Map<String, dynamic>> batchUpdateStudentStatus(
+    List<int> studentIds,
+    String studentStatus,
+  ) async {
+    final data =
+        await ApiService.post('/teacher/students/batch-update-status', {
+              'studentIds': studentIds,
+              'studentStatus': studentStatus,
+            })
+            as Map;
+    return _normalizeBatchStudentResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchUpdateStudentElectiveClass(
+    List<int> studentIds, {
+    String? electiveClass,
+  }) async {
+    final data =
+        await ApiService.post('/teacher/students/batch-update-elective-class', {
+              'studentIds': studentIds,
+              'electiveClass': electiveClass,
+            })
+            as Map;
+    return _normalizeBatchStudentResult(data);
+  }
+
+  static Future<List<CourseRequest>> getCourseRequests({
+    String status = 'PENDING',
+  }) async {
+    final data =
+        await ApiService.get(
+              '/teacher/course-requests?status=${Uri.encodeComponent(status)}',
+            )
+            as List;
     return data.map((e) => CourseRequest.fromJson(e)).toList();
   }
 
@@ -186,8 +218,9 @@ class TeacherService {
     bool unreadOnly = false,
     String type = 'ALL',
   }) async {
+    final normalizedType = type.trim().isEmpty ? 'ALL' : type.trim().toUpperCase();
     final data = await ApiService.get(
-      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(type)}',
+      '/teacher/messages?unreadOnly=${unreadOnly ? 'true' : 'false'}&type=${Uri.encodeComponent(normalizedType)}',
     ) as List;
     return data.map((e) => TeacherMessage.fromJson(e)).toList();
   }
@@ -197,11 +230,13 @@ class TeacherService {
     required bool approve,
     String? remark,
   }) async {
-    final data = await ApiService.post('/teacher/course-requests/batch-handle', {
-      'messageIds': messageIds,
-      'action': approve ? 'APPROVE' : 'REJECT',
-      if (remark != null) 'remark': remark,
-    }) as Map;
+    final data =
+        await ApiService.post('/teacher/course-requests/batch-handle', {
+              'messageIds': messageIds,
+              'action': approve ? 'APPROVE' : 'REJECT',
+              if (remark != null) 'remark': remark,
+            })
+            as Map;
     return Map<String, dynamic>.from(data);
   }
 
@@ -213,24 +248,33 @@ class TeacherService {
     int studentId, {
     int days = 60,
   }) async {
-    final data = await ApiService.get(
-      '/teacher/students/$studentId/attendance-history?days=$days',
-    ) as Map;
+    final data =
+        await ApiService.get(
+              '/teacher/students/$studentId/attendance-history?days=$days',
+            )
+            as Map;
     return Map<String, dynamic>.from(data);
   }
 
   // 考勤查询
   static Future<Map<int, String>> getAttendance(
-      int classId, String date) async {
-    final data =
-        await ApiService.get('/teacher/attendance?classId=$classId&date=$date');
-    return (data as Map)
-        .map((k, v) => MapEntry(int.parse(k.toString()), v.toString()));
+    int classId,
+    String date,
+  ) async {
+    final data = await ApiService.get(
+      '/teacher/attendance?classId=$classId&date=$date',
+    );
+    return (data as Map).map(
+      (k, v) => MapEntry(int.parse(k.toString()), v.toString()),
+    );
   }
 
   // 考勤保存
   static Future<void> saveAttendance(
-      int classId, String date, Map<int, String> statusMap) async {
+    int classId,
+    String date,
+    Map<int, String> statusMap,
+  ) async {
     await ApiService.post('/teacher/attendance/save-batch', {
       'classId': classId,
       'date': date,
@@ -242,37 +286,75 @@ class TeacherService {
 
   // 体测查询（返回 studentId → PhysicalTest）
   static Future<Map<int, PhysicalTest>> getPhysicalTests(
-      int classId, String academicYear, String semester) async {
+    int classId,
+    String academicYear,
+    String semester,
+  ) async {
     final data = await ApiService.get(
-        '/teacher/physical-tests?classId=$classId&academicYear=${Uri.encodeComponent(academicYear)}&semester=${Uri.encodeComponent(semester)}');
+      '/teacher/physical-tests?classId=$classId&academicYear=${Uri.encodeComponent(academicYear)}&semester=${Uri.encodeComponent(semester)}',
+    );
     return (data as Map).map(
-        (k, v) => MapEntry(int.parse(k.toString()), PhysicalTest.fromJson(v)));
+      (k, v) => MapEntry(int.parse(k.toString()), PhysicalTest.fromJson(v)),
+    );
   }
 
   // 体测批量保存
   static Future<void> savePhysicalTests(
-      List<Map<String, dynamic>> items) async {
-    await ApiService.post('/teacher/physical-tests/save-batch',
-        {'items': items} as Map<String, dynamic>);
+    List<Map<String, dynamic>> items,
+  ) async {
+    await ApiService.post(
+      '/teacher/physical-tests/save-batch',
+      {'items': items} as Map<String, dynamic>,
+    );
   }
 
   // 成绩查询（返回 studentId → TermGrade）
   static Future<Map<int, TermGrade>> getTermGrades(
-      int classId, String academicYear, String semester) async {
+    int classId,
+    String academicYear,
+    String semester,
+  ) async {
     final data = await ApiService.get(
-        '/teacher/term-grades?classId=$classId&academicYear=${Uri.encodeComponent(academicYear)}&semester=${Uri.encodeComponent(semester)}');
+      '/teacher/term-grades?classId=$classId&academicYear=${Uri.encodeComponent(academicYear)}&semester=${Uri.encodeComponent(semester)}',
+    );
     return (data as Map).map(
-        (k, v) => MapEntry(int.parse(k.toString()), TermGrade.fromJson(v)));
+      (k, v) => MapEntry(int.parse(k.toString()), TermGrade.fromJson(v)),
+    );
   }
 
   // 成绩批量保存
-  static Future<void> saveTermGrades(String academicYear, String semester,
-      List<Map<String, dynamic>> items) async {
+  static Future<void> saveTermGrades(
+    String academicYear,
+    String semester,
+    List<Map<String, dynamic>> items,
+  ) async {
     await ApiService.post('/teacher/term-grades/save-batch', {
       'academicYear': academicYear,
       'semester': semester,
       'items': items,
     });
+  }
+
+  static Map<String, dynamic> _normalizeBatchStudentResult(Map data) {
+    final failedItems = ((data['failedItems'] as List?) ?? const [])
+        .map((item) {
+          final entry = Map<String, dynamic>.from((item as Map?) ?? const {});
+          return {
+            'id': entry['id'],
+            'reason': entry['reason']?.toString() ?? '',
+          };
+        })
+        .toList(growable: false);
+    final studentIds = ((data['studentIds'] as List?) ?? const [])
+        .map(_toInt)
+        .toList(growable: false);
+    return {
+      'totalCount': _toInt(data['totalCount']),
+      'successCount': _toInt(data['successCount']),
+      'failedCount': _toInt(data['failedCount']),
+      'studentIds': studentIds,
+      'failedItems': failedItems,
+    };
   }
 
   static int _toInt(dynamic value) {

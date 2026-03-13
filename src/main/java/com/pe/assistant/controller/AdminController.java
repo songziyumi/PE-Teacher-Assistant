@@ -130,7 +130,8 @@ public class AdminController {
 
     @PostMapping("/classes/delete-all")
     public String deleteAllClasses(RedirectAttributes ra) {
-        classService.deleteAll();
+        School school = currentUserService.getCurrentSchool();
+        classService.deleteAll(school);
         ra.addFlashAttribute("success", "已删除全部班级数据");
         return "redirect:/admin/classes";
     }
@@ -290,7 +291,8 @@ public class AdminController {
             return "redirect:/admin/students";
         }
         try {
-            studentService.deleteAll();
+            School school = currentUserService.getCurrentSchool();
+            studentService.deleteAll(school);
             ra.addFlashAttribute("success", "已删除全部学生数据");
         } catch (Exception e) {
             ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));

@@ -8,10 +8,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class MessageService {
+
+    private static final Set<String> SUPPORTED_TEACHER_MESSAGE_TYPES = Set.of(
+            "ALL",
+            "GENERAL",
+            "COURSE_REQUEST");
 
     private final InternalMessageRepository messageRepo;
     private final CourseRequestAuditRepository courseRequestAuditRepo;
@@ -173,15 +179,22 @@ public class MessageService {
     }
 
     public List<InternalMessage> getTeacherInbox(Teacher teacher, String type) {
-        if (type == null || type.isBlank() || "ALL".equalsIgnoreCase(type)) {
-            return getTeacherInbox(teacher);
-        }
-        String normalizedType = type.trim().toUpperCase();
-        if (!"GENERAL".equals(normalizedType) && !"COURSE_REQUEST".equals(normalizedType)) {
+        String normalizedType = normalizeTeacherMessageType(type);
+        if ("ALL".equals(normalizedType)) {
             return getTeacherInbox(teacher);
         }
         return messageRepo.findByRecipientTypeAndRecipientIdAndTypeOrderBySentAtDesc(
                 "TEACHER", teacher.getId(), normalizedType);
+    }
+
+    public List<InternalMessage> getTeacherInbox(Teacher teacher, String type, boolean unreadOnly) {
+        List<InternalMessage> messages = getTeacherInbox(teacher, type);
+        if (!unreadOnly) {
+            return messages;
+        }
+        return messages.stream()
+                .filter(msg -> !Boolean.TRUE.equals(msg.getIsRead()))
+                .toList();
     }
 
     public List<InternalMessage> getTeacherCourseRequests(Teacher teacher, String status) {
@@ -278,6 +291,17 @@ public class MessageService {
         return teacherRepository.findBySchool(school).stream()
                 .filter(t -> !"ADMIN".equals(t.getRole()))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private String normalizeTeacherMessageType(String type) {
+        if (type == null || type.isBlank()) {
+            return "ALL";
+        }
+        String normalizedType = type.trim().toUpperCase();
+        if (!SUPPORTED_TEACHER_MESSAGE_TYPES.contains(normalizedType)) {
+            throw new IllegalArgumentException("消息类型仅支持 ALL、GENERAL、COURSE_REQUEST");
+        }
+        return normalizedType;
     }
 
     private String normalizeRemark(String remark) {

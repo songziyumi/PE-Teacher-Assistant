@@ -31,24 +31,58 @@ class TeacherMessage {
     this.businessTargetId,
   });
 
+  TeacherMessage copyWith({
+    int? id,
+    String? subject,
+    String? content,
+    String? type,
+    String? status,
+    bool? isRead,
+    DateTime? sentAt,
+    String? senderType,
+    int? senderId,
+    String? senderName,
+    int? relatedCourseId,
+    String? relatedCourseName,
+    String? businessTargetType,
+    int? businessTargetId,
+  }) {
+    return TeacherMessage(
+      id: id ?? this.id,
+      subject: subject ?? this.subject,
+      content: content ?? this.content,
+      type: type ?? this.type,
+      status: status ?? this.status,
+      isRead: isRead ?? this.isRead,
+      sentAt: sentAt ?? this.sentAt,
+      senderType: senderType ?? this.senderType,
+      senderId: senderId ?? this.senderId,
+      senderName: senderName ?? this.senderName,
+      relatedCourseId: relatedCourseId ?? this.relatedCourseId,
+      relatedCourseName: relatedCourseName ?? this.relatedCourseName,
+      businessTargetType: businessTargetType ?? this.businessTargetType,
+      businessTargetId: businessTargetId ?? this.businessTargetId,
+    );
+  }
+
   factory TeacherMessage.fromJson(Map<String, dynamic> json) => TeacherMessage(
-        id: _toInt(json['id']),
-        subject: json['subject']?.toString(),
-        content: json['content']?.toString(),
-        type: json['type']?.toString(),
-        status: json['status']?.toString(),
-        isRead: json['isRead'] == true,
-        sentAt: json['sentAt'] != null
-            ? DateTime.tryParse(json['sentAt'].toString())
-            : null,
-        senderType: json['senderType']?.toString(),
-        senderId: _toNullableInt(json['senderId']),
-        senderName: json['senderName']?.toString(),
-        relatedCourseId: _toNullableInt(json['relatedCourseId']),
-        relatedCourseName: json['relatedCourseName']?.toString(),
-        businessTargetType: json['businessTargetType']?.toString(),
-        businessTargetId: _toNullableInt(json['businessTargetId']),
-      );
+    id: _toInt(json['id']),
+    subject: json['subject']?.toString(),
+    content: json['content']?.toString(),
+    type: json['type']?.toString(),
+    status: json['status']?.toString(),
+    isRead: json['isRead'] == true,
+    sentAt: json['sentAt'] != null
+        ? DateTime.tryParse(json['sentAt'].toString())
+        : null,
+    senderType: json['senderType']?.toString(),
+    senderId: _toNullableInt(json['senderId']),
+    senderName: json['senderName']?.toString(),
+    relatedCourseId: _toNullableInt(json['relatedCourseId']),
+    relatedCourseName: json['relatedCourseName']?.toString(),
+    businessTargetType: json['businessTargetType']?.toString(),
+    businessTargetId: _toNullableInt(json['businessTargetId']),
+  );
 
   bool get canJumpToCourseRequest =>
       businessTargetType == 'COURSE_REQUEST' && businessTargetId != null;
