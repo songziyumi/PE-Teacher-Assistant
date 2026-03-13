@@ -352,6 +352,14 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     );
 
     if (confirmed != true) return;
+    final count = _selectedStudentIds.length;
+    final confirmedSecond = await _confirmBatchOperation(
+      title: '\u786e\u8ba4\u6279\u91cf\u66f4\u65b0\u5b66\u7c4d',
+      message:
+          '\u786e\u8ba4\u5c06 $count \u540d\u5b66\u751f\u5b66\u7c4d\u66f4\u65b0\u4e3a '
+          '$selectedStatus \u5417\uff1f',
+    );
+    if (!confirmedSecond) return;
     await _runBatchStudentOperation(
       actionLabel: '\u6279\u91cf\u66f4\u65b0\u5b66\u7c4d',
       operation: (studentIds) =>
@@ -426,6 +434,20 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     );
 
     if (confirmed != true || selectedElective == null) return;
+    final count = _selectedStudentIds.length;
+    final selectedDisplay = electiveClasses
+        .firstWhere(
+          (item) => item.storedName == selectedElective,
+          orElse: () => electiveClasses.first,
+        )
+        .displayName;
+    final confirmedSecond = await _confirmBatchOperation(
+      title: '\u786e\u8ba4\u6279\u91cf\u5206\u914d\u9009\u4fee\u73ed',
+      message:
+          '\u786e\u8ba4\u5c06 $count \u540d\u5b66\u751f\u5206\u914d\u5230 '
+          '$selectedDisplay \u5417\uff1f',
+    );
+    if (!confirmedSecond) return;
     await _runBatchStudentOperation(
       actionLabel: '\u6279\u91cf\u5206\u914d\u9009\u4fee\u73ed',
       operation: (studentIds) => TeacherService.batchUpdateStudentElectiveClass(
@@ -464,6 +486,13 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
     );
 
     if (confirmed != true) return;
+    final count = _selectedStudentIds.length;
+    final confirmedSecond = await _confirmBatchOperation(
+      title: '\u518d\u6b21\u786e\u8ba4',
+      message:
+          '\u786e\u8ba4\u6e05\u7a7a $count \u540d\u5b66\u751f\u7684\u9009\u4fee\u73ed\u5417\uff1f',
+    );
+    if (!confirmedSecond) return;
     await _runBatchStudentOperation(
       actionLabel: '\u6279\u91cf\u6e05\u7a7a\u9009\u4fee\u73ed',
       operation: (studentIds) => TeacherService.batchUpdateStudentElectiveClass(
@@ -471,6 +500,30 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         electiveClass: null,
       ),
     );
+  }
+
+  Future<bool> _confirmBatchOperation({
+    required String title,
+    required String message,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u786e\u8ba4'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
   }
 
   Future<void> _runBatchStudentOperation({
@@ -486,10 +539,25 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       );
       return;
     }
+    await _executeBatchStudentOperation(
+      actionLabel: actionLabel,
+      studentIds: selectedIds,
+      operation: operation,
+    );
+  }
+
+  Future<void> _executeBatchStudentOperation({
+    required String actionLabel,
+    required List<int> studentIds,
+    required Future<Map<String, dynamic>> Function(List<int> studentIds)
+    operation,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (_batchSubmitting || studentIds.isEmpty) return;
 
     setState(() => _batchSubmitting = true);
     try {
-      final result = await operation(selectedIds);
+      final result = await operation(studentIds);
       if (!mounted) return;
 
       await _reloadKeepPosition();
@@ -516,7 +584,17 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           );
       });
 
-      await _showBatchResultDialog(actionLabel, result);
+      await _showBatchResultDialog(
+        actionLabel,
+        result,
+        onRetry: failedIds.isEmpty
+            ? null
+            : (retryIds) => _executeBatchStudentOperation(
+              actionLabel: actionLabel,
+              studentIds: retryIds,
+              operation: operation,
+            ),
+      );
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -531,8 +609,9 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
 
   Future<void> _showBatchResultDialog(
     String actionLabel,
-    Map<String, dynamic> result,
-  ) {
+    Map<String, dynamic> result, {
+    Future<void> Function(List<int> failedIds)? onRetry,
+  }) {
     final totalCount = result['totalCount'] ?? 0;
     final successCount = result['successCount'] ?? 0;
     final failedCount = result['failedCount'] ?? 0;
@@ -540,6 +619,11 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList(growable: false);
+    final failedIds = failedItems
+        .map((item) => item['id'])
+        .whereType<num>()
+        .map((id) => id.toInt())
+        .toList();
 
     return showDialog<void>(
       context: context,
@@ -585,6 +669,16 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           ),
         ),
         actions: [
+          if (onRetry != null && failedIds.isNotEmpty)
+            TextButton(
+              onPressed: _batchSubmitting
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      await onRetry(failedIds);
+                    },
+              child: const Text('\u91cd\u8bd5\u5931\u8d25\u9879'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('\u6211\u77e5\u9053\u4e86'),

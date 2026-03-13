@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/course_request.dart';
 import '../../services/teacher_service.dart';
@@ -112,33 +112,77 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     if (_selectedRequestIds.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请先选择至少一条待审批记录')));
+      ).showSnackBar(const SnackBar(content: Text('璇峰厛閫夋嫨鑷冲皯涓€鏉″緟瀹℃壒璁板綍')));
       return;
     }
 
     final remark = await _showBatchRemarkDialog(approve);
     if (!mounted || remark == null) return;
+    final confirmed = await _confirmBatchAction(
+      approve: approve,
+      count: _selectedRequestIds.length,
+      remark: remark.trim(),
+    );
+    if (!confirmed) return;
+    await _executeBatchHandle(
+      ids: _selectedRequestIds.toList(),
+      approve: approve,
+      remark: remark.trim().isEmpty ? null : remark.trim(),
+    );
+  }
 
+  Future<void> _executeBatchHandle({
+    required List<int> ids,
+    required bool approve,
+    required String? remark,
+  }) async {
+    if (_batchSubmitting || ids.isEmpty) return;
     setState(() => _batchSubmitting = true);
     try {
       final result = await TeacherService.batchHandleCourseRequests(
-        _selectedRequestIds.toList(),
+        ids,
         approve: approve,
-        remark: remark.isEmpty ? null : remark,
+        remark: remark,
       );
       if (!mounted) return;
 
-      final actionLabel = approve ? '同意' : '拒绝';
+      final actionLabel =
+          approve ? '\u540c\u610f' : '\u62d2\u7edd';
       final successCount = _toInt(result['successCount']);
       final failedCount = _toInt(result['failedCount']);
       final failedItems = (result['failedItems'] is List)
           ? (result['failedItems'] as List)
           : const [];
+      final failedIds = failedItems
+          .map((item) {
+            if (item is! Map) return null;
+            final id =
+                item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+            if (id is num) return id.toInt();
+            return int.tryParse(id?.toString() ?? '');
+          })
+          .whereType<int>()
+          .toSet();
+
       _selectedRequestIds.clear();
       await _load();
       if (!mounted) return;
+      if (failedIds.isNotEmpty) {
+        setState(() {
+          _selectedRequestIds
+            ..clear()
+            ..addAll(
+              failedIds.where(
+                (id) => _requests.any((req) => req.id == id),
+              ),
+            );
+        });
+      }
+
       if (failedCount > 0) {
         await _showBatchFailureDialog(
+          approve: approve,
+          remark: remark,
           actionLabel: actionLabel,
           successCount: successCount,
           failedCount: failedCount,
@@ -147,18 +191,64 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('批量$actionLabel完成：成功$successCount条')),
+        SnackBar(
+          content: Text(
+            '\u6279\u91cf$actionLabel\u5b8c\u6210\uff1a\u6210\u529f$successCount\u6761',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('批量操作失败: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('\u6279\u91cf\u64cd\u4f5c\u5931\u8d25: $e'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _batchSubmitting = false);
     }
   }
 
+  Future<bool> _confirmBatchAction({
+    required bool approve,
+    required int count,
+    required String remark,
+  }) async {
+    final actionLabel =
+        approve ? '\u540c\u610f' : '\u62d2\u7edd';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('\u786e\u8ba4$actionLabel'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '\u786e\u8ba4$actionLabel $count \u6761\u5ba1\u6279\u8bb0\u5f55\u5417\uff1f',
+            ),
+            if (remark.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('\u5907\u6ce8\uff1a$remark'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u786e\u8ba4'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
   Future<String?> _showBatchRemarkDialog(bool approve) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
@@ -192,6 +282,8 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
   }
 
   Future<void> _showBatchFailureDialog({
+    required bool approve,
+    required String? remark,
     required String actionLabel,
     required int successCount,
     required int failedCount,
@@ -201,20 +293,34 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
         .map(_formatFailedItem)
         .where((line) => line.isNotEmpty)
         .toList();
+    final failedIds = failedItems
+        .map((item) {
+          if (item is! Map) return null;
+          final id =
+              item['messageId'] ?? item['id'] ?? item['requestId'] ?? item['itemId'];
+          if (id is num) return id.toInt();
+          return int.tryParse(id?.toString() ?? '');
+        })
+        .whereType<int>()
+        .toList();
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('部分处理失败'),
+        title: const Text('\u90e8\u5206\u5904\u7406\u5931\u8d25'),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('批量$actionLabel已完成：成功$successCount条，失败$failedCount条。'),
+              Text(
+                '\u6279\u91cf$actionLabel\u5df2\u5b8c\u6210\uff1a'
+                '\u6210\u529f$successCount\u6761\uff0c'
+                '\u5931\u8d25$failedCount\u6761\u3002',
+              ),
               if (failureLines.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const Text('失败明细：'),
+                const Text('\u5931\u8d25\u660e\u7ec6\uff1a'),
                 const SizedBox(height: 8),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 240),
@@ -227,15 +333,61 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
           ),
         ),
         actions: [
+          if (failedIds.isNotEmpty)
+            TextButton(
+              onPressed: _batchSubmitting
+                  ? null
+                  : () async {
+                      Navigator.of(dialogContext).pop();
+                      final retryConfirmed = await _confirmRetryBatchAction(
+                        approve: approve,
+                        count: failedIds.length,
+                      );
+                      if (!retryConfirmed) return;
+                      await _executeBatchHandle(
+                        ids: failedIds,
+                        approve: approve,
+                        remark: remark,
+                      );
+                    },
+              child: const Text('\u91cd\u8bd5\u5931\u8d25\u9879'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('我知道了'),
+            child: const Text('\u6211\u77e5\u9053\u4e86'),
           ),
         ],
       ),
     );
   }
-
+  Future<bool> _confirmRetryBatchAction({
+    required bool approve,
+    required int count,
+  }) async {
+    final actionLabel =
+        approve ? '\u540c\u610f' : '\u62d2\u7edd';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('\u91cd\u8bd5\u5931\u8d25\u9879'),
+        content: Text(
+          '\u786e\u8ba4\u91cd\u8bd5$actionLabel $count '
+          '\u6761\u5931\u8d25\u8bb0\u5f55\u5417\uff1f',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u53d6\u6d88'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u91cd\u8bd5'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
   String _formatFailedItem(dynamic item) {
     if (item is! Map) {
       return '';
@@ -458,3 +610,9 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     );
   }
 }
+
+
+
+
+
+
