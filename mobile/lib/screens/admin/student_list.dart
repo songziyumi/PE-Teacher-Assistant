@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../models/student.dart';
@@ -125,6 +127,62 @@ class _StudentListScreenState extends State<StudentListScreen> {
     List<ElectiveClass> filteredElective =
         _electiveClasses.where((c) => c.gradeId == electiveGradeId).toList();
 
+    // 学号实时校验状态
+    final originalStudentNo = student?.studentNo ?? '';
+    Timer? studentNoDebounce;
+    bool studentNoChecking = false;
+    bool? studentNoAvailable;
+    String? studentNoError;
+    bool dialogAlive = true;
+
+    Future<void> runStudentNoCheck(
+      String input,
+      void Function(void Function()) setDs,
+    ) async {
+      if (!dialogAlive) return;
+      final value = input.trim();
+      if (value.isEmpty || value == originalStudentNo) {
+        if (dialogAlive) {
+          setDs(() {
+            studentNoChecking = false;
+            studentNoAvailable = null;
+            studentNoError = null;
+          });
+        }
+        return;
+      }
+      if (dialogAlive) setDs(() => studentNoChecking = true);
+      try {
+        final available = await AdminService.checkStudentNo(
+          value,
+          excludeId: student?.id,
+        );
+        if (!dialogAlive) return;
+        if (studentNoCtrl.text.trim() != value) return;
+        setDs(() {
+          studentNoChecking = false;
+          studentNoAvailable = available;
+          studentNoError = available ? null : '学号已存在，请更换';
+        });
+      } catch (_) {
+        if (!dialogAlive) return;
+        if (studentNoCtrl.text.trim() != value) return;
+        setDs(() {
+          studentNoChecking = false;
+          studentNoAvailable = null;
+          studentNoError = null;
+        });
+      }
+    }
+
+    void scheduleCheck(String input, void Function(void Function()) setDs) {
+      if (!dialogAlive) return;
+      studentNoDebounce?.cancel();
+      studentNoDebounce = Timer(const Duration(milliseconds: 350), () {
+        runStudentNoCheck(input, setDs);
+      });
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -145,10 +203,48 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: studentNoCtrl,
-                  decoration: const InputDecoration(
-                      labelText: '学号 *',
-                      border: OutlineInputBorder(),
-                      isDense: true),
+                  decoration: InputDecoration(
+                    labelText: '学号 *',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    helperText: studentNoChecking
+                        ? '正在校验学号...'
+                        : (studentNoAvailable == true ? '学号可用 ✓' : null),
+                    helperStyle: studentNoAvailable == true
+                        ? const TextStyle(color: Colors.green)
+                        : null,
+                    errorText: studentNoError,
+                    suffixIcon: studentNoChecking
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : (studentNoAvailable == null
+                            ? null
+                            : Icon(
+                                studentNoAvailable == true
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
+                                color: studentNoAvailable == true
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 20,
+                              )),
+                  ),
+                  onChanged: (v) {
+                    setDialogState(() {
+                      studentNoError = null;
+                      if (v.trim().isEmpty || v.trim() == originalStudentNo) {
+                        studentNoAvailable = null;
+                        studentNoChecking = false;
+                      }
+                    });
+                    scheduleCheck(v, setDialogState);
+                  },
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -255,12 +351,17 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('取消')),
             ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: studentNoChecking || studentNoError != null
+                    ? null
+                    : () => Navigator.pop(ctx, true),
                 child: const Text('保存')),
           ],
         ),
       ),
     );
+
+    dialogAlive = false;
+    studentNoDebounce?.cancel();
 
     if (confirmed == true) {
       final name = nameCtrl.text.trim();
@@ -272,18 +373,23 @@ class _StudentListScreenState extends State<StudentListScreen> {
         }
         return;
       }
-      try {
-        final available = await AdminService.checkStudentNo(
-          studentNo,
-          excludeId: student?.id,
-        );
-        if (!available) {
-          if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(const SnackBar(content: Text('学号已存在，请更换学号')));
+      // 若学号未经实时校验（未修改或跳过），在保存前最终校验一次
+      if (studentNo != originalStudentNo && studentNoAvailable != true) {
+        try {
+          final available = await AdminService.checkStudentNo(
+            studentNo,
+            excludeId: student?.id,
+          );
+          if (!available) {
+            if (mounted) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('学号已存在，请更换学号')));
+            }
+            return;
           }
-          return;
-        }
+        } catch (_) {}
+      }
+      try {
         await AdminService.saveStudent(
           id: student?.id,
           name: name,
