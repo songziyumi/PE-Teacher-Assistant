@@ -26,10 +26,19 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   bool _savingProfile = false;
   bool _changingPassword = false;
   bool _uploadingPhoto = false;
+  bool _editingProfile = false;
+  bool _showPasswordForm = false;
 
   String? _gender;
   DateTime? _birthDate;
   String? _photoUrl;
+
+  // 编辑模式快照，用于取消时还原
+  String? _snapGender;
+  DateTime? _snapBirthDate;
+  String _snapSpecialty = '';
+  String _snapEmail = '';
+  String _snapBio = '';
 
   Map<String, dynamic>? _stats;
 
@@ -106,6 +115,28 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
 
+  void _enterEditMode() {
+    setState(() {
+      _snapGender = _gender;
+      _snapBirthDate = _birthDate;
+      _snapSpecialty = _specialtyCtrl.text;
+      _snapEmail = _emailCtrl.text;
+      _snapBio = _bioCtrl.text;
+      _editingProfile = true;
+    });
+  }
+
+  void _cancelEdit() {
+    setState(() {
+      _gender = _snapGender;
+      _birthDate = _snapBirthDate;
+      _specialtyCtrl.text = _snapSpecialty;
+      _emailCtrl.text = _snapEmail;
+      _bioCtrl.text = _snapBio;
+      _editingProfile = false;
+    });
+  }
+
   Future<void> _saveProfile() async {
     setState(() => _savingProfile = true);
     try {
@@ -119,6 +150,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         bio: _bioCtrl.text.trim(),
       );
       if (!mounted) return;
+      setState(() => _editingProfile = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('资料已保存')));
     } catch (e) {
@@ -156,6 +188,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       _oldPwdCtrl.clear();
       _newPwdCtrl.clear();
       _confirmPwdCtrl.clear();
+      setState(() => _showPasswordForm = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('密码修改成功')));
     } catch (e) {
@@ -265,156 +298,210 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   _buildActivitiesCard(),
                 ],
                 const SizedBox(height: 12),
+                // 个人资料卡：查看模式 / 编辑模式
                 Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '资料编辑',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                  child: _editingProfile
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Text('编辑资料',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                                const Spacer(),
+                                TextButton(
+                                    onPressed: _savingProfile ? null : _cancelEdit,
+                                    child: const Text('取消')),
+                              ]),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String?>(
+                                initialValue: _gender,
+                                decoration: const InputDecoration(
+                                    labelText: '性别',
+                                    border: OutlineInputBorder()),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: null, child: Text('未设置')),
+                                  DropdownMenuItem(
+                                      value: '男', child: Text('男')),
+                                  DropdownMenuItem(
+                                      value: '女', child: Text('女')),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _gender = v),
+                              ),
+                              const SizedBox(height: 12),
+                              InkWell(
+                                onTap: _pickBirthDate,
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                      labelText: '出生年月',
+                                      border: OutlineInputBorder()),
+                                  child: Text(_birthDate == null
+                                      ? '未设置'
+                                      : '${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _specialtyCtrl,
+                                decoration: const InputDecoration(
+                                    labelText: '专业特长',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _emailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                    labelText: '邮箱',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _bioCtrl,
+                                maxLines: 4,
+                                decoration: const InputDecoration(
+                                    labelText: '自我介绍',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      _savingProfile ? null : _saveProfile,
+                                  child: _savingProfile
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : const Text('保存'),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String?>(
-                          initialValue: _gender,
-                          decoration: const InputDecoration(
-                            labelText: '性别',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: null, child: Text('未设置')),
-                            DropdownMenuItem(value: '男', child: Text('男')),
-                            DropdownMenuItem(value: '女', child: Text('女')),
+                        )
+                      : Column(
+                          children: [
+                            ListTile(
+                              title: const Text('个人资料',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                              trailing: TextButton.icon(
+                                onPressed: _enterEditMode,
+                                icon: const Icon(Icons.edit, size: 16),
+                                label: const Text('编辑'),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            _infoRow('性别', _gender ?? '未设置'),
+                            _infoRow(
+                                '出生年月',
+                                _birthDate == null
+                                    ? '未设置'
+                                    : '${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}'),
+                            _infoRow('专业特长',
+                                _specialtyCtrl.text.isEmpty
+                                    ? '未设置'
+                                    : _specialtyCtrl.text),
+                            _infoRow('邮箱',
+                                _emailCtrl.text.isEmpty
+                                    ? '未设置'
+                                    : _emailCtrl.text),
+                            _infoRow('自我介绍',
+                                _bioCtrl.text.isEmpty
+                                    ? '未设置'
+                                    : _bioCtrl.text),
+                            const SizedBox(height: 8),
                           ],
-                          onChanged: (v) => setState(() => _gender = v),
                         ),
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: _pickBirthDate,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: '出生年月',
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _birthDate == null
-                                  ? '未设置'
-                                  : '${_birthDate!.year}-${_birthDate!.month.toString().padLeft(2, '0')}-${_birthDate!.day.toString().padLeft(2, '0')}',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _specialtyCtrl,
-                          decoration: const InputDecoration(
-                            labelText: '专业特长',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: '邮箱',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _bioCtrl,
-                          maxLines: 4,
-                          decoration: const InputDecoration(
-                            labelText: '自我介绍',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _savingProfile ? null : _saveProfile,
-                            child: _savingProfile
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text('保存资料'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 12),
+                // 修改密码卡：折叠 / 展开
                 Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '修改密码',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                  child: _showPasswordForm
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(children: [
+                                const Text('修改密码',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: _changingPassword
+                                      ? null
+                                      : () {
+                                          _oldPwdCtrl.clear();
+                                          _newPwdCtrl.clear();
+                                          _confirmPwdCtrl.clear();
+                                          setState(() =>
+                                              _showPasswordForm = false);
+                                        },
+                                  child: const Text('取消'),
+                                ),
+                              ]),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _oldPwdCtrl,
+                                obscureText: true,
+                                decoration: const InputDecoration(
+                                    labelText: '当前密码',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _newPwdCtrl,
+                                obscureText: true,
+                                decoration: const InputDecoration(
+                                    labelText: '新密码',
+                                    hintText: '至少8位，包含字母和数字',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _confirmPwdCtrl,
+                                obscureText: true,
+                                decoration: const InputDecoration(
+                                    labelText: '确认新密码',
+                                    border: OutlineInputBorder()),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _changingPassword
+                                      ? null
+                                      : _changePassword,
+                                  child: _changingPassword
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : const Text('更新密码'),
+                                ),
+                              ),
+                            ],
                           ),
+                        )
+                      : ListTile(
+                          leading: const Icon(Icons.lock_outline,
+                              color: Colors.grey),
+                          title: const Text('修改密码'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () =>
+                              setState(() => _showPasswordForm = true),
                         ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _oldPwdCtrl,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: '当前密码',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _newPwdCtrl,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: '新密码',
-                            hintText: '至少8位，包含字母和数字',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _confirmPwdCtrl,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: '确认新密码',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed:
-                                _changingPassword ? null : _changePassword,
-                            child: _changingPassword
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text('更新密码'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -428,6 +515,25 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
               ],
             ),
       bottomNavigationBar: const TeacherBottomNav(currentIndex: 3),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(label,
+                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
     );
   }
 
