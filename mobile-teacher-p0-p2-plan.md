@@ -1,6 +1,6 @@
 # 教师手机端功能落地清单（P0 / P1 / P2）
 
-> 更新时间：2026-03-15
+> 更新时间：2026-03-16
 > 状态标识：`[x] 已落地（代码已完成）` / `[-] 进行中（有代码，待联调验收）` / `[ ] 未开始`
 
 ## 目标
@@ -10,7 +10,7 @@
 ## 当前总体进度（真实代码口径）
 - P0：已完成（核心功能、关键回归与真机验收已完成，进入 P1 推进阶段）
 - P1：已完成（批量审批、学生多条件筛选/批量操作、消息增强、二次确认与失败重试、管理员学生编辑增强、考勤导出均已完成）
-- P2：约 75%（数据导出、教师功能权限开关+UI强制执行、个人主页增强（统计+最近操作+查看/编辑UX）已完成；推送通知、操作时间线、弱网容错待启动）
+- P2：约 90%（数据导出、教师功能权限开关+UI强制执行、个人主页增强、管理员学号实时校验（Flutter+Web）、头像上传修复、学籍状态扩展（增加"长假"，全端同步）、批量导入支持学籍状态字段均已完成；推送通知、操作时间线、弱网容错待启动）
 
 ## P1 分支与条目映射
 - `feature/teacher-p1-approval` → 批量审批（批量同意/拒绝）
@@ -139,9 +139,24 @@
 - [ ] 弱网容错（离线队列/重试/提交状态）
 - [x] 个人主页增强（教学统计 + 最近操作 + 查看/编辑模式分离）
   - 后端：`GET /api/teacher/profile/stats`（带班数/本月考勤/待审批/已处理/最近10条审批记录）
-  - Flutter：`teacher_profile_screen.dart` 新增统计卡片、最近操作列表
+  - 后端（Web）：`GET /teacher/profile/stats`（`@ResponseBody`，供 Thymeleaf 页面 fetch 调用，基于 Session Auth）
+  - Flutter：`teacher_profile_screen.dart` 新增统计卡片、最近操作列表；统计卡片支持点击跳转对应功能页
   - Flutter：个人资料默认查看模式，点击"编辑"进入编辑态，支持取消还原；密码修改折叠/展开
+  - Flutter：头像上传修复 —— AndroidManifest 补齐 `READ_EXTERNAL_STORAGE`（maxSdkVersion=32）和 `READ_MEDIA_IMAGES` 权限
+  - Web：`templates/teacher/profile.html` 全面重构：统计卡片异步加载、查看/编辑模式分离、密码区块折叠展开、最近操作列表
   - [ ] 课表展示 —— 依赖数据模型前置（Course/SchoolClass 缺时间/地点字段），已暂缓
+- [x] 管理员编辑学生学号实时校验（防重复）
+  - Flutter（管理员端）：`screens/admin/student_list.dart` 编辑弹窗新增防抖校验（350ms Timer + dialogAlive 守卫）
+  - Web：`templates/admin/students.html` 编辑弹窗新增防抖校验（350ms + `setStudentNoHint`）
+  - 后端（Web）：`AdminController` 新增 `GET /admin/students/check-student-no`（`@ResponseBody`，Session Auth）
+- [x] 学籍状态扩展：新增"长假"选项，全端同步
+  - 后端：`StudentService.AVAILABLE_STATUSES` 列表新增"长假"（单一来源，`AVAILABLE_STATUS_SET` 自动同步）
+  - Flutter 教师端：`teacher_student_list.dart` `_studentStatuses` 新增"长假"
+  - Flutter 管理员端：`admin/student_list.dart` `_studentStatuses` 新增"长假"
+- [x] 批量导入学生支持"学籍状态"字段
+  - `AdminController.importStudents`：读取 Excel"学籍状态"列（列不存在时回退默认"在籍"，向下兼容）
+  - `StudentService.importCreateOrUpdate`：新增 `studentStatus` 参数，`normalizeStatusForSave` 验证并写入
+  - `AdminController.downloadStudentTemplate`：模板新增"学籍状态"列（示例值"在籍"）
 
 ### P2 验收标准
 - [x] 导出文件字段完整且与页面一致
@@ -189,7 +204,8 @@
 3. ~~最后补体验向能力：关键操作二次确认、失败重试与弱网容错~~（已完成）
 4. ~~P2 进行中：下一步优先补全「教师端权限 UI 强制执行」~~（已完成）
 5. ~~P2 个人主页增强：统计卡片+最近操作+查看/编辑UX分离~~（已完成）
-6. P2 剩余：推送通知、操作时间线、弱网容错
+6. ~~P2 管理员学号实时校验（Flutter+Web）+ 头像上传修复 + 学籍状态扩展 + 批量导入状态字段~~（已完成）
+7. P2 剩余：推送通知、操作时间线、弱网容错
 
 ##  调试命令
 mvn -q "-Dmaven.repo.local=.m2repo" -DskipTests compile                                                
