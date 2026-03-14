@@ -41,6 +41,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   String? _selectedStudentStatus;
   bool _filterExpanded = false;
   bool _batchSubmitting = false;
+  bool _batchPanelExpanded = false;
 
   @override
   void initState() {
@@ -828,74 +829,89 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   Widget _buildBatchActionBar(List<Student> displayStudents) {
     final selectedCount = _selectedStudentIds.length;
     final allVisibleSelected = _areAllVisibleStudentsSelected(displayStudents);
+    final enabled = selectedCount > 0 && !_batchSubmitting;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '\u5df2\u9009 $selectedCount \u540d\u5b66\u751f',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 始终可见的头部行：点击展开/收起
+          InkWell(
+            onTap: () => setState(() => _batchPanelExpanded = !_batchPanelExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '已选 $selectedCount 名学生',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed:
-                      _loading || displayStudents.isEmpty || _batchSubmitting
-                      ? null
-                      : () => _toggleSelectAllVisible(
-                          displayStudents,
-                          !allVisibleSelected,
+                  TextButton(
+                    onPressed: _loading || displayStudents.isEmpty || _batchSubmitting
+                        ? null
+                        : () => _toggleSelectAllVisible(displayStudents, !allVisibleSelected),
+                    child: Text(allVisibleSelected ? '取消全选' : '全选当前'),
+                  ),
+                  TextButton(
+                    onPressed: selectedCount == 0 || _batchSubmitting
+                        ? null
+                        : () => setState(_selectedStudentIds.clear),
+                    child: const Text('清空'),
+                  ),
+                  AnimatedRotation(
+                    turns: _batchPanelExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.expand_more),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+            ),
+          ),
+          // 可折叠的操作按钮区域
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: _batchPanelExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: _batchSubmitting
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: enabled ? _showBatchStatusDialog : null,
+                          icon: const Icon(Icons.sync_alt),
+                          label: const Text('批量改学籍'),
                         ),
-                  child: Text(
-                    allVisibleSelected
-                        ? '\u53d6\u6d88\u5168\u9009'
-                        : '\u5168\u9009\u5f53\u524d',
-                  ),
-                ),
-                TextButton(
-                  onPressed: selectedCount == 0 || _batchSubmitting
-                      ? null
-                      : () => setState(_selectedStudentIds.clear),
-                  child: const Text('\u6e05\u7a7a'),
-                ),
-              ],
+                        ElevatedButton.icon(
+                          onPressed: enabled ? _showBatchElectiveClassDialog : null,
+                          icon: const Icon(Icons.assignment_turned_in_outlined),
+                          label: const Text('批量分班'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: enabled ? _confirmBatchClearElectiveClass : null,
+                          icon: const Icon(Icons.layers_clear_outlined),
+                          label: const Text('清空选修班'),
+                        ),
+                      ],
+                    ),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: selectedCount == 0 || _batchSubmitting
-                      ? null
-                      : _showBatchStatusDialog,
-                  icon: const Icon(Icons.sync_alt),
-                  label: const Text('\u6279\u91cf\u6539\u5b66\u7c4d'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: selectedCount == 0 || _batchSubmitting
-                      ? null
-                      : _showBatchElectiveClassDialog,
-                  icon: const Icon(Icons.assignment_turned_in_outlined),
-                  label: const Text('\u6279\u91cf\u5206\u73ed'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: selectedCount == 0 || _batchSubmitting
-                      ? null
-                      : _confirmBatchClearElectiveClass,
-                  icon: const Icon(Icons.layers_clear_outlined),
-                  label: const Text('\u6e05\u7a7a\u9009\u4fee\u73ed'),
-                ),
-              ],
-            ),
-          ],
-        ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
