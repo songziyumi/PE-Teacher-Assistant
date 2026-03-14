@@ -8,4 +8,8 @@ import java.util.List;
 public interface TeacherOperationLogRepository extends JpaRepository<TeacherOperationLog, Long> {
 
     List<TeacherOperationLog> findTop100ByTeacherIdOrderByOperatedAtDesc(Long teacherId);
+
+    List<TeacherOperationLog> findTop200BySchool_IdOrderByOperatedAtDesc(Long schoolId);
+
+    List<TeacherOperationLog> findTop100ByTeacherIdAndSchool_IdOrderByOperatedAtDesc(Long teacherId, Long schoolId);
 }

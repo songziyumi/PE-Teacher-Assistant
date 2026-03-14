@@ -14,4 +14,8 @@ public interface CourseRequestAuditRepository extends JpaRepository<CourseReques
     List<CourseRequestAudit> findTop10ByOperatorTeacherIdOrderByHandledAtDesc(Long operatorTeacherId);
 
     List<CourseRequestAudit> findTop100ByOperatorTeacherIdOrderByHandledAtDesc(Long operatorTeacherId);
+
+    List<CourseRequestAudit> findTop200BySchool_IdOrderByHandledAtDesc(Long schoolId);
+
+    List<CourseRequestAudit> findTop100ByOperatorTeacherIdAndSchool_IdOrderByHandledAtDesc(Long operatorTeacherId, Long schoolId);
 }

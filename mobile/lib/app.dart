@@ -20,6 +20,7 @@ import 'screens/admin/grade_list.dart';
 import 'screens/admin/attendance_export_screen.dart';
 import 'screens/admin/data_export_screen.dart';
 import 'screens/admin/teacher_permission_screen.dart';
+import 'screens/admin/admin_operation_timeline_screen.dart';
 import 'screens/student/student_home.dart';
 import 'screens/student/student_my_courses.dart';
 import 'screens/student/student_message_center.dart';
@@ -148,6 +149,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         GoRoute(
           path: '/admin/teacher-permissions',
           builder: (_, __) => const TeacherPermissionScreen(),
+        ),
+        GoRoute(
+          path: '/admin/operation-timeline',
+          builder: (_, __) => const AdminOperationTimelineScreen(),
         ),
       ],
     );

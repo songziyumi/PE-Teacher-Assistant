@@ -204,4 +204,15 @@ class AdminService {
     if (classId != null) q.write('&classId=$classId');
     return ApiService.downloadFile(q.toString());
   }
+
+  static Future<Map<String, dynamic>> getOperationTimeline({
+    int page = 0,
+    int size = 20,
+    int? teacherId,
+  }) async {
+    final q = StringBuffer('/admin/operation-timeline?page=$page&size=$size');
+    if (teacherId != null) q.write('&teacherId=$teacherId');
+    final data = await ApiService.get(q.toString());
+    return data as Map<String, dynamic>;
+  }
 }

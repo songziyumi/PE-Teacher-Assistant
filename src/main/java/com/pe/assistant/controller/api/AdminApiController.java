@@ -3,6 +3,8 @@ package com.pe.assistant.controller.api;
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.dto.PageDto;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.CourseRequestAuditRepository;
+import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,8 @@ public class AdminApiController {
     private final AttendanceService attendanceService;
     private final MessageService messageService;
     private final TeacherPermissionService teacherPermissionService;
+    private final TeacherOperationLogRepository teacherOperationLogRepository;
+    private final CourseRequestAuditRepository courseRequestAuditRepository;
 
     // ===== 仪表盘统计 =====
 
@@ -399,5 +403,84 @@ public class AdminApiController {
         m.put("termGradeEdit", p.isTermGradeEdit());
         m.put("batchOperation", p.isBatchOperation());
         return m;
+    }
+
+    // ===== 操作日志时间线 =====
+
+    @GetMapping("/operation-timeline")
+    public ApiResponse<Map<String, Object>> operationTimeline(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long teacherId) {
+        School school = currentUserService.getCurrentSchool();
+        Long schoolId = school.getId();
+
+        List<TeacherOperationLog> opLogs = teacherId != null
+                ? teacherOperationLogRepository.findTop100ByTeacherIdAndSchool_IdOrderByOperatedAtDesc(teacherId, schoolId)
+                : teacherOperationLogRepository.findTop200BySchool_IdOrderByOperatedAtDesc(schoolId);
+
+        List<CourseRequestAudit> audits = teacherId != null
+                ? courseRequestAuditRepository.findTop100ByOperatorTeacherIdAndSchool_IdOrderByHandledAtDesc(teacherId, schoolId)
+                : courseRequestAuditRepository.findTop200BySchool_IdOrderByHandledAtDesc(schoolId);
+
+        List<Map<String, Object>> entries = new ArrayList<>();
+
+        for (TeacherOperationLog log : opLogs) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "op_" + log.getId());
+            e.put("action", log.getAction());
+            e.put("title", actionToTitle(log.getAction()));
+            e.put("description", log.getDescription());
+            e.put("targetCount", log.getTargetCount());
+            e.put("teacherName", log.getTeacherName());
+            e.put("operatedAt", log.getOperatedAt().toString());
+            entries.add(e);
+        }
+
+        for (CourseRequestAudit audit : audits) {
+            boolean approved = "APPROVE".equals(audit.getAction());
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "audit_" + audit.getId());
+            e.put("action", approved ? "APPROVE" : "REJECT");
+            e.put("title", approved ? "同意选课申请" : "拒绝选课申请");
+            String coursePart = audit.getRelatedCourseName() != null ? audit.getRelatedCourseName() : "未知课程";
+            String senderPart = audit.getSenderName() != null ? "，申请人：" + audit.getSenderName() : "";
+            e.put("description", coursePart + senderPart);
+            e.put("targetCount", 1);
+            e.put("teacherName", audit.getOperatorTeacherName());
+            e.put("operatedAt", audit.getHandledAt().toString());
+            entries.add(e);
+        }
+
+        entries.sort((a, b) -> ((String) b.get("operatedAt")).compareTo((String) a.get("operatedAt")));
+
+        int total = entries.size();
+        int start = page * size;
+        List<Map<String, Object>> paged = start >= total
+                ? Collections.emptyList()
+                : entries.subList(start, Math.min(start + size, total));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("content", paged);
+        result.put("totalElements", total);
+        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("page", page);
+        result.put("size", size);
+        return ApiResponse.ok(result);
+    }
+
+    private static String actionToTitle(String action) {
+        if (action == null) return "操作";
+        return switch (action) {
+            case "ATTENDANCE_SAVE"        -> "提交考勤";
+            case "PHYSICAL_TEST_SAVE"     -> "录入体测数据";
+            case "TERM_GRADE_SAVE"        -> "录入期末成绩";
+            case "STUDENT_UPDATE"         -> "修改学生信息";
+            case "STUDENT_BATCH_STATUS"   -> "批量修改学籍状态";
+            case "STUDENT_BATCH_ELECTIVE" -> "批量修改选修班";
+            case "BATCH_APPROVE"          -> "批量同意申请";
+            case "BATCH_REJECT"           -> "批量拒绝申请";
+            default -> action;
+        };
     }
 }

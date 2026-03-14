@@ -118,6 +118,13 @@ class _AdminHomeState extends State<AdminHome> {
               color: const Color(0xFF8e44ad),
               onTap: () => context.push('/admin/teacher-permissions'),
             ),
+            _MenuCard(
+              icon: Icons.history,
+              title: '教师操作日志',
+              subtitle: '查看全校教师的考勤、体测、成绩、审批操作记录',
+              color: const Color(0xFF7f8c8d),
+              onTap: () => context.push('/admin/operation-timeline'),
+            ),
           ],
         ),
       ),
