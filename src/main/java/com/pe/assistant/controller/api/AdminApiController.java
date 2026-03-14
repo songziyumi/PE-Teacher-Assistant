@@ -63,6 +63,7 @@ public class AdminApiController {
             m.put("name", c.getName());
             m.put("type", c.getType());
             m.put("gradeName", c.getGrade() != null ? c.getGrade().getName() : null);
+            m.put("gradeId", c.getGrade() != null ? c.getGrade().getId() : null);
             result.add(m);
         }
         return ApiResponse.ok(result);
