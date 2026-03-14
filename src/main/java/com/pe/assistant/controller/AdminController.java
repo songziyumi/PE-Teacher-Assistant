@@ -301,6 +301,18 @@ public class AdminController {
         return "admin/students";
     }
 
+    @GetMapping("/students/check-student-no")
+    @ResponseBody
+    public Map<String, Object> checkStudentNoWeb(@RequestParam String studentNo,
+                                                  @RequestParam(required = false) Long excludeId) {
+        School school = currentUserService.getCurrentSchool();
+        boolean available = studentService.isStudentNoAvailable(school, studentNo, excludeId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("available", available);
+        m.put("message", available ? "学号可用" : "学号已存在，请更换");
+        return m;
+    }
+
     @GetMapping("/students/class/{classId}")
     public String studentsByClass(@PathVariable Long classId,
                                   @RequestParam(defaultValue = "") String name,
