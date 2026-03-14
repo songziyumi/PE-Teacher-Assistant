@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -556,6 +557,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   label: '带班数',
                   value: '${s['classCount'] ?? 0}',
                   unit: '个',
+                  onTap: () => context.go('/teacher'),
                 ),
                 _StatItem(
                   icon: Icons.how_to_reg,
@@ -563,6 +565,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   label: '本月考勤',
                   value: '${s['monthlyAttendanceCount'] ?? 0}',
                   unit: '次',
+                  onTap: () => context.push('/teacher/attendance-export'),
                 ),
                 _StatItem(
                   icon: Icons.pending_actions,
@@ -570,6 +573,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   label: '待审批',
                   value: '${s['pendingRequestCount'] ?? 0}',
                   unit: '条',
+                  onTap: () => context.push('/teacher/course-requests'),
                 ),
                 _StatItem(
                   icon: Icons.check_circle_outline,
@@ -577,6 +581,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   label: '已处理',
                   value: '${s['processedRequestCount'] ?? 0}',
                   unit: '条',
+                  onTap: () => context.push('/teacher/course-requests'),
                 ),
               ],
             ),
@@ -653,6 +658,7 @@ class _StatItem extends StatelessWidget {
   final String label;
   final String value;
   final String unit;
+  final VoidCallback? onTap;
 
   const _StatItem({
     required this.icon,
@@ -660,42 +666,62 @@ class _StatItem extends StatelessWidget {
     required this.label,
     required this.value,
     required this.unit,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 4),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: color),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
                 ),
-                TextSpan(
-                  text: unit,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: 4),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: value,
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: color),
+                    ),
+                    TextSpan(
+                      text: unit,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.grey)),
+                  if (onTap != null) ...[
+                    const SizedBox(width: 2),
+                    Icon(Icons.chevron_right,
+                        size: 11, color: Colors.grey.shade400),
+                  ],
+                ],
+              ),
+            ],
           ),
-          Text(label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ],
+        ),
       ),
     );
   }
