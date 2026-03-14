@@ -8,4 +8,8 @@ import java.util.List;
 public interface CourseRequestAuditRepository extends JpaRepository<CourseRequestAudit, Long> {
 
     List<CourseRequestAudit> findByRequestMessageIdOrderByHandledAtDesc(Long requestMessageId);
+
+    long countByOperatorTeacherId(Long operatorTeacherId);
+
+    List<CourseRequestAudit> findTop10ByOperatorTeacherIdOrderByHandledAtDesc(Long operatorTeacherId);
 }

@@ -2,6 +2,8 @@ package com.pe.assistant.controller.api;
 
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.AttendanceRepository;
+import com.pe.assistant.repository.CourseRequestAuditRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
 import lombok.Data;
@@ -41,6 +43,8 @@ public class TeacherApiController {
     private final CurrentUserService currentUserService;
     private final GradeService gradeService;
     private final TeacherRepository teacherRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final CourseRequestAuditRepository courseRequestAuditRepository;
     private final PasswordEncoder passwordEncoder;
     private final TeacherPermissionService teacherPermissionService;
 
@@ -72,6 +76,41 @@ public class TeacherApiController {
         m.put("bio", teacher.getBio());
         m.put("schoolName", teacher.getSchool() != null ? teacher.getSchool().getName() : null);
         return ApiResponse.ok(m);
+    }
+
+    @GetMapping("/profile/stats")
+    public ApiResponse<Map<String, Object>> profileStats() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+
+        int classCount = classService.findByTeacher(teacher).size();
+
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        long monthlyAttendanceCount = attendanceRepository
+                .countDistinctDatesByTeacherAndDateRange(teacher.getId(), monthStart, today);
+
+        long pendingRequestCount = messageService.countTeacherCourseRequests(teacher, "PENDING");
+        long processedRequestCount = courseRequestAuditRepository.countByOperatorTeacherId(teacher.getId());
+
+        List<CourseRequestAudit> recentAudits = courseRequestAuditRepository
+                .findTop10ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+        List<Map<String, Object>> activities = recentAudits.stream().map(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("action", a.getAction());
+            m.put("time", a.getHandledAt().toString());
+            m.put("studentName", a.getSenderName());
+            m.put("courseName", a.getRelatedCourseName());
+            m.put("remark", a.getRemark());
+            return m;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("classCount", classCount);
+        result.put("monthlyAttendanceCount", monthlyAttendanceCount);
+        result.put("pendingRequestCount", pendingRequestCount);
+        result.put("processedRequestCount", processedRequestCount);
+        result.put("recentActivities", activities);
+        return ApiResponse.ok(result);
     }
 
     @PutMapping("/profile")

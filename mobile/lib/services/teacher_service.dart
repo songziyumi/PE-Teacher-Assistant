@@ -21,6 +21,11 @@ class TeacherService {
     return Map<String, dynamic>.from(data);
   }
 
+  static Future<Map<String, dynamic>> getProfileStats() async {
+    final data = await ApiService.get('/teacher/profile/stats') as Map;
+    return Map<String, dynamic>.from(data);
+  }
+
   static Future<void> updateProfile({
     String? gender,
     String? birthDate,

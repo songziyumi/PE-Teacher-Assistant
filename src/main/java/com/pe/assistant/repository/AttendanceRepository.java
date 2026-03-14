@@ -61,4 +61,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     @Query("SELECT a FROM Attendance a WHERE a.student.school = :school AND a.date BETWEEN :start AND :end AND (:gradeId IS NULL OR a.student.schoolClass.grade.id = :gradeId) AND (:classId IS NULL OR a.student.schoolClass.id = :classId) ORDER BY a.date, a.student.schoolClass.name, a.student.name")
     List<Attendance> findBySchoolAndFilters(@Param("school") School school, @Param("start") LocalDate start, @Param("end") LocalDate end, @Param("gradeId") Long gradeId, @Param("classId") Long classId);
+
+    @Query("SELECT COUNT(DISTINCT a.date) FROM Attendance a WHERE a.teacher.id = :teacherId AND a.date >= :start AND a.date <= :end")
+    long countDistinctDatesByTeacherAndDateRange(@Param("teacherId") Long teacherId, @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

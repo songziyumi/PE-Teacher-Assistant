@@ -31,10 +31,22 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   DateTime? _birthDate;
   String? _photoUrl;
 
+  Map<String, dynamic>? _stats;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final data = await TeacherService.getProfileStats();
+      if (mounted) setState(() => _stats = data);
+    } catch (_) {
+      // 统计加载失败静默忽略，不影响主页面
+    }
   }
 
   @override
@@ -247,6 +259,12 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                if (_stats != null) _buildStatsCard(),
+                if (_stats != null) ...[
+                  const SizedBox(height: 12),
+                  _buildActivitiesCard(),
+                ],
+                const SizedBox(height: 12),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -410,6 +428,169 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
               ],
             ),
       bottomNavigationBar: const TeacherBottomNav(currentIndex: 3),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    final s = _stats!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('教学概况',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _StatItem(
+                  icon: Icons.class_,
+                  color: const Color(0xFF4a90e2),
+                  label: '带班数',
+                  value: '${s['classCount'] ?? 0}',
+                  unit: '个',
+                ),
+                _StatItem(
+                  icon: Icons.how_to_reg,
+                  color: const Color(0xFF27ae60),
+                  label: '本月考勤',
+                  value: '${s['monthlyAttendanceCount'] ?? 0}',
+                  unit: '次',
+                ),
+                _StatItem(
+                  icon: Icons.pending_actions,
+                  color: const Color(0xFFe67e22),
+                  label: '待审批',
+                  value: '${s['pendingRequestCount'] ?? 0}',
+                  unit: '条',
+                ),
+                _StatItem(
+                  icon: Icons.check_circle_outline,
+                  color: const Color(0xFF8e44ad),
+                  label: '已处理',
+                  value: '${s['processedRequestCount'] ?? 0}',
+                  unit: '条',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivitiesCard() {
+    final activities =
+        (_stats!['recentActivities'] as List?) ?? const [];
+    if (activities.isEmpty) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('最近操作',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ...activities.map((item) {
+              final m = Map<String, dynamic>.from(item as Map);
+              final isApprove = m['action'] == 'APPROVE';
+              final timeStr = (m['time']?.toString() ?? '').length >= 16
+                  ? m['time'].toString().substring(0, 16).replaceAll('T', ' ')
+                  : m['time']?.toString() ?? '';
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      isApprove ? Icons.check_circle : Icons.cancel,
+                      size: 18,
+                      color: isApprove
+                          ? const Color(0xFF27ae60)
+                          : const Color(0xFFe74c3c),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${isApprove ? "同意" : "拒绝"}了 ${m['studentName'] ?? '-'} 申请${m['courseName'] != null ? ' ${m['courseName']}' : ''}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          if (m['remark'] != null &&
+                              m['remark'].toString().isNotEmpty)
+                            Text(m['remark'].toString(),
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    Text(timeStr,
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+  final String unit;
+
+  const _StatItem({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 4),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: value,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: color),
+                ),
+                TextSpan(
+                  text: unit,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          Text(label,
+              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
+      ),
     );
   }
 }
