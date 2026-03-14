@@ -57,6 +57,7 @@ class AdminService {
     String? idCard,
     String? electiveClass,
     required int classId,
+    String? studentStatus,
   }) async {
     await ApiService.post('/admin/students/save', {
       if (id != null) 'id': id,
@@ -66,7 +67,15 @@ class AdminService {
       if (idCard != null) 'idCard': idCard,
       if (electiveClass != null && electiveClass.isNotEmpty) 'electiveClass': electiveClass,
       'classId': classId,
+      if (studentStatus != null && studentStatus.isNotEmpty) 'studentStatus': studentStatus,
     });
+  }
+
+  static Future<bool> checkStudentNo(String studentNo, {int? excludeId}) async {
+    final q = StringBuffer('/admin/students/check-student-no?studentNo=${Uri.encodeComponent(studentNo)}');
+    if (excludeId != null) q.write('&excludeId=$excludeId');
+    final data = await ApiService.get(q.toString()) as Map;
+    return data['available'] == true;
   }
 
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');

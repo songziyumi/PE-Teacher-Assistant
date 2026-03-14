@@ -121,6 +121,18 @@ public class AdminApiController {
         return ApiResponse.ok("保存成功", null);
     }
 
+    @GetMapping("/students/check-student-no")
+    public ApiResponse<Map<String, Object>> checkStudentNo(
+            @RequestParam String studentNo,
+            @RequestParam(required = false) Long excludeId) {
+        School school = currentUserService.getCurrentSchool();
+        boolean available = studentService.isStudentNoAvailable(school, studentNo, excludeId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("available", available);
+        m.put("message", available ? "学号可用" : "学号已存在");
+        return ApiResponse.ok(m);
+    }
+
     @DeleteMapping("/students/{id}")
     public ApiResponse<String> deleteStudent(@PathVariable Long id) {
         studentService.delete(id);

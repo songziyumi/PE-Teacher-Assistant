@@ -83,10 +83,15 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
   }
 
+  static const _studentStatuses = ['在籍', '休学', '毕业', '在外借读', '借读'];
+
   void _showEditDialog({Student? student}) async {
     final nameCtrl = TextEditingController(text: student?.name ?? '');
     final studentNoCtrl = TextEditingController(text: student?.studentNo ?? '');
     String selectedGender = student?.gender ?? '男';
+    String selectedStatus = _studentStatuses.contains(student?.studentStatus)
+        ? student!.studentStatus!
+        : '在籍';
 
     final adminClasses = _classes
         .where((c) => !_isElectiveClassType(c.type))
@@ -151,6 +156,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   ],
                   onChanged: (v) =>
                       setDialogState(() => selectedGender = v ?? '男'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedStatus,
+                  decoration: const InputDecoration(
+                      labelText: '学籍状态',
+                      border: OutlineInputBorder(),
+                      isDense: true),
+                  items: _studentStatuses
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setDialogState(() => selectedStatus = v ?? '在籍'),
                 ),
                 const SizedBox(height: 12),
                 const Text('行政班',
@@ -238,9 +256,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
 
     if (confirmed == true) {
-      if (nameCtrl.text.trim().isEmpty ||
-          studentNoCtrl.text.trim().isEmpty ||
-          selectedClassId == null) {
+      final name = nameCtrl.text.trim();
+      final studentNo = studentNoCtrl.text.trim();
+      if (name.isEmpty || studentNo.isEmpty || selectedClassId == null) {
         if (mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('请填写姓名、学号并选择班级')));
@@ -248,13 +266,25 @@ class _StudentListScreenState extends State<StudentListScreen> {
         return;
       }
       try {
+        final available = await AdminService.checkStudentNo(
+          studentNo,
+          excludeId: student?.id,
+        );
+        if (!available) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('学号已存在，请更换学号')));
+          }
+          return;
+        }
         await AdminService.saveStudent(
           id: student?.id,
-          name: nameCtrl.text.trim(),
+          name: name,
           gender: selectedGender,
-          studentNo: studentNoCtrl.text.trim(),
+          studentNo: studentNo,
           electiveClass: selectedElective,
           classId: selectedClassId!,
+          studentStatus: selectedStatus,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -385,10 +415,17 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                   Text('选修：${s.electiveClass}',
                                       style: const TextStyle(
                                           fontSize: 12, color: Colors.orange)),
+                                if (s.studentStatus != null &&
+                                    s.studentStatus != '在籍')
+                                  Text('学籍：${s.studentStatus}',
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey)),
                               ],
                             ),
-                            isThreeLine: s.electiveClass != null &&
-                                s.electiveClass!.isNotEmpty,
+                            isThreeLine: (s.electiveClass != null &&
+                                    s.electiveClass!.isNotEmpty) ||
+                                (s.studentStatus != null &&
+                                    s.studentStatus != '在籍'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
