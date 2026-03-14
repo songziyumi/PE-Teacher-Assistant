@@ -168,7 +168,7 @@ class _TeacherHomeState extends State<TeacherHome> {
                   onRefresh: _load,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _classes.length + 2,
+                    itemCount: _classes.length + 3,
                     itemBuilder: (_, i) {
                       if (i == 0) {
                         return _WelcomeCard(name: user?.name ?? '');
@@ -180,7 +180,13 @@ class _TeacherHomeState extends State<TeacherHome> {
                           onTap: _openRequestCenter,
                         );
                       }
-                      return _ClassCard(cls: _classes[i - 2]);
+                      if (i == 2) {
+                        return _ExportEntryCard(
+                          onTap: () =>
+                              context.push('/teacher/attendance-export'),
+                        );
+                      }
+                      return _ClassCard(cls: _classes[i - 3]);
                     },
                   ),
                 ),
@@ -234,6 +240,29 @@ class _RequestEntryCard extends StatelessWidget {
         title:
             const Text('选课审批中心', style: TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('待审批：$pendingCount    未读消息：$unreadCount'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _ExportEntryCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ExportEntryCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.teal.shade50,
+      child: ListTile(
+        leading: const Icon(Icons.download, color: Colors.teal),
+        title: const Text('导出考勤记录',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: const Text('按班级和日期范围导出 Excel'),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

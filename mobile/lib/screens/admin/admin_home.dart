@@ -97,6 +97,13 @@ class _AdminHomeState extends State<AdminHome> {
               color: const Color(0xFF9b59b6),
               onTap: () => context.push('/admin/term-grades'),
             ),
+            _MenuCard(
+              icon: Icons.download,
+              title: '导出考勤记录',
+              subtitle: '按年级、班级、日期范围导出 Excel',
+              color: const Color(0xFF16a085),
+              onTap: () => context.push('/admin/attendance-export'),
+            ),
           ],
         ),
       ),

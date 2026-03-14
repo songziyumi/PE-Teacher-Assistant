@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -645,6 +647,35 @@ public class TeacherApiController {
                         AttendanceBatchRequest.Record::getStatus));
         attendanceService.saveAttendance(req.getClassId(), date, statusMap, username);
         return ApiResponse.ok("保存成功，共 " + statusMap.size() + " 条", null);
+    }
+
+    @GetMapping(value = "/attendance/export", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportAttendance(
+            @RequestParam String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long classId) throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        List<Attendance> records;
+        if (classId != null) {
+            SchoolClass sc = classService.findById(classId);
+            if (sc.getTeacher() == null || !sc.getTeacher().getId().equals(teacher.getId())) {
+                return ResponseEntity.status(403).build();
+            }
+            records = attendanceService.findByClassIdsAndDateRange(List.of(classId), start, end);
+        } else {
+            List<Long> classIds = classService.findByTeacher(teacher).stream()
+                    .map(SchoolClass::getId).collect(Collectors.toList());
+            records = classIds.isEmpty() ? List.of()
+                    : attendanceService.findByClassIdsAndDateRange(classIds, start, end);
+        }
+        byte[] bytes = attendanceService.exportXlsx(records);
+        String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
+        String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
     }
 
     @Data

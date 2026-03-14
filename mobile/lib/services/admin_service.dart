@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../models/school_class.dart';
 import '../models/elective_class.dart';
 import 'api_service.dart';
@@ -161,4 +162,20 @@ class AdminService {
 
   static Future<void> deleteTermGrade(int id) =>
       ApiService.delete('/admin/term-grades/$id');
+
+  // 导出考勤记录（返回 xlsx 字节）
+  static Future<Uint8List> exportAttendance({
+    required String startDate,
+    String? endDate,
+    int? gradeId,
+    int? classId,
+  }) async {
+    final q = StringBuffer(
+      '/admin/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
+    );
+    if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
+    if (gradeId != null) q.write('&gradeId=$gradeId');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
 }

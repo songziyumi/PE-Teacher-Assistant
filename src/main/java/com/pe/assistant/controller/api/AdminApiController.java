@@ -8,6 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,6 +26,7 @@ public class AdminApiController {
     private final PhysicalTestService physicalTestService;
     private final TermGradeService termGradeService;
     private final CurrentUserService currentUserService;
+    private final AttendanceService attendanceService;
 
     // ===== 仪表盘统计 =====
 
@@ -212,6 +217,27 @@ public class AdminApiController {
     public ApiResponse<String> deleteStudent(@PathVariable Long id) {
         studentService.delete(id);
         return ApiResponse.ok("删除成功", null);
+    }
+
+    // ===== 考勤导出 =====
+
+    @GetMapping(value = "/attendance/export", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportAttendance(
+            @RequestParam String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long classId) throws IOException {
+        School school = currentUserService.getCurrentSchool();
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        List<com.pe.assistant.entity.Attendance> records =
+                attendanceService.findBySchoolAndFilters(school, start, end, gradeId, classId);
+        byte[] bytes = attendanceService.exportXlsx(records);
+        String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
+        String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
     }
 
     // ===== 体测管理 =====

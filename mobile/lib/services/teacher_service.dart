@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../models/school_class.dart';
 import '../models/student.dart';
 import '../models/physical_test.dart';
@@ -320,6 +321,20 @@ class TeacherService {
     return (data as Map).map(
       (k, v) => MapEntry(int.parse(k.toString()), TermGrade.fromJson(v)),
     );
+  }
+
+  // 导出考勤记录（返回 xlsx 字节）
+  static Future<Uint8List> exportAttendance({
+    required String startDate,
+    String? endDate,
+    int? classId,
+  }) async {
+    final q = StringBuffer(
+      '/teacher/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
+    );
+    if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
   }
 
   // 成绩批量保存
