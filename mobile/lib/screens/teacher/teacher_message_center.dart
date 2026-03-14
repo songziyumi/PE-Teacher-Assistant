@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/teacher_message.dart';
+import '../../services/notification_service.dart';
 import '../../services/teacher_service.dart';
 import '../../widgets/teacher_bottom_nav.dart';
 
@@ -57,6 +58,9 @@ class _TeacherMessageCenterScreenState
       );
       if (!mounted) return;
       setState(() => _messages = result);
+      // 同步未读基线：用户已看到消息列表，重置通知计数起点
+      final unreadCount = result.where((m) => !m.isRead).length;
+      NotificationService.syncUnreadCount(unreadCount);
     } catch (e) {
       _showSnackBar('$_loadFailedPrefix$e');
     } finally {

@@ -6,6 +6,12 @@
 
 #import "GeneratedPluginRegistrant.h"
 
+#if __has_include(<flutter_local_notifications/FlutterLocalNotificationsPlugin.h>)
+#import <flutter_local_notifications/FlutterLocalNotificationsPlugin.h>
+#else
+@import flutter_local_notifications;
+#endif
+
 #if __has_include(<flutter_secure_storage/FlutterSecureStoragePlugin.h>)
 #import <flutter_secure_storage/FlutterSecureStoragePlugin.h>
 #else
@@ -30,13 +36,21 @@
 @import shared_preferences_foundation;
 #endif
 
+#if __has_include(<workmanager/WorkmanagerPlugin.h>)
+#import <workmanager/WorkmanagerPlugin.h>
+#else
+@import workmanager;
+#endif
+
 @implementation GeneratedPluginRegistrant
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
+  [FlutterLocalNotificationsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterLocalNotificationsPlugin"]];
   [FlutterSecureStoragePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterSecureStoragePlugin"]];
   [FLTImagePickerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTImagePickerPlugin"]];
   [OpenFilePlugin registerWithRegistrar:[registry registrarForPlugin:@"OpenFilePlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];
+  [WorkmanagerPlugin registerWithRegistrar:[registry registrarForPlugin:@"WorkmanagerPlugin"]];
 }
 
 @end
