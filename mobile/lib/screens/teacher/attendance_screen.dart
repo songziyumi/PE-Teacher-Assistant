@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/student.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -73,12 +74,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canEdit = PermissionCache.current.attendanceEdit;
     return Scaffold(
       appBar: AppBar(
         title: Text('考勤 - ${widget.className}'),
         actions: [
           TextButton.icon(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || !canEdit ? null : _save,
             icon: const Icon(Icons.save, color: Colors.white),
             label: const Text('保存', style: TextStyle(color: Colors.white)),
           ),
@@ -86,6 +88,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Column(
         children: [
+          if (!canEdit)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(children: [
+                Icon(Icons.lock_outline, size: 16, color: Colors.orange),
+                SizedBox(width: 6),
+                Text('管理员已禁用考勤录入功能',
+                    style: TextStyle(color: Colors.orange)),
+              ]),
+            ),
           // 日期选择
           InkWell(
             onTap: _pickDate,

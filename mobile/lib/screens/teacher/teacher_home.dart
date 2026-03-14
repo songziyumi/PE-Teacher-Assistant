@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../models/school_class.dart';
+import '../../models/teacher_permission.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
 import '../../widgets/teacher_bottom_nav.dart';
 
@@ -32,11 +34,14 @@ class _TeacherHomeState extends State<TeacherHome> {
         TeacherService.getClasses(),
         TeacherService.getCourseRequestSummary(),
         TeacherService.getUnreadMessageCount(),
+        TeacherService.getPermissions()
+            .catchError((_) => TeacherPermission.defaultAll),
       ]);
       _classes = results[0] as List<SchoolClass>;
       final summary = results[1] as Map<String, int>;
       _pendingRequestCount = summary['pending'] ?? 0;
       _unreadMessageCount = results[2] as int;
+      PermissionCache.current = results[3] as TeacherPermission;
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -330,45 +335,54 @@ class _ClassCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
+            Builder(builder: (context) {
+              final perm = PermissionCache.current;
+              final encodedName = Uri.encodeComponent(cls.displayName);
+              final buttons = <Widget>[
                 _ActionButton(
                   icon: Icons.people,
                   label: '学生列表',
                   color: const Color(0xFF8e44ad),
                   onTap: () => context.push(
-                    '/teacher/students/${cls.id}?name=${Uri.encodeComponent(cls.displayName)}',
+                    '/teacher/students/${cls.id}?name=$encodedName',
                   ),
                 ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.how_to_reg,
-                  label: '考勤录入',
-                  color: const Color(0xFF27ae60),
-                  onTap: () => context.push(
-                    '/teacher/attendance/${cls.id}?name=${Uri.encodeComponent(cls.displayName)}',
+                if (perm.attendanceEdit) ...[
+                  const SizedBox(width: 8),
+                  _ActionButton(
+                    icon: Icons.how_to_reg,
+                    label: '考勤录入',
+                    color: const Color(0xFF27ae60),
+                    onTap: () => context.push(
+                      '/teacher/attendance/${cls.id}?name=$encodedName',
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.fitness_center,
-                  label: '体测录入',
-                  color: const Color(0xFF4a90e2),
-                  onTap: () => context.push(
-                    '/teacher/physical/${cls.id}?name=${Uri.encodeComponent(cls.displayName)}',
+                ],
+                if (perm.physicalTestEdit) ...[
+                  const SizedBox(width: 8),
+                  _ActionButton(
+                    icon: Icons.fitness_center,
+                    label: '体测录入',
+                    color: const Color(0xFF4a90e2),
+                    onTap: () => context.push(
+                      '/teacher/physical/${cls.id}?name=$encodedName',
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  icon: Icons.grade,
-                  label: '成绩录入',
-                  color: const Color(0xFF9b59b6),
-                  onTap: () => context.push(
-                    '/teacher/grade/${cls.id}?name=${Uri.encodeComponent(cls.displayName)}',
+                ],
+                if (perm.termGradeEdit) ...[
+                  const SizedBox(width: 8),
+                  _ActionButton(
+                    icon: Icons.grade,
+                    label: '成绩录入',
+                    color: const Color(0xFF9b59b6),
+                    onTap: () => context.push(
+                      '/teacher/grade/${cls.id}?name=$encodedName',
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ];
+              return Row(children: buttons);
+            }),
           ],
         ),
       ),

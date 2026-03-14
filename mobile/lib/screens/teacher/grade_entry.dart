@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/student.dart';
 import '../../models/term_grade.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
 
 class GradeEntryScreen extends StatefulWidget {
@@ -93,12 +94,13 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canEdit = PermissionCache.current.termGradeEdit;
     return Scaffold(
       appBar: AppBar(
         title: Text('成绩录入 - ${widget.className}'),
         actions: [
           TextButton.icon(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || !canEdit ? null : _save,
             icon: const Icon(Icons.save, color: Colors.white),
             label: const Text('保存', style: TextStyle(color: Colors.white)),
           ),
@@ -106,6 +108,18 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
       ),
       body: Column(
         children: [
+          if (!canEdit)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(children: [
+                Icon(Icons.lock_outline, size: 16, color: Colors.orange),
+                SizedBox(width: 6),
+                Text('管理员已禁用成绩录入功能',
+                    style: TextStyle(color: Colors.orange)),
+              ]),
+            ),
           _buildFilterBar(),
           Expanded(
             child: _loading

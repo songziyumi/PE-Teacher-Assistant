@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/student.dart';
 import '../../models/school_class.dart';
 import '../../models/elective_class.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
 
 class TeacherStudentListScreen extends StatefulWidget {
@@ -918,6 +919,13 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
 
   Future<void> _showEditDialog(Student s) async {
     final messenger = ScaffoldMessenger.of(context);
+    final perm = PermissionCache.current;
+    final anyEditable = perm.editStudentName ||
+        perm.editStudentGender ||
+        perm.editStudentNo ||
+        perm.editStudentStatus ||
+        perm.editStudentClass ||
+        perm.editStudentElectiveClass;
     final nameCtrl = TextEditingController(text: s.name);
     final studentNoCtrl = TextEditingController(text: s.studentNo ?? '');
     final originalStudentNo = (s.studentNo ?? '').trim();
@@ -1066,6 +1074,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                       TextFormField(
                         controller: nameCtrl,
                         maxLength: _studentNameMaxLength,
+                        enabled: perm.editStudentName,
                         decoration: InputDecoration(
                           labelText: '学生姓名',
                           border: const OutlineInputBorder(),
@@ -1094,8 +1103,11 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                             DropdownMenuItem(value: '男', child: Text('男')),
                             DropdownMenuItem(value: '女', child: Text('女')),
                           ],
-                          onChanged: (v) =>
-                              setDialogState(() => selectedGender = v ?? '男'),
+                          onChanged: perm.editStudentGender
+                              ? (v) => setDialogState(
+                                    () => selectedGender = v ?? '男',
+                                  )
+                              : null,
                         ),
                         DropdownButtonFormField<String>(
                           initialValue: selectedStatus,
@@ -1113,15 +1125,19 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (v) => setDialogState(
-                            () => selectedStatus = v ?? _studentStatuses.first,
-                          ),
+                          onChanged: perm.editStudentStatus
+                              ? (v) => setDialogState(
+                                    () => selectedStatus =
+                                        v ?? _studentStatuses.first,
+                                  )
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: studentNoCtrl,
                         maxLength: _studentNoMaxLength,
+                        enabled: perm.editStudentNo,
                         decoration: InputDecoration(
                           labelText: '学号',
                           border: const OutlineInputBorder(),
@@ -1197,25 +1213,29 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (v) => setDialogState(() {
-                            adminGradeId = v;
-                            filteredAdminClasses = _adminClasses
-                                .where((c) => c.gradeId == v)
-                                .toList();
-                            selectedClassId = filteredAdminClasses.isNotEmpty
-                                ? filteredAdminClasses.first.id
-                                : null;
-                            electiveGradeId = v;
-                            filteredElective = _electiveClasses
-                                .where((c) => c.gradeId == electiveGradeId)
-                                .toList();
-                            if (!filteredElective.any(
-                              (c) => c.storedName == selectedElective,
-                            )) {
-                              selectedElective = null;
-                            }
-                            formError = null;
-                          }),
+                          onChanged: perm.editStudentClass
+                              ? (v) => setDialogState(() {
+                                    adminGradeId = v;
+                                    filteredAdminClasses = _adminClasses
+                                        .where((c) => c.gradeId == v)
+                                        .toList();
+                                    selectedClassId =
+                                        filteredAdminClasses.isNotEmpty
+                                            ? filteredAdminClasses.first.id
+                                            : null;
+                                    electiveGradeId = v;
+                                    filteredElective = _electiveClasses
+                                        .where(
+                                            (c) => c.gradeId == electiveGradeId)
+                                        .toList();
+                                    if (!filteredElective.any(
+                                      (c) => c.storedName == selectedElective,
+                                    )) {
+                                      selectedElective = null;
+                                    }
+                                    formError = null;
+                                  })
+                              : null,
                         ),
                         DropdownButtonFormField<int?>(
                           initialValue:
@@ -1238,10 +1258,12 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (v) => setDialogState(() {
-                            selectedClassId = v;
-                            formError = null;
-                          }),
+                          onChanged: perm.editStudentClass
+                              ? (v) => setDialogState(() {
+                                    selectedClassId = v;
+                                    formError = null;
+                                  })
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1267,13 +1289,15 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (v) => setDialogState(() {
-                            electiveGradeId = v;
-                            filteredElective = _electiveClasses
-                                .where((c) => c.gradeId == v)
-                                .toList();
-                            selectedElective = null;
-                          }),
+                          onChanged: perm.editStudentElectiveClass
+                              ? (v) => setDialogState(() {
+                                    electiveGradeId = v;
+                                    filteredElective = _electiveClasses
+                                        .where((c) => c.gradeId == v)
+                                        .toList();
+                                    selectedElective = null;
+                                  })
+                              : null,
                         ),
                         DropdownButtonFormField<String?>(
                           initialValue:
@@ -1300,8 +1324,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                               ),
                             ),
                           ],
-                          onChanged: (v) =>
-                              setDialogState(() => selectedElective = v),
+                          onChanged: perm.editStudentElectiveClass
+                              ? (v) =>
+                                    setDialogState(() => selectedElective = v)
+                              : null,
                         ),
                       ),
                     ],
@@ -1320,7 +1346,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
               child: const Text('取消'),
             ),
             ElevatedButton(
-              onPressed: saving
+              onPressed: saving || !anyEditable
                   ? null
                   : () async {
                       final newName = nameCtrl.text.trim();
@@ -1570,6 +1596,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   Widget build(BuildContext context) {
     final displayStudents = _buildDisplayStudents();
     final classGroupColors = _buildClassGroupColors(displayStudents);
+    final perm = PermissionCache.current;
 
     return Scaffold(
       appBar: AppBar(
@@ -1588,7 +1615,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
       body: Column(
         children: [
           _buildFilterPanel(),
-          _buildBatchActionBar(displayStudents),
+          if (perm.batchOperation) _buildBatchActionBar(displayStudents),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1644,20 +1671,21 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
                                 : null,
                           ),
                           child: ListTile(
-                            selected: selected,
-                            onLongPress: _batchSubmitting
-                                ? null
-                                : () =>
-                                      _toggleStudentSelection(s.id, !selected),
-                            leading: Checkbox(
-                              value: selected,
-                              onChanged: _batchSubmitting
-                                  ? null
-                                  : (value) => _toggleStudentSelection(
-                                      s.id,
-                                      value ?? false,
-                                    ),
-                            ),
+                            selected: perm.batchOperation && selected,
+                            onLongPress: perm.batchOperation && !_batchSubmitting
+                                ? () => _toggleStudentSelection(s.id, !selected)
+                                : null,
+                            leading: perm.batchOperation
+                                ? Checkbox(
+                                    value: selected,
+                                    onChanged: _batchSubmitting
+                                        ? null
+                                        : (value) => _toggleStudentSelection(
+                                              s.id,
+                                              value ?? false,
+                                            ),
+                                  )
+                                : null,
                             title: Row(
                               children: [
                                 CircleAvatar(
