@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import '../../models/school_class.dart';
 import '../../models/teacher_permission.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/network_service.dart';
+import '../../services/offline_queue_service.dart';
 import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
+import '../../widgets/connectivity_banner.dart';
 import '../../widgets/teacher_bottom_nav.dart';
 
 class TeacherHome extends StatefulWidget {
@@ -19,12 +22,31 @@ class _TeacherHomeState extends State<TeacherHome> {
   List<SchoolClass> _classes = [];
   int _pendingRequestCount = 0;
   int _unreadMessageCount = 0;
+  int _pendingSyncCount = 0;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _load();
+    OfflineQueueService.addListener(_onQueueChanged);
+    NetworkService.addListener(_onNetworkChanged);
+  }
+
+  @override
+  void dispose() {
+    OfflineQueueService.removeListener(_onQueueChanged);
+    NetworkService.removeListener(_onNetworkChanged);
+    super.dispose();
+  }
+
+  Future<void> _onQueueChanged() async {
+    final count = await OfflineQueueService.pendingCount();
+    if (mounted) setState(() => _pendingSyncCount = count);
+  }
+
+  void _onNetworkChanged(bool online) {
+    if (online) _onQueueChanged();
   }
 
   Future<void> _load() async {
@@ -36,12 +58,14 @@ class _TeacherHomeState extends State<TeacherHome> {
         TeacherService.getUnreadMessageCount(),
         TeacherService.getPermissions()
             .catchError((_) => TeacherPermission.defaultAll),
+        OfflineQueueService.pendingCount(),
       ]);
       _classes = results[0] as List<SchoolClass>;
       final summary = results[1] as Map<String, int>;
       _pendingRequestCount = summary['pending'] ?? 0;
       _unreadMessageCount = results[2] as int;
       PermissionCache.current = results[3] as TeacherPermission;
+      _pendingSyncCount = results[4] as int;
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -49,6 +73,30 @@ class _TeacherHomeState extends State<TeacherHome> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _manualSync() async {
+    if (!NetworkService.isOnline) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('当前离线，无法同步'),
+        backgroundColor: Colors.orange,
+      ));
+      return;
+    }
+    final flushed = await OfflineQueueService.flush();
+    if (!mounted) return;
+    if (flushed > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('已同步 $flushed 条离线数据'),
+        backgroundColor: Colors.green,
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('同步失败，请稍后重试'),
+        backgroundColor: Colors.red,
+      ));
+    }
+    await _onQueueChanged();
   }
 
   Future<void> _openRequestCenter() async {
@@ -81,6 +129,40 @@ class _TeacherHomeState extends State<TeacherHome> {
           ],
         ),
         actions: [
+          if (_pendingSyncCount > 0)
+            IconButton(
+              tooltip: '待同步 $_pendingSyncCount 条离线数据，点击立即同步',
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.cloud_upload),
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 14),
+                      child: Text(
+                        '$_pendingSyncCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              onPressed: _manualSync,
+            ),
           IconButton(
             icon: Stack(
               clipBehavior: Clip.none,
@@ -165,36 +247,43 @@ class _TeacherHomeState extends State<TeacherHome> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _classes.isEmpty
-              ? const Center(child: Text('暂无班级'))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _classes.length + 3,
-                    itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return _WelcomeCard(name: user?.name ?? '');
-                      }
-                      if (i == 1) {
-                        return _RequestEntryCard(
-                          pendingCount: _pendingRequestCount,
-                          unreadCount: _unreadMessageCount,
-                          onTap: _openRequestCenter,
-                        );
-                      }
-                      if (i == 2) {
-                        return _ExportEntryCard(
-                          onTap: () =>
-                              context.push('/teacher/attendance-export'),
-                        );
-                      }
-                      return _ClassCard(cls: _classes[i - 3]);
-                    },
-                  ),
-                ),
+      body: Column(
+        children: [
+          const ConnectivityBanner(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _classes.isEmpty
+                    ? const Center(child: Text('暂无班级'))
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _classes.length + 3,
+                          itemBuilder: (_, i) {
+                            if (i == 0) {
+                              return _WelcomeCard(name: user?.name ?? '');
+                            }
+                            if (i == 1) {
+                              return _RequestEntryCard(
+                                pendingCount: _pendingRequestCount,
+                                unreadCount: _unreadMessageCount,
+                                onTap: _openRequestCenter,
+                              );
+                            }
+                            if (i == 2) {
+                              return _ExportEntryCard(
+                                onTap: () =>
+                                    context.push('/teacher/attendance-export'),
+                              );
+                            }
+                            return _ClassCard(cls: _classes[i - 3]);
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
       bottomNavigationBar: const TeacherBottomNav(currentIndex: 0),
     );
   }

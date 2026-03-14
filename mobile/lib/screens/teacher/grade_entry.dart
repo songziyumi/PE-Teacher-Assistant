@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/student.dart';
 import '../../models/term_grade.dart';
+import '../../services/network_service.dart';
+import '../../services/offline_queue_service.dart';
 import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
+import '../../widgets/connectivity_banner.dart';
 
 class GradeEntryScreen extends StatefulWidget {
   final int classId;
@@ -64,26 +67,49 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
     }
   }
 
+  List<Map<String, dynamic>> _buildItems() {
+    return _students.map((s) {
+      final c = _ctrls[s.id]!;
+      return {
+        'studentId': s.id,
+        'attendanceScore': double.tryParse(c['attendance']!.text),
+        'skillScore': double.tryParse(c['skill']!.text),
+        'theoryScore': double.tryParse(c['theory']!.text),
+        'remark': c['remark']!.text.isEmpty ? null : c['remark']!.text,
+      };
+    }).toList();
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final items = _students.map((s) {
-        final c = _ctrls[s.id]!;
-        return {
-          'studentId': s.id,
-          'attendanceScore': double.tryParse(c['attendance']!.text),
-          'skillScore': double.tryParse(c['skill']!.text),
-          'theoryScore': double.tryParse(c['theory']!.text),
-          'remark': c['remark']!.text.isEmpty ? null : c['remark']!.text,
-        };
-      }).toList();
+      final items = _buildItems();
+      if (!NetworkService.isOnline) {
+        await _queueGrades(items);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('当前离线，成绩已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
       await TeacherService.saveTermGrades(_academicYear, _semester, items);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('成绩保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (!NetworkService.isOnline) {
+        await _queueGrades(_buildItems());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('网络中断，成绩已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
       }
@@ -91,6 +117,15 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _queueGrades(List<Map<String, dynamic>> items) =>
+      OfflineQueueService.enqueueTermGrades(
+        classId: widget.classId,
+        className: widget.className,
+        academicYear: _academicYear,
+        semester: _semester,
+        items: items,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +143,7 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
           if (!canEdit)
             Container(
               width: double.infinity,

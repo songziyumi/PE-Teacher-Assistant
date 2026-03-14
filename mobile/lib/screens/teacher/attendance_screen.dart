@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/student.dart';
+import '../../services/network_service.dart';
+import '../../services/offline_queue_service.dart';
 import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
+import '../../widgets/connectivity_banner.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final int classId;
@@ -57,13 +60,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      if (!NetworkService.isOnline) {
+        await _queueAttendance();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('当前离线，考勤已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
       await TeacherService.saveAttendance(widget.classId, _dateStr, _statusMap);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('考勤保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (!NetworkService.isOnline) {
+        await _queueAttendance();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('网络中断，考勤已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
       }
@@ -71,6 +93,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _queueAttendance() => OfflineQueueService.enqueueAttendance(
+        classId: widget.classId,
+        className: widget.className,
+        date: _dateStr,
+        statusMap: _statusMap,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +117,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
           if (!canEdit)
             Container(
               width: double.infinity,
