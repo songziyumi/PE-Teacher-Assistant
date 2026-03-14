@@ -1,6 +1,6 @@
 # 教师手机端功能落地清单（P0 / P1 / P2）
 
-> 更新时间：2026-03-14
+> 更新时间：2026-03-15
 > 状态标识：`[x] 已落地（代码已完成）` / `[-] 进行中（有代码，待联调验收）` / `[ ] 未开始`
 
 ## 目标
@@ -128,7 +128,12 @@
   - 后端：`GET/PUT /api/admin/teacher-permissions`、`GET /api/teacher/permissions`
   - Web：`/admin/teacher-permissions`（拨动开关页面，dashboard 已加入口）
   - Flutter 管理员端：`screens/admin/teacher_permission_screen.dart`（SwitchListTile 配置）
-  - Flutter 教师端：权限读取接口已就绪，**UI 强制执行待完成**（禁用字段/功能按钮）
+  - Flutter 教师端：`services/permission_cache.dart`（TeacherHome 启动时加载并缓存）
+    - `teacher_home.dart`：班级卡片按 `attendanceEdit/physicalTestEdit/termGradeEdit` 显隐对应入口按钮
+    - `attendance_screen.dart`：`attendanceEdit=false` 时禁用保存 + 显示锁定提示条
+    - `physical_entry.dart`：`physicalTestEdit=false` 时同上
+    - `grade_entry.dart`：`termGradeEdit=false` 时同上
+    - `teacher_student_list.dart`：`batchOperation=false` 时隐藏批量面板和列表复选框；编辑弹窗内6个学生字段各按权限 disable，无可编辑字段时禁用保存
 - [ ] 推送通知（新申请、审批结果）
 - [ ] 操作时间线（教师最近操作日志）
 - [ ] 弱网容错（离线队列/重试/提交状态）
@@ -159,6 +164,9 @@
 - [x] 统一错误提示与加载态（主要流程）
 - [x] 批量操作（审批/学生）
 - [x] 失败重试组件
+- [x] 数据导出（教师端：审批记录+学生名单；管理员端：审批记录+学生名单+年级/班级筛选）
+- [x] 权限配置页（管理员端 `teacher_permission_screen.dart`，SwitchListTile 10项开关）
+- [x] 权限 UI 强制执行（`PermissionCache` 静态缓存，各教师端页面按权限显隐/禁用）
 
 ## 风险与应对
 - 风险：审批与消息链路不一致导致跳转失败
