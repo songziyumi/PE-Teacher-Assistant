@@ -458,6 +458,25 @@ public class StudentService {
         return result;
     }
 
+    @Transactional
+    public BatchStudentOperationResult batchDelete(School school, List<Long> studentIds) {
+        BatchStudentOperationResult result = new BatchStudentOperationResult(studentIds);
+        for (Long studentId : result.getStudentIds()) {
+            if (studentId == null) {
+                result.addFailure(null, "学生ID不能为空");
+                continue;
+            }
+            try {
+                Student student = findStudentForBatchUpdate(school, studentId);
+                delete(student.getId());
+                result.addSuccess();
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                result.addFailure(studentId, ex.getMessage());
+            }
+        }
+        return result;
+    }
+
     private String normalizeStatusForSave(String status) {
         if (status == null || status.isBlank()) return "在籍";
         String normalized = status.trim();

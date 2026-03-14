@@ -22,6 +22,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
   List<ElectiveClass> _electiveClasses = [];
   int? _selectedClassId;
 
+  // 批量操作
+  bool _batchMode = false;
+  final Set<int> _selectedIds = {};
+  bool _batchSubmitting = false;
+
   bool _isElectiveClassType(String type) {
     final normalized = type.trim().replaceAll(' ', '');
     return normalized.contains('选修');
@@ -68,10 +73,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
       final content = (data['content'] as List)
           .map((e) => Student.fromJson(e as Map<String, dynamic>))
           .toList();
+      final visibleIds = content.map((s) => s.id).toSet();
       setState(() {
         _students = content;
         _page = data['page'] as int;
         _totalPages = data['totalPages'] as int;
+        _selectedIds.removeWhere((id) => !visibleIds.contains(id));
       });
     } catch (e) {
       if (mounted) {
@@ -300,6 +307,346 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
   }
 
+  // ===== 批量操作 =====
+
+  void _toggleBatchMode() {
+    setState(() {
+      _batchMode = !_batchMode;
+      _selectedIds.clear();
+    });
+  }
+
+  bool get _allVisibleSelected =>
+      _students.isNotEmpty && _students.every((s) => _selectedIds.contains(s.id));
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_allVisibleSelected) {
+        _selectedIds.removeAll(_students.map((s) => s.id));
+      } else {
+        _selectedIds.addAll(_students.map((s) => s.id));
+      }
+    });
+  }
+
+  Future<bool> _confirmBatchOperation({
+    required String title,
+    required String message,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('确认')),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _executeBatchOperation({
+    required String actionLabel,
+    required List<int> studentIds,
+    required Future<Map<String, dynamic>> Function(List<int>) operation,
+  }) async {
+    if (_batchSubmitting || studentIds.isEmpty) return;
+    setState(() => _batchSubmitting = true);
+    try {
+      final result = await operation(studentIds);
+      if (!mounted) return;
+      await _load(page: _page);
+      if (!mounted) return;
+      final failedIds = ((result['failedItems'] as List?) ?? [])
+          .map((item) => (item as Map)['id'])
+          .whereType<num>()
+          .map((n) => n.toInt())
+          .toSet();
+      setState(() {
+        _selectedIds
+          ..clear()
+          ..addAll(_students.where((s) => failedIds.contains(s.id)).map((s) => s.id));
+      });
+      await _showBatchResultDialog(actionLabel, result,
+          onRetry: failedIds.isEmpty
+              ? null
+              : (retryIds) => _executeBatchOperation(
+                    actionLabel: actionLabel,
+                    studentIds: retryIds,
+                    operation: operation,
+                  ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$actionLabel失败: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _batchSubmitting = false);
+    }
+  }
+
+  Future<void> _showBatchResultDialog(
+    String actionLabel,
+    Map<String, dynamic> result, {
+    Future<void> Function(List<int>)? onRetry,
+  }) {
+    final totalCount = result['totalCount'] ?? 0;
+    final successCount = result['successCount'] ?? 0;
+    final failedCount = result['failedCount'] ?? 0;
+    final failedItems = ((result['failedItems'] as List?) ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final failedIds = failedItems
+        .map((e) => e['id'])
+        .whereType<num>()
+        .map((n) => n.toInt())
+        .toList();
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(actionLabel),
+        content: SizedBox(
+          width: 340,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('总计：$totalCount'),
+              Text('成功：$successCount'),
+              Text('失败：$failedCount'),
+              if (failedItems.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('失败明细', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 140,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: failedItems.length,
+                    separatorBuilder: (_, __) => const Divider(height: 10),
+                    itemBuilder: (_, i) {
+                      final item = failedItems[i];
+                      return Text(
+                        'ID ${item['id'] ?? '-'}：${item['reason'] ?? ''}',
+                        style: const TextStyle(fontSize: 13),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (onRetry != null && failedIds.isNotEmpty)
+            TextButton(
+              onPressed: _batchSubmitting
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      await onRetry(failedIds);
+                    },
+              child: const Text('重试失败项'),
+            ),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('我知道了')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showBatchStatusDialog() async {
+    if (_selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('请先选择学生')));
+      return;
+    }
+    String selectedStatus = '在籍';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDs) => AlertDialog(
+          title: const Text('批量修改学籍状态'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selectedStatus,
+            isExpanded: true,
+            decoration: const InputDecoration(
+                labelText: '学籍状态', border: OutlineInputBorder(), isDense: true),
+            items: _studentStatuses
+                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                .toList(),
+            onChanged: (v) => setDs(() => selectedStatus = v ?? '在籍'),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('下一步')),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await _confirmBatchOperation(
+      title: '确认批量修改学籍',
+      message: '确认将 ${_selectedIds.length} 名学生学籍状态修改为「$selectedStatus」吗？',
+    );
+    if (!ok) return;
+    await _executeBatchOperation(
+      actionLabel: '批量修改学籍状态',
+      studentIds: _selectedIds.toList(),
+      operation: (ids) => AdminService.batchUpdateStudentStatus(ids, selectedStatus),
+    );
+  }
+
+  Future<void> _showBatchElectiveClassDialog() async {
+    if (_selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('请先选择学生')));
+      return;
+    }
+    if (_electiveClasses.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('暂无可分配的选修班')));
+      return;
+    }
+    int? electiveGradeId = _grades.isNotEmpty ? _grades.first.id : null;
+    List<ElectiveClass> filtered =
+        _electiveClasses.where((c) => c.gradeId == electiveGradeId).toList();
+    String? selectedElective = filtered.isNotEmpty ? filtered.first.storedName : null;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDs) => AlertDialog(
+          title: const Text('批量分配选修班'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int?>(
+                initialValue: electiveGradeId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: '年级', border: OutlineInputBorder(), isDense: true),
+                items: _grades
+                    .map((g) => DropdownMenuItem(value: g.id, child: Text(g.name)))
+                    .toList(),
+                onChanged: (v) => setDs(() {
+                  electiveGradeId = v;
+                  filtered = _electiveClasses.where((c) => c.gradeId == v).toList();
+                  selectedElective = filtered.isNotEmpty ? filtered.first.storedName : null;
+                }),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: selectedElective,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                    labelText: '选修班', border: OutlineInputBorder(), isDense: true),
+                items: filtered
+                    .map((c) => DropdownMenuItem(value: c.storedName, child: Text(c.name)))
+                    .toList(),
+                onChanged: (v) => setDs(() => selectedElective = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            ElevatedButton(
+              onPressed: selectedElective == null ? null : () => Navigator.pop(ctx, true),
+              child: const Text('下一步'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || selectedElective == null) return;
+    final displayName = _electiveClasses
+        .firstWhere((c) => c.storedName == selectedElective,
+            orElse: () => _electiveClasses.first)
+        .displayName;
+    final ok = await _confirmBatchOperation(
+      title: '确认批量分配选修班',
+      message: '确认将 ${_selectedIds.length} 名学生分配到「$displayName」吗？',
+    );
+    if (!ok) return;
+    await _executeBatchOperation(
+      actionLabel: '批量分配选修班',
+      studentIds: _selectedIds.toList(),
+      operation: (ids) => AdminService.batchUpdateStudentElectiveClass(ids,
+          electiveClass: selectedElective),
+    );
+  }
+
+  Future<void> _confirmBatchClearElective() async {
+    if (_selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('请先选择学生')));
+      return;
+    }
+    final ok = await _confirmBatchOperation(
+      title: '批量清空选修班',
+      message: '确认清空 ${_selectedIds.length} 名学生的选修班吗？',
+    );
+    if (!ok) return;
+    await _executeBatchOperation(
+      actionLabel: '批量清空选修班',
+      studentIds: _selectedIds.toList(),
+      operation: (ids) =>
+          AdminService.batchUpdateStudentElectiveClass(ids, electiveClass: null),
+    );
+  }
+
+  Future<void> _confirmBatchDelete() async {
+    if (_selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('请先选择学生')));
+      return;
+    }
+    // 第一次确认
+    final first = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('批量删除学生'),
+        content: Text('即将删除 ${_selectedIds.length} 名学生及其所有考勤记录，确认继续？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+    if (first != true) return;
+    // 二次确认
+    final second = await _confirmBatchOperation(
+      title: '再次确认删除',
+      message: '此操作不可恢复！确认删除 ${_selectedIds.length} 名学生吗？',
+    );
+    if (!second) return;
+    await _executeBatchOperation(
+      actionLabel: '批量删除',
+      studentIds: _selectedIds.toList(),
+      operation: AdminService.batchDeleteStudents,
+    );
+  }
+
   Future<void> _delete(Student s) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -337,13 +684,38 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedCount = _selectedIds.length;
     return Scaffold(
-      appBar: AppBar(title: const Text('学生管理')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditDialog(),
-        tooltip: '新增学生',
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: _batchMode
+            ? Text('已选 $selectedCount 名学生')
+            : const Text('学生管理'),
+        actions: [
+          if (_batchMode) ...[
+            TextButton(
+              onPressed: _toggleSelectAll,
+              child: Text(_allVisibleSelected ? '取消全选' : '全选',
+                  style: const TextStyle(color: Colors.white)),
+            ),
+            TextButton(
+              onPressed: _toggleBatchMode,
+              child: const Text('退出', style: TextStyle(color: Colors.white)),
+            ),
+          ] else
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              tooltip: '批量操作',
+              onPressed: _toggleBatchMode,
+            ),
+        ],
       ),
+      floatingActionButton: _batchMode
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _showEditDialog(),
+              tooltip: '新增学生',
+              child: const Icon(Icons.add),
+            ),
       body: Column(
         children: [
           // 搜索栏
@@ -393,23 +765,35 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         itemCount: _students.length,
                         itemBuilder: (_, i) {
                           final s = _students[i];
+                          final selected = _selectedIds.contains(s.id);
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: s.isMale
-                                  ? Colors.blue.shade100
-                                  : Colors.pink.shade100,
-                              child: Text(s.gender ?? '?',
-                                  style: TextStyle(
-                                      color:
-                                          s.isMale ? Colors.blue : Colors.pink,
-                                      fontWeight: FontWeight.bold)),
-                            ),
+                            leading: _batchMode
+                                ? Checkbox(
+                                    value: selected,
+                                    onChanged: (_) => setState(() {
+                                      if (selected) {
+                                        _selectedIds.remove(s.id);
+                                      } else {
+                                        _selectedIds.add(s.id);
+                                      }
+                                    }),
+                                  )
+                                : CircleAvatar(
+                                    backgroundColor: s.isMale
+                                        ? Colors.blue.shade100
+                                        : Colors.pink.shade100,
+                                    child: Text(s.gender ?? '?',
+                                        style: TextStyle(
+                                            color: s.isMale
+                                                ? Colors.blue
+                                                : Colors.pink,
+                                            fontWeight: FontWeight.bold)),
+                                  ),
                             title: Text(s.name),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                    '${s.studentNo ?? '-'} · ${s.displayClass}'),
+                                Text('${s.studentNo ?? '-'} · ${s.displayClass}'),
                                 if (s.electiveClass != null &&
                                     s.electiveClass!.isNotEmpty)
                                   Text('选修：${s.electiveClass}',
@@ -426,25 +810,48 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                     s.electiveClass!.isNotEmpty) ||
                                 (s.studentStatus != null &&
                                     s.studentStatus != '在籍'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
-                                  onPressed: () => _showEditDialog(student: s),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () => _delete(s),
-                                ),
-                              ],
-                            ),
+                            selected: _batchMode && selected,
+                            onTap: _batchMode
+                                ? () => setState(() {
+                                      if (selected) {
+                                        _selectedIds.remove(s.id);
+                                      } else {
+                                        _selectedIds.add(s.id);
+                                      }
+                                    })
+                                : null,
+                            trailing: _batchMode
+                                ? null
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: Colors.blue),
+                                        onPressed: () =>
+                                            _showEditDialog(student: s),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete,
+                                            color: Colors.red),
+                                        onPressed: () => _delete(s),
+                                      ),
+                                    ],
+                                  ),
                           );
                         },
                       ),
           ),
+          // 批量操作栏
+          if (_batchMode)
+            _BatchActionBar(
+              selectedCount: selectedCount,
+              submitting: _batchSubmitting,
+              onStatus: _showBatchStatusDialog,
+              onAssignElective: _showBatchElectiveClassDialog,
+              onClearElective: _confirmBatchClearElective,
+              onDelete: _confirmBatchDelete,
+            ),
           // 分页
           if (_totalPages > 1)
             Padding(
@@ -467,6 +874,103 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _BatchActionBar extends StatelessWidget {
+  final int selectedCount;
+  final bool submitting;
+  final VoidCallback onStatus;
+  final VoidCallback onAssignElective;
+  final VoidCallback onClearElective;
+  final VoidCallback onDelete;
+
+  const _BatchActionBar({
+    required this.selectedCount,
+    required this.submitting,
+    required this.onStatus,
+    required this.onAssignElective,
+    required this.onClearElective,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = selectedCount > 0 && !submitting;
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: submitting
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _ActionBtn(
+                  icon: Icons.badge,
+                  label: '学籍状态',
+                  onTap: enabled ? onStatus : null,
+                ),
+                _ActionBtn(
+                  icon: Icons.class_,
+                  label: '分配选修',
+                  onTap: enabled ? onAssignElective : null,
+                ),
+                _ActionBtn(
+                  icon: Icons.remove_circle_outline,
+                  label: '清空选修',
+                  onTap: enabled ? onClearElective : null,
+                ),
+                _ActionBtn(
+                  icon: Icons.delete_sweep,
+                  label: '删除',
+                  color: Colors.red,
+                  onTap: enabled ? onDelete : null,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color? color;
+
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: onTap == null ? Colors.grey : c, size: 22),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: onTap == null ? Colors.grey : c)),
+          ],
+        ),
       ),
     );
   }

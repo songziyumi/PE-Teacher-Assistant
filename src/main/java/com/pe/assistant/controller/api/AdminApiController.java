@@ -5,9 +5,11 @@ import com.pe.assistant.dto.PageDto;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -119,6 +121,79 @@ public class AdminApiController {
             studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId, studentStatus);
         }
         return ApiResponse.ok("保存成功", null);
+    }
+
+    @PostMapping("/students/batch-update-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentStatus(
+            @RequestBody Map<String, Object> body) {
+        try {
+            School school = currentUserService.getCurrentSchool();
+            List<Long> studentIds = toStudentIds(body.get("studentIds"));
+            if (studentIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            String studentStatus = (String) body.get("studentStatus");
+            StudentService.BatchStudentOperationResult result =
+                    studentService.batchUpdateStudentStatus(school, studentIds, studentStatus);
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(result)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/students/batch-update-elective-class")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentElectiveClass(
+            @RequestBody Map<String, Object> body) {
+        try {
+            School school = currentUserService.getCurrentSchool();
+            List<Long> studentIds = toStudentIds(body.get("studentIds"));
+            if (studentIds.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要批量修改的学生"));
+            }
+            String electiveClass = (String) body.get("electiveClass");
+            StudentService.BatchStudentOperationResult result =
+                    studentService.batchUpdateElectiveClass(school, studentIds, electiveClass);
+            return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(result)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/students/batch-delete")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> batchDeleteStudents(
+            @RequestBody Map<String, Object> body) {
+        School school = currentUserService.getCurrentSchool();
+        List<Long> studentIds = toStudentIds(body.get("studentIds"));
+        if (studentIds.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "请选择要删除的学生"));
+        }
+        StudentService.BatchStudentOperationResult result =
+                studentService.batchDelete(school, studentIds);
+        return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(result)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Long> toStudentIds(Object raw) {
+        if (!(raw instanceof List)) return List.of();
+        return ((List<?>) raw).stream()
+                .filter(v -> v instanceof Number)
+                .map(v -> ((Number) v).longValue())
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, Object> buildBatchStudentResult(StudentService.BatchStudentOperationResult batchResult) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalCount", batchResult.getTotalCount());
+        result.put("successCount", batchResult.getSuccessCount());
+        result.put("failedCount", batchResult.getFailedCount());
+        result.put("studentIds", batchResult.getStudentIds());
+        result.put("failedItems", batchResult.getFailedItems().stream().map(item -> {
+            Map<String, Object> failure = new LinkedHashMap<>();
+            failure.put("id", item.getStudentId());
+            failure.put("reason", item.getReason());
+            return failure;
+        }).collect(Collectors.toList()));
+        return result;
     }
 
     @GetMapping("/students/check-student-no")

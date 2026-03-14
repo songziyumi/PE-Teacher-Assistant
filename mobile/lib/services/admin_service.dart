@@ -78,6 +78,52 @@ class AdminService {
     return data['available'] == true;
   }
 
+  static Future<Map<String, dynamic>> batchUpdateStudentStatus(
+    List<int> studentIds,
+    String studentStatus,
+  ) async {
+    final data = await ApiService.post('/admin/students/batch-update-status', {
+      'studentIds': studentIds,
+      'studentStatus': studentStatus,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchUpdateStudentElectiveClass(
+    List<int> studentIds, {
+    String? electiveClass,
+  }) async {
+    final data = await ApiService.post('/admin/students/batch-update-elective-class', {
+      'studentIds': studentIds,
+      'electiveClass': electiveClass,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchDeleteStudents(
+    List<int> studentIds,
+  ) async {
+    final data = await ApiService.post('/admin/students/batch-delete', {
+      'studentIds': studentIds,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Map<String, dynamic> _normalizeBatchResult(Map data) {
+    final failedItems = ((data['failedItems'] as List?) ?? const [])
+        .map((item) {
+          final entry = Map<String, dynamic>.from((item as Map?) ?? const {});
+          return {'id': entry['id'], 'reason': entry['reason']?.toString() ?? ''};
+        })
+        .toList(growable: false);
+    return {
+      'totalCount': (data['totalCount'] as num?)?.toInt() ?? 0,
+      'successCount': (data['successCount'] as num?)?.toInt() ?? 0,
+      'failedCount': (data['failedCount'] as num?)?.toInt() ?? 0,
+      'failedItems': failedItems,
+    };
+  }
+
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');
 
   // 体测列表（分页）
