@@ -92,7 +92,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
   }
 
-  static const _studentStatuses = ['在籍', '休学', '毕业', '在外借读', '借读'];
+  static const _studentStatuses = ['在籍', '休学', '长假', '毕业', '在外借读', '借读'];
 
   void _showEditDialog({Student? student}) async {
     final nameCtrl = TextEditingController(text: student?.name ?? '');

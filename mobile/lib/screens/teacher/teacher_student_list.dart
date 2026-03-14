@@ -22,7 +22,7 @@ class TeacherStudentListScreen extends StatefulWidget {
 }
 
 class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
-  static const List<String> _studentStatuses = ['在籍', '休学', '毕业', '在外借读', '借读'];
+  static const List<String> _studentStatuses = ['在籍', '休学', '长假', '毕业', '在外借读', '借读'];
   static const Color _classGroupColorA = Color(0xFFDDEEFF);
   static const Color _classGroupColorB = Color(0xFFFFE2C2);
   static const int _studentNameMaxLength = 50;

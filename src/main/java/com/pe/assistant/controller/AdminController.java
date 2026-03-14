@@ -633,11 +633,11 @@ public class AdminController {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("学生");
             Row header = sheet.createRow(0);
-            String[] cols = {"年级", "班级", "姓名", "性别", "学号", "身份证号", "选修课"};
+            String[] cols = {"年级", "班级", "姓名", "性别", "学号", "身份证号", "选修课", "学籍状态"};
             for (int i = 0; i < cols.length; i++) header.createCell(i).setCellValue(cols[i]);
             // 示例行
             Row example = sheet.createRow(1);
-            String[] sample = {"高一", "1班", "张三", "男", "20240001", "110101200001011234", "篮球"};
+            String[] sample = {"高一", "1班", "张三", "男", "20240001", "110101200001011234", "篮球", "在籍"};
             for (int i = 0; i < sample.length; i++) example.createCell(i).setCellValue(sample[i]);
             wb.write(response.getOutputStream());
         }
@@ -751,6 +751,7 @@ public class AdminController {
                 String studentNo    = cellStr(row, col.getOrDefault("学号", -1));
                 String idCard       = cellStr(row, col.getOrDefault("身份证号", -1));
                 String rawElective  = cellStr(row, col.getOrDefault("选修课", -1));
+                String studentStatus = cellStr(row, col.getOrDefault("学籍状态", -1));
                 // 将 Excel 中的选修班名称规范化为 "年级/班级名" 格式
                 String electiveClass = electiveClasses.stream()
                         .filter(ec -> matchesClass(ec, rawElective))
@@ -769,7 +770,7 @@ public class AdminController {
                     skip++; continue;
                 }
                 try {
-                    boolean created = studentService.importCreateOrUpdate(name, gender, studentNo, idCard, electiveClass, sc.getId(), school);
+                    boolean created = studentService.importCreateOrUpdate(name, gender, studentNo, idCard, electiveClass, sc.getId(), school, studentStatus);
                     if (created) count++; else updated++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
             }

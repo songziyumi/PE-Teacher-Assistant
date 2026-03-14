@@ -28,7 +28,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StudentService {
 
-    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "毕业", "在外借读", "借读");
+    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "长假", "毕业", "在外借读", "借读");
     private static final Set<String> AVAILABLE_STATUS_SET = Set.copyOf(AVAILABLE_STATUSES);
     private static final int STUDENT_NAME_MAX_LENGTH = 50;
     private static final int STUDENT_NO_MAX_LENGTH = 50;
@@ -191,16 +191,16 @@ public class StudentService {
      */
     @Transactional
     public boolean importCreateOrUpdate(String name, String gender, String studentNo, String idCard,
-            String electiveClass, Long classId, School school) {
+            String electiveClass, Long classId, School school, String studentStatus) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         School effectiveSchool = school != null ? school : sc.getSchool();
         String normalizedStudentNo = studentNo == null ? "" : studentNo.trim();
         if (normalizedStudentNo.isBlank()) {
-            throw new IllegalArgumentException("??????");
+            throw new IllegalArgumentException("学号不能为空");
         }
+        String normalizedStatus = normalizeStatusForSave(studentStatus);
         Optional<Student> existing = studentRepository.findByStudentNoAndSchool(normalizedStudentNo, effectiveSchool);
         if (existing.isEmpty()) {
-            // ???????student_no ??? school_id ??
             existing = studentRepository.findByStudentNo(normalizedStudentNo)
                     .filter(s -> s.getSchool() == null
                             || (effectiveSchool != null && Objects.equals(s.getSchool().getId(), effectiveSchool.getId())));
@@ -212,9 +212,7 @@ public class StudentService {
             s.setStudentNo(normalizedStudentNo);
             s.setIdCard(idCard);
             s.setElectiveClass(electiveClass);
-            if (s.getStudentStatus() == null || s.getStudentStatus().isBlank()) {
-                s.setStudentStatus("??");
-            }
+            s.setStudentStatus(normalizedStatus);
             s.setSchoolClass(sc);
             if (s.getSchool() == null && effectiveSchool != null) {
                 s.setSchool(effectiveSchool);
@@ -228,7 +226,7 @@ public class StudentService {
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
-        s.setStudentStatus("??");
+        s.setStudentStatus(normalizedStatus);
         s.setSchoolClass(sc);
         s.setSchool(effectiveSchool);
         studentRepository.save(s);
