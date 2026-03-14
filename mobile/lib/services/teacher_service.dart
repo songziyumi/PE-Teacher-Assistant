@@ -395,6 +395,16 @@ class TeacherService {
     };
   }
 
+  static Future<Map<String, dynamic>> getOperationTimeline({
+    int page = 0,
+    int size = 20,
+  }) async {
+    final data = await ApiService.get(
+      '/teacher/operation-timeline?page=$page&size=$size',
+    );
+    return data as Map<String, dynamic>;
+  }
+
   static int _toInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();

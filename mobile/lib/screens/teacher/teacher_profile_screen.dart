@@ -581,7 +581,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   label: '已处理',
                   value: '${s['processedRequestCount'] ?? 0}',
                   unit: '条',
-                  onTap: () => context.push('/teacher/course-requests'),
+                  onTap: () => context.push('/teacher/operation-timeline'),
                 ),
               ],
             ),

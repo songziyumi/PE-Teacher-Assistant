@@ -4,6 +4,7 @@ import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.AttendanceRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
+import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
 import lombok.Data;
@@ -23,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,6 +47,8 @@ public class TeacherApiController {
     private final TeacherRepository teacherRepository;
     private final AttendanceRepository attendanceRepository;
     private final CourseRequestAuditRepository courseRequestAuditRepository;
+    private final TeacherOperationLogRepository teacherOperationLogRepository;
+    private final TeacherOperationLogService teacherOperationLogService;
     private final PasswordEncoder passwordEncoder;
     private final TeacherPermissionService teacherPermissionService;
 
@@ -393,6 +397,12 @@ public class TeacherApiController {
             result.put("failedCount", failedItems.size());
             result.put("successIds", successIds);
             result.put("failedItems", failedItems);
+            if (!successIds.isEmpty()) {
+                String logAction = approve ? "BATCH_APPROVE" : "BATCH_REJECT";
+                String logDesc = (approve ? "批量同意 " : "批量拒绝 ") + successIds.size() + " 条选课申请";
+                teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                        logAction, logDesc, successIds.size());
+            }
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -527,6 +537,9 @@ public class TeacherApiController {
         try {
             studentService.update(id, name, gender, studentNo, current.getIdCard(),
                     electiveClass, classId, studentStatus, version);
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                    "STUDENT_UPDATE", "修改学生信息：" + name + "（" + studentNo + "）", 1);
             return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(ApiResponse.error(409, e.getMessage()));
@@ -547,6 +560,11 @@ public class TeacherApiController {
             School school = currentUserService.getCurrentSchool();
             StudentService.BatchStudentOperationResult updated =
                     studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                    "STUDENT_BATCH_STATUS",
+                    "批量修改学籍状态为「" + body.getStudentStatus() + "」，共 " + updated.getSuccessCount() + " 人",
+                    updated.getSuccessCount());
             return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -563,6 +581,13 @@ public class TeacherApiController {
             School school = currentUserService.getCurrentSchool();
             StudentService.BatchStudentOperationResult updated =
                     studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            String electiveDesc = body.getElectiveClass() == null || body.getElectiveClass().isBlank()
+                    ? "清空选修班" : "分配选修班「" + body.getElectiveClass() + "」";
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                    "STUDENT_BATCH_ELECTIVE",
+                    electiveDesc + "，共 " + updated.getSuccessCount() + " 人",
+                    updated.getSuccessCount());
             return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -680,12 +705,17 @@ public class TeacherApiController {
 
     @PostMapping("/attendance/save-batch")
     public ApiResponse<String> saveAttendance(@RequestBody AttendanceBatchRequest req) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Teacher teacher = currentUserService.getCurrentTeacher();
         LocalDate date = LocalDate.parse(req.getDate());
         Map<Long, String> statusMap = req.getRecords().stream()
                 .collect(Collectors.toMap(AttendanceBatchRequest.Record::getStudentId,
                         AttendanceBatchRequest.Record::getStatus));
-        attendanceService.saveAttendance(req.getClassId(), date, statusMap, username);
+        attendanceService.saveAttendance(req.getClassId(), date, statusMap, teacher.getUsername());
+        String className = classService.findById(req.getClassId()).getName();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                "ATTENDANCE_SAVE",
+                "提交考勤：" + className + " " + date + "，共 " + statusMap.size() + " 条",
+                statusMap.size());
         return ApiResponse.ok("保存成功，共 " + statusMap.size() + " 条", null);
     }
 
@@ -784,6 +814,11 @@ public class TeacherApiController {
             });
         }
         int saved = physicalTestService.saveBatch(students, records, school, academicYear, semester);
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                "PHYSICAL_TEST_SAVE",
+                "录入体测数据：" + academicYear + " " + semester + "，共 " + saved + " 条",
+                saved);
         return ApiResponse.ok("保存成功，共 " + saved + " 条", null);
     }
 
@@ -849,6 +884,11 @@ public class TeacherApiController {
         }
         int saved = termGradeService.saveBatch(students, records, school,
                 req.getAcademicYear(), req.getSemester());
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                "TERM_GRADE_SAVE",
+                "录入期末成绩：" + req.getAcademicYear() + " " + req.getSemester() + "，共 " + saved + " 条",
+                saved);
         return ApiResponse.ok("保存成功，共 " + saved + " 条", null);
     }
 
@@ -979,6 +1019,81 @@ public class TeacherApiController {
         Path dest = dir.resolve(filename);
         photo.transferTo(dest.toFile());
         return "/uploads/teachers/" + filename;
+    }
+
+    // ===== 操作时间线 =====
+
+    @GetMapping("/operation-timeline")
+    public ApiResponse<Map<String, Object>> operationTimeline(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+
+        // 拉取两类来源的最近100条
+        List<TeacherOperationLog> opLogs =
+                teacherOperationLogRepository.findTop100ByTeacherIdOrderByOperatedAtDesc(teacher.getId());
+        List<CourseRequestAudit> audits =
+                courseRequestAuditRepository.findTop100ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+
+        List<Map<String, Object>> entries = new ArrayList<>();
+
+        for (TeacherOperationLog log : opLogs) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "op_" + log.getId());
+            e.put("action", log.getAction());
+            e.put("title", actionToTitle(log.getAction()));
+            e.put("description", log.getDescription());
+            e.put("targetCount", log.getTargetCount());
+            e.put("operatedAt", log.getOperatedAt().toString());
+            entries.add(e);
+        }
+
+        for (CourseRequestAudit audit : audits) {
+            boolean approved = "APPROVE".equals(audit.getAction());
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "audit_" + audit.getId());
+            e.put("action", approved ? "APPROVE" : "REJECT");
+            e.put("title", approved ? "同意选课申请" : "拒绝选课申请");
+            String coursePart = audit.getRelatedCourseName() != null ? audit.getRelatedCourseName() : "未知课程";
+            String senderPart = audit.getSenderName() != null ? "，申请人：" + audit.getSenderName() : "";
+            e.put("description", coursePart + senderPart);
+            e.put("targetCount", 1);
+            e.put("operatedAt", audit.getHandledAt().toString());
+            entries.add(e);
+        }
+
+        // 按时间倒序排列
+        entries.sort((a, b) -> ((String) b.get("operatedAt")).compareTo((String) a.get("operatedAt")));
+
+        // 分页
+        int total = entries.size();
+        int start = page * size;
+        List<Map<String, Object>> paged = start >= total
+                ? Collections.emptyList()
+                : entries.subList(start, Math.min(start + size, total));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("content", paged);
+        result.put("totalElements", total);
+        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("page", page);
+        result.put("size", size);
+        return ApiResponse.ok(result);
+    }
+
+    private static String actionToTitle(String action) {
+        if (action == null) return "操作";
+        return switch (action) {
+            case "ATTENDANCE_SAVE"     -> "提交考勤";
+            case "PHYSICAL_TEST_SAVE"  -> "录入体测数据";
+            case "TERM_GRADE_SAVE"     -> "录入期末成绩";
+            case "STUDENT_UPDATE"      -> "修改学生信息";
+            case "STUDENT_BATCH_STATUS"   -> "批量修改学籍状态";
+            case "STUDENT_BATCH_ELECTIVE" -> "批量修改选修班";
+            case "BATCH_APPROVE"       -> "批量同意申请";
+            case "BATCH_REJECT"        -> "批量拒绝申请";
+            default -> action;
+        };
     }
 
     private void validatePassword(String password) {
