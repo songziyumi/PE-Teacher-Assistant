@@ -879,7 +879,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   }
 }
 
-class _BatchActionBar extends StatelessWidget {
+class _BatchActionBar extends StatefulWidget {
   final int selectedCount;
   final bool submitting;
   final VoidCallback onStatus;
@@ -897,44 +897,89 @@ class _BatchActionBar extends StatelessWidget {
   });
 
   @override
+  State<_BatchActionBar> createState() => _BatchActionBarState();
+}
+
+class _BatchActionBarState extends State<_BatchActionBar> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final enabled = selectedCount > 0 && !submitting;
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: submitting
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(8),
-                child: CircularProgressIndicator(),
+    final enabled = widget.selectedCount > 0 && !widget.submitting;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 始终可见的头部行
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '已选 ${widget.selectedCount} 名学生',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.expand_more),
+                  ),
+                  const SizedBox(width: 4),
+                ],
               ),
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _ActionBtn(
-                  icon: Icons.badge,
-                  label: '学籍状态',
-                  onTap: enabled ? onStatus : null,
-                ),
-                _ActionBtn(
-                  icon: Icons.class_,
-                  label: '分配选修',
-                  onTap: enabled ? onAssignElective : null,
-                ),
-                _ActionBtn(
-                  icon: Icons.remove_circle_outline,
-                  label: '清空选修',
-                  onTap: enabled ? onClearElective : null,
-                ),
-                _ActionBtn(
-                  icon: Icons.delete_sweep,
-                  label: '删除',
-                  color: Colors.red,
-                  onTap: enabled ? onDelete : null,
-                ),
-              ],
             ),
+          ),
+          // 可折叠的操作按钮区域
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState:
+                _expanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+              child: widget.submitting
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _ActionBtn(
+                          icon: Icons.badge,
+                          label: '学籍状态',
+                          onTap: enabled ? widget.onStatus : null,
+                        ),
+                        _ActionBtn(
+                          icon: Icons.class_,
+                          label: '分配选修',
+                          onTap: enabled ? widget.onAssignElective : null,
+                        ),
+                        _ActionBtn(
+                          icon: Icons.remove_circle_outline,
+                          label: '清空选修',
+                          onTap: enabled ? widget.onClearElective : null,
+                        ),
+                        _ActionBtn(
+                          icon: Icons.delete_sweep,
+                          label: '删除',
+                          color: Colors.red,
+                          onTap: enabled ? widget.onDelete : null,
+                        ),
+                      ],
+                    ),
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
   }
 }
