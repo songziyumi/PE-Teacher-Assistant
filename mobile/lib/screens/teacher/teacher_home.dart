@@ -258,13 +258,25 @@ class _ExportEntryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.teal.shade50,
-      child: ListTile(
-        leading: const Icon(Icons.download, color: Colors.teal),
-        title: const Text('导出考勤记录',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: const Text('按班级和日期范围导出 Excel'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.download, color: Colors.teal),
+            title: const Text('导出考勤记录',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('按班级和日期范围导出 Excel'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onTap,
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_zip, color: Colors.teal),
+            title: const Text('数据导出',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('导出审批记录、学生名单'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/teacher/data-export'),
+          ),
+        ],
       ),
     );
   }

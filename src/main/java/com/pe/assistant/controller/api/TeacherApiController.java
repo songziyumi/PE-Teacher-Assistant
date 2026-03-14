@@ -42,6 +42,7 @@ public class TeacherApiController {
     private final GradeService gradeService;
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TeacherPermissionService teacherPermissionService;
 
     @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
     private String uploadDir;
@@ -826,6 +827,69 @@ public class TeacherApiController {
             private Double theoryScore;
             private String remark;
         }
+    }
+
+    // ===== 教师功能权限 =====
+
+    @GetMapping("/permissions")
+    public ApiResponse<Map<String, Object>> getPermissions() {
+        School school = currentUserService.getCurrentSchool();
+        TeacherPermission p = teacherPermissionService.getOrCreate(school);
+        return ApiResponse.ok(toPermissionMap(p));
+    }
+
+    // ===== 审批记录导出 =====
+
+    @GetMapping(value = "/course-requests/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportCourseRequests() throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        List<InternalMessage> messages = messageService.getTeacherCourseRequests(teacher, "ALL");
+        byte[] bytes = messageService.exportCourseRequestsXlsx(messages);
+        String filename = URLEncoder.encode("审批记录_" + teacher.getName() + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    // ===== 学生名单导出 =====
+
+    @GetMapping(value = "/students/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportStudents(
+            @RequestParam(required = false) Long classId) throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students;
+        if (classId != null) {
+            students = studentService.findByClassIdForTeacher(school, classId);
+        } else {
+            List<Long> classIds = classService.findByTeacher(teacher).stream()
+                    .map(SchoolClass::getId).collect(Collectors.toList());
+            students = classIds.stream()
+                    .flatMap(id -> studentService.findByClassId(id).stream())
+                    .collect(Collectors.toList());
+        }
+        byte[] bytes = studentService.exportStudentsXlsx(students);
+        String filename = URLEncoder.encode("学生名单_" + teacher.getName() + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    private static Map<String, Object> toPermissionMap(TeacherPermission p) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("editStudentName", p.isEditStudentName());
+        m.put("editStudentGender", p.isEditStudentGender());
+        m.put("editStudentNo", p.isEditStudentNo());
+        m.put("editStudentStatus", p.isEditStudentStatus());
+        m.put("editStudentClass", p.isEditStudentClass());
+        m.put("editStudentElectiveClass", p.isEditStudentElectiveClass());
+        m.put("attendanceEdit", p.isAttendanceEdit());
+        m.put("physicalTestEdit", p.isPhysicalTestEdit());
+        m.put("termGradeEdit", p.isTermGradeEdit());
+        m.put("batchOperation", p.isBatchOperation());
+        return m;
     }
 
     private boolean isElectiveType(String type) {

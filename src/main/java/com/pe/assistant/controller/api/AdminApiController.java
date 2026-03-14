@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,6 +29,8 @@ public class AdminApiController {
     private final TermGradeService termGradeService;
     private final CurrentUserService currentUserService;
     private final AttendanceService attendanceService;
+    private final MessageService messageService;
+    private final TeacherPermissionService teacherPermissionService;
 
     // ===== 仪表盘统计 =====
 
@@ -330,5 +334,70 @@ public class AdminApiController {
     public ApiResponse<String> deleteTermGrade(@PathVariable Long id) {
         termGradeService.deleteById(id);
         return ApiResponse.ok("删除成功", null);
+    }
+
+    // ===== 教师功能权限管理 =====
+
+    @GetMapping("/teacher-permissions")
+    public ApiResponse<Map<String, Object>> getTeacherPermissions() {
+        School school = currentUserService.getCurrentSchool();
+        TeacherPermission p = teacherPermissionService.getOrCreate(school);
+        return ApiResponse.ok(toPermissionMap(p));
+    }
+
+    @PutMapping("/teacher-permissions")
+    public ApiResponse<Map<String, Object>> updateTeacherPermissions(
+            @RequestBody Map<String, Boolean> config) {
+        School school = currentUserService.getCurrentSchool();
+        TeacherPermission p = teacherPermissionService.update(school, config);
+        return ApiResponse.ok(toPermissionMap(p));
+    }
+
+    // ===== 审批记录导出 =====
+
+    @GetMapping(value = "/course-requests/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportCourseRequests() throws IOException {
+        School school = currentUserService.getCurrentSchool();
+        List<InternalMessage> messages = messageService.getSchoolCourseRequests(school);
+        byte[] bytes = messageService.exportCourseRequestsXlsx(messages);
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String filename = URLEncoder.encode("审批记录_" + date + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    // ===== 学生名单导出 =====
+
+    @GetMapping(value = "/students/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportStudents(
+            @RequestParam(required = false) Long gradeId,
+            @RequestParam(required = false) Long classId) throws IOException {
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students = studentService.findListWithFilters(school, classId, gradeId,
+                null, null, null, null, null);
+        byte[] bytes = studentService.exportStudentsXlsx(students);
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String filename = URLEncoder.encode("学生名单_" + date + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    private static Map<String, Object> toPermissionMap(TeacherPermission p) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("editStudentName", p.isEditStudentName());
+        m.put("editStudentGender", p.isEditStudentGender());
+        m.put("editStudentNo", p.isEditStudentNo());
+        m.put("editStudentStatus", p.isEditStudentStatus());
+        m.put("editStudentClass", p.isEditStudentClass());
+        m.put("editStudentElectiveClass", p.isEditStudentElectiveClass());
+        m.put("attendanceEdit", p.isAttendanceEdit());
+        m.put("physicalTestEdit", p.isPhysicalTestEdit());
+        m.put("termGradeEdit", p.isTermGradeEdit());
+        m.put("batchOperation", p.isBatchOperation());
+        return m;
     }
 }

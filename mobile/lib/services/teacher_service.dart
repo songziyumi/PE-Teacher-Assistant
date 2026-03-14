@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import '../models/school_class.dart';
+import '../models/teacher_permission.dart';
 import '../models/student.dart';
 import '../models/physical_test.dart';
 import '../models/term_grade.dart';
@@ -321,6 +322,23 @@ class TeacherService {
     return (data as Map).map(
       (k, v) => MapEntry(int.parse(k.toString()), TermGrade.fromJson(v)),
     );
+  }
+
+  // 教师功能权限
+  static Future<TeacherPermission> getPermissions() async {
+    final data = await ApiService.get('/teacher/permissions') as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  // 导出审批记录（返回 xlsx 字节）
+  static Future<Uint8List> exportCourseRequests() =>
+      ApiService.downloadFile('/teacher/course-requests/export');
+
+  // 导出学生名单（返回 xlsx 字节）
+  static Future<Uint8List> exportStudents({int? classId}) async {
+    final q = StringBuffer('/teacher/students/export?_=1');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
   }
 
   // 导出考勤记录（返回 xlsx 字节）

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import '../models/school_class.dart';
 import '../models/elective_class.dart';
+import '../models/teacher_permission.dart';
 import 'api_service.dart';
 
 class AdminService {
@@ -162,6 +163,31 @@ class AdminService {
 
   static Future<void> deleteTermGrade(int id) =>
       ApiService.delete('/admin/term-grades/$id');
+
+  // 导出审批记录（返回 xlsx 字节）
+  static Future<Uint8List> exportCourseRequests() =>
+      ApiService.downloadFile('/admin/course-requests/export');
+
+  // 导出学生名单（返回 xlsx 字节）
+  static Future<Uint8List> exportStudents({int? gradeId, int? classId}) async {
+    final q = StringBuffer('/admin/students/export?_=1');
+    if (gradeId != null) q.write('&gradeId=$gradeId');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
+
+  // 教师功能权限
+  static Future<TeacherPermission> getTeacherPermissions() async {
+    final data = await ApiService.get('/admin/teacher-permissions') as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  static Future<TeacherPermission> updateTeacherPermissions(
+      TeacherPermission perm) async {
+    final data = await ApiService.put(
+        '/admin/teacher-permissions', perm.toJson()) as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
 
   // 导出考勤记录（返回 xlsx 字节）
   static Future<Uint8List> exportAttendance({

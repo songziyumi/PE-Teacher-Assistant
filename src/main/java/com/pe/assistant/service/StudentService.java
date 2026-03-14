@@ -3,6 +3,8 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -10,6 +12,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -104,6 +108,40 @@ public class StudentService {
 
     public List<Student> findByElectiveClassForTeacher(School school, String electiveClass) {
         return filterVisibleForTeacher(school, findByElectiveClass(electiveClass));
+    }
+
+    /** 学生名单 xlsx 导出 */
+    public byte[] exportStudentsXlsx(List<Student> students) throws IOException {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("学生名单");
+            CellStyle headerStyle = wb.createCellStyle();
+            Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+
+            String[] cols = {"学号", "姓名", "性别", "年级", "班级", "选修班", "学籍状态"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < cols.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(cols[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            int rowNum = 1;
+            for (Student s : students) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(s.getStudentNo() != null ? s.getStudentNo() : "");
+                row.createCell(1).setCellValue(s.getName());
+                row.createCell(2).setCellValue(s.getGender() != null ? s.getGender() : "");
+                SchoolClass sc = s.getSchoolClass();
+                row.createCell(3).setCellValue(sc != null && sc.getGrade() != null ? sc.getGrade().getName() : "");
+                row.createCell(4).setCellValue(sc != null ? sc.getName() : "");
+                row.createCell(5).setCellValue(s.getElectiveClass() != null ? s.getElectiveClass() : "");
+                row.createCell(6).setCellValue(s.getStudentStatus() != null ? s.getStudentStatus() : "");
+            }
+            for (int i = 0; i < cols.length; i++) sheet.autoSizeColumn(i);
+            wb.write(out);
+            return out.toByteArray();
+        }
     }
 
     public List<Student> filterVisibleForTeacher(School school, List<Student> students) {

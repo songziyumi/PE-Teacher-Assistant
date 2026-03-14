@@ -35,6 +35,7 @@ public class AdminController {
     private final AttendanceService attendanceService;
     private final SchoolService schoolService;
     private final CurrentUserService currentUserService;
+    private final TeacherPermissionService teacherPermissionService;
 
     @ModelAttribute("currentSchool")
     public School currentSchool() {
@@ -49,6 +50,37 @@ public class AdminController {
         model.addAttribute("classCount", classService.findAll(school).size());
         model.addAttribute("gradeCount", gradeService.findAll(school).size());
         return "admin/dashboard";
+    }
+
+    // ===== 教师功能权限 =====
+
+    @GetMapping("/teacher-permissions")
+    public String teacherPermissions(Model model) {
+        School school = currentUserService.getCurrentSchool();
+        model.addAttribute("perm", teacherPermissionService.getOrCreate(school));
+        return "admin/teacher-permissions";
+    }
+
+    @PostMapping("/teacher-permissions")
+    public String saveTeacherPermissions(
+            @RequestParam(defaultValue = "false") boolean editStudentName,
+            @RequestParam(defaultValue = "false") boolean editStudentGender,
+            @RequestParam(defaultValue = "false") boolean editStudentNo,
+            @RequestParam(defaultValue = "false") boolean editStudentStatus,
+            @RequestParam(defaultValue = "false") boolean editStudentClass,
+            @RequestParam(defaultValue = "false") boolean editStudentElectiveClass,
+            @RequestParam(defaultValue = "false") boolean attendanceEdit,
+            @RequestParam(defaultValue = "false") boolean physicalTestEdit,
+            @RequestParam(defaultValue = "false") boolean termGradeEdit,
+            @RequestParam(defaultValue = "false") boolean batchOperation,
+            RedirectAttributes ra) {
+        School school = currentUserService.getCurrentSchool();
+        teacherPermissionService.updateFromForm(school,
+                editStudentName, editStudentGender, editStudentNo, editStudentStatus,
+                editStudentClass, editStudentElectiveClass,
+                attendanceEdit, physicalTestEdit, termGradeEdit, batchOperation);
+        ra.addFlashAttribute("successMsg", "权限设置已保存");
+        return "redirect:/admin/teacher-permissions";
     }
 
     // ===== 年级管理 =====
