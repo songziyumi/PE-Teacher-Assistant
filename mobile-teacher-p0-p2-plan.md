@@ -1,6 +1,6 @@
 # 教师手机端功能落地清单（P0 / P1 / P2）
 
-> 更新时间：2026-03-16
+> 更新时间：2026-03-17
 > 状态标识：`[x] 已落地（代码已完成）` / `[-] 进行中（有代码，待联调验收）` / `[ ] 未开始`
 
 ## 目标
@@ -10,7 +10,7 @@
 ## 当前总体进度（真实代码口径）
 - P0：已完成（核心功能、关键回归与真机验收已完成，进入 P1 推进阶段）
 - P1：已完成（批量审批、学生多条件筛选/批量操作、消息增强、二次确认与失败重试、管理员学生编辑增强、考勤导出均已完成）
-- P2：约 90%（数据导出、教师功能权限开关+UI强制执行、个人主页增强、管理员学号实时校验（Flutter+Web）、头像上传修复、学籍状态扩展（增加"长假"，全端同步）、批量导入支持学籍状态字段均已完成；推送通知、操作时间线、弱网容错待启动）
+- P2：约 95%（数据导出、教师功能权限开关+UI强制执行、个人主页增强、管理员学号实时校验（Flutter+Web）、头像上传修复、学籍状态扩展（增加"长假"，全端同步）、批量导入支持学籍状态字段、推送通知（workmanager轮询+本地通知）、操作时间线均已完成；弱网容错待启动）
 
 ## P1 分支与条目映射
 - `feature/teacher-p1-approval` → 批量审批（批量同意/拒绝）
@@ -134,8 +134,18 @@
     - `physical_entry.dart`：`physicalTestEdit=false` 时同上
     - `grade_entry.dart`：`termGradeEdit=false` 时同上
     - `teacher_student_list.dart`：`batchOperation=false` 时隐藏批量面板和列表复选框；编辑弹窗内6个学生字段各按权限 disable，无可编辑字段时禁用保存
-- [ ] 推送通知（新申请、审批结果）
-- [ ] 操作时间线（教师最近操作日志）
+- [x] 推送通知（新申请、审批结果）
+  - 后端：复用 `GET /api/teacher/messages/unread-count`
+  - Flutter：`notification_service.dart`（workmanager 15分钟轮询 + flutter_local_notifications）
+  - 登录后启动、退出后停止；消息中心刷新后同步基准值，防重复通知
+  - Android：AndroidManifest 补齐 `POST_NOTIFICATIONS` / `RECEIVE_BOOT_COMPLETED` / `WAKE_LOCK` 权限
+- [x] 操作时间线（教师最近操作日志）
+  - 后端：`entity/TeacherOperationLog`（teacher_id + operated_at 双索引）
+  - 后端：`TeacherOperationLogService.log()` 异步写入（@Async）
+  - 后端：考勤/体测/成绩保存、学生修改、批量状态/选修班、批量审批均自动记录
+  - 后端：`GET /api/teacher/operation-timeline` 双源合并分页（TeacherOperationLog + CourseRequestAudit）
+  - Flutter：`teacher_operation_timeline_screen.dart` 无限滚动+下拉刷新，日期分组，彩色图标
+  - Flutter：个人主页「已处理」卡片点击跳转时间线
 - [ ] 弱网容错（离线队列/重试/提交状态）
 - [x] 个人主页增强（教学统计 + 最近操作 + 查看/编辑模式分离）
   - 后端：`GET /api/teacher/profile/stats`（带班数/本月考勤/待审批/已处理/最近10条审批记录）
@@ -205,7 +215,8 @@
 4. ~~P2 进行中：下一步优先补全「教师端权限 UI 强制执行」~~（已完成）
 5. ~~P2 个人主页增强：统计卡片+最近操作+查看/编辑UX分离~~（已完成）
 6. ~~P2 管理员学号实时校验（Flutter+Web）+ 头像上传修复 + 学籍状态扩展 + 批量导入状态字段~~（已完成）
-7. P2 剩余：推送通知、操作时间线、弱网容错
+7. ~~P2 推送通知（workmanager轮询+本地通知）+ 操作时间线（双源审计日志+Flutter时间线页）~~（已完成）
+8. P2 剩余：弱网容错
 
 ##  调试命令
 mvn -q "-Dmaven.repo.local=.m2repo" -DskipTests compile                                                
