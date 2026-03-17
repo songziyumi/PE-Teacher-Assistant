@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/student.dart';
+import '../../services/network_service.dart';
+import '../../services/offline_queue_service.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
+import '../../widgets/connectivity_banner.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final int classId;
@@ -56,13 +60,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      if (!NetworkService.isOnline) {
+        await _queueAttendance();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('当前离线，考勤已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
       await TeacherService.saveAttendance(widget.classId, _dateStr, _statusMap);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('考勤保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (!NetworkService.isOnline) {
+        await _queueAttendance();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('网络中断，考勤已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
       }
@@ -71,14 +94,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  Future<void> _queueAttendance() => OfflineQueueService.enqueueAttendance(
+        classId: widget.classId,
+        className: widget.className,
+        date: _dateStr,
+        statusMap: _statusMap,
+      );
+
   @override
   Widget build(BuildContext context) {
+    final canEdit = PermissionCache.current.attendanceEdit;
     return Scaffold(
       appBar: AppBar(
         title: Text('考勤 - ${widget.className}'),
         actions: [
           TextButton.icon(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || !canEdit ? null : _save,
             icon: const Icon(Icons.save, color: Colors.white),
             label: const Text('保存', style: TextStyle(color: Colors.white)),
           ),
@@ -86,6 +117,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
+          if (!canEdit)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(children: [
+                Icon(Icons.lock_outline, size: 16, color: Colors.orange),
+                SizedBox(width: 6),
+                Text('管理员已禁用考勤录入功能',
+                    style: TextStyle(color: Colors.orange)),
+              ]),
+            ),
           // 日期选择
           InkWell(
             onTap: _pickDate,

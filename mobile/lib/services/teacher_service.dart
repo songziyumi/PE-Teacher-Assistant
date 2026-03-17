@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import '../models/school_class.dart';
+import '../models/teacher_permission.dart';
 import '../models/student.dart';
 import '../models/physical_test.dart';
 import '../models/term_grade.dart';
@@ -16,6 +18,11 @@ class TeacherService {
 
   static Future<Map<String, dynamic>> getProfile() async {
     final data = await ApiService.get('/teacher/profile') as Map;
+    return Map<String, dynamic>.from(data);
+  }
+
+  static Future<Map<String, dynamic>> getProfileStats() async {
+    final data = await ApiService.get('/teacher/profile/stats') as Map;
     return Map<String, dynamic>.from(data);
   }
 
@@ -322,6 +329,37 @@ class TeacherService {
     );
   }
 
+  // 教师功能权限
+  static Future<TeacherPermission> getPermissions() async {
+    final data = await ApiService.get('/teacher/permissions') as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  // 导出审批记录（返回 xlsx 字节）
+  static Future<Uint8List> exportCourseRequests() =>
+      ApiService.downloadFile('/teacher/course-requests/export');
+
+  // 导出学生名单（返回 xlsx 字节）
+  static Future<Uint8List> exportStudents({int? classId}) async {
+    final q = StringBuffer('/teacher/students/export?_=1');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
+
+  // 导出考勤记录（返回 xlsx 字节）
+  static Future<Uint8List> exportAttendance({
+    required String startDate,
+    String? endDate,
+    int? classId,
+  }) async {
+    final q = StringBuffer(
+      '/teacher/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
+    );
+    if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
+
   // 成绩批量保存
   static Future<void> saveTermGrades(
     String academicYear,
@@ -355,6 +393,16 @@ class TeacherService {
       'studentIds': studentIds,
       'failedItems': failedItems,
     };
+  }
+
+  static Future<Map<String, dynamic>> getOperationTimeline({
+    int page = 0,
+    int size = 20,
+  }) async {
+    final data = await ApiService.get(
+      '/teacher/operation-timeline?page=$page&size=$size',
+    );
+    return data as Map<String, dynamic>;
   }
 
   static int _toInt(dynamic value) {

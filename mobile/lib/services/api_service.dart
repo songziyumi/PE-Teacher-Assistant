@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
@@ -54,6 +55,25 @@ class ApiService {
   static Future<dynamic> delete(String path) async {
     final res = await _send('DELETE', path);
     return _handle(res);
+  }
+
+  /// 下载文件，返回原始字节（不走 JSON 解析）
+  static Future<Uint8List> downloadFile(String path) async {
+    final res = await _send('GET', path);
+    if (res.statusCode == 200) return res.bodyBytes;
+    // 尝试解析错误信息
+    try {
+      final body = utf8.decode(res.bodyBytes);
+      if (!body.trimLeft().startsWith('<')) {
+        final decoded = jsonDecode(body);
+        if (decoded is Map && decoded['message'] != null) {
+          throw ApiException(res.statusCode, decoded['message'].toString());
+        }
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+    }
+    throw ApiException(res.statusCode, '下载失败 (${res.statusCode})');
   }
 
   static Future<dynamic> postMultipart(

@@ -3,6 +3,8 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -10,6 +12,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,7 +28,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StudentService {
 
-    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "毕业", "在外借读", "借读");
+    private static final List<String> AVAILABLE_STATUSES = List.of("在籍", "休学", "长假", "毕业", "在外借读", "借读");
     private static final Set<String> AVAILABLE_STATUS_SET = Set.copyOf(AVAILABLE_STATUSES);
     private static final int STUDENT_NAME_MAX_LENGTH = 50;
     private static final int STUDENT_NO_MAX_LENGTH = 50;
@@ -106,6 +110,40 @@ public class StudentService {
         return filterVisibleForTeacher(school, findByElectiveClass(electiveClass));
     }
 
+    /** 学生名单 xlsx 导出 */
+    public byte[] exportStudentsXlsx(List<Student> students) throws IOException {
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("学生名单");
+            CellStyle headerStyle = wb.createCellStyle();
+            Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+
+            String[] cols = {"学号", "姓名", "性别", "年级", "班级", "选修班", "学籍状态"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < cols.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(cols[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            int rowNum = 1;
+            for (Student s : students) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(s.getStudentNo() != null ? s.getStudentNo() : "");
+                row.createCell(1).setCellValue(s.getName());
+                row.createCell(2).setCellValue(s.getGender() != null ? s.getGender() : "");
+                SchoolClass sc = s.getSchoolClass();
+                row.createCell(3).setCellValue(sc != null && sc.getGrade() != null ? sc.getGrade().getName() : "");
+                row.createCell(4).setCellValue(sc != null ? sc.getName() : "");
+                row.createCell(5).setCellValue(s.getElectiveClass() != null ? s.getElectiveClass() : "");
+                row.createCell(6).setCellValue(s.getStudentStatus() != null ? s.getStudentStatus() : "");
+            }
+            for (int i = 0; i < cols.length; i++) sheet.autoSizeColumn(i);
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
     public List<Student> filterVisibleForTeacher(School school, List<Student> students) {
         if (students == null || students.isEmpty()) return students;
         boolean showSuspended = school == null || !Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage());
@@ -153,16 +191,16 @@ public class StudentService {
      */
     @Transactional
     public boolean importCreateOrUpdate(String name, String gender, String studentNo, String idCard,
-            String electiveClass, Long classId, School school) {
+            String electiveClass, Long classId, School school, String studentStatus) {
         SchoolClass sc = classRepository.findById(classId).orElseThrow();
         School effectiveSchool = school != null ? school : sc.getSchool();
         String normalizedStudentNo = studentNo == null ? "" : studentNo.trim();
         if (normalizedStudentNo.isBlank()) {
-            throw new IllegalArgumentException("??????");
+            throw new IllegalArgumentException("学号不能为空");
         }
+        String normalizedStatus = normalizeStatusForSave(studentStatus);
         Optional<Student> existing = studentRepository.findByStudentNoAndSchool(normalizedStudentNo, effectiveSchool);
         if (existing.isEmpty()) {
-            // ???????student_no ??? school_id ??
             existing = studentRepository.findByStudentNo(normalizedStudentNo)
                     .filter(s -> s.getSchool() == null
                             || (effectiveSchool != null && Objects.equals(s.getSchool().getId(), effectiveSchool.getId())));
@@ -174,9 +212,7 @@ public class StudentService {
             s.setStudentNo(normalizedStudentNo);
             s.setIdCard(idCard);
             s.setElectiveClass(electiveClass);
-            if (s.getStudentStatus() == null || s.getStudentStatus().isBlank()) {
-                s.setStudentStatus("??");
-            }
+            s.setStudentStatus(normalizedStatus);
             s.setSchoolClass(sc);
             if (s.getSchool() == null && effectiveSchool != null) {
                 s.setSchool(effectiveSchool);
@@ -190,7 +226,7 @@ public class StudentService {
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
-        s.setStudentStatus("??");
+        s.setStudentStatus(normalizedStatus);
         s.setSchoolClass(sc);
         s.setSchool(effectiveSchool);
         studentRepository.save(s);
@@ -450,6 +486,25 @@ public class StudentService {
                 Student student = findStudentForBatchUpdate(school, studentId);
                 student.setElectiveClass(normalizedElectiveClass);
                 saveStudentWithDuplicateGuard(student);
+                result.addSuccess();
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                result.addFailure(studentId, ex.getMessage());
+            }
+        }
+        return result;
+    }
+
+    @Transactional
+    public BatchStudentOperationResult batchDelete(School school, List<Long> studentIds) {
+        BatchStudentOperationResult result = new BatchStudentOperationResult(studentIds);
+        for (Long studentId : result.getStudentIds()) {
+            if (studentId == null) {
+                result.addFailure(null, "学生ID不能为空");
+                continue;
+            }
+            try {
+                Student student = findStudentForBatchUpdate(school, studentId);
+                delete(student.getId());
                 result.addSuccess();
             } catch (IllegalArgumentException | IllegalStateException ex) {
                 result.addFailure(studentId, ex.getMessage());
