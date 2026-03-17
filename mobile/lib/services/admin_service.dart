@@ -195,6 +195,7 @@ class AdminService {
     String? endDate,
     int? gradeId,
     int? classId,
+    String? status,
   }) async {
     final q = StringBuffer(
       '/admin/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
@@ -202,6 +203,7 @@ class AdminService {
     if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
     if (gradeId != null) q.write('&gradeId=$gradeId');
     if (classId != null) q.write('&classId=$classId');
+    if (status != null) q.write('&status=${Uri.encodeComponent(status)}');
     return ApiService.downloadFile(q.toString());
   }
 
