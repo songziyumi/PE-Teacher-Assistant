@@ -695,7 +695,14 @@ public class TeacherApiController {
     public ApiResponse<Map<Long, String>> attendance(@RequestParam Long classId,
                                                       @RequestParam String date) {
         LocalDate d = LocalDate.parse(date);
-        List<Attendance> records = attendanceService.findByClassAndDate(classId, d);
+        SchoolClass sc = classService.findById(classId);
+        List<Attendance> records;
+        if (isElectiveType(sc.getType())) {
+            String electiveClassName = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
+            records = attendanceService.findByElectiveClassAndDate(electiveClassName, d);
+        } else {
+            records = attendanceService.findByClassAndDate(classId, d);
+        }
         Map<Long, String> map = records.stream()
                 .collect(Collectors.toMap(a -> a.getStudent().getId(), Attendance::getStatus));
         return ApiResponse.ok(map);
