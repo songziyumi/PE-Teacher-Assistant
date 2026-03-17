@@ -66,7 +66,7 @@ class NotificationService {
       _taskUniqueName,
       _taskUniqueName,
       frequency: const Duration(minutes: 15),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       constraints: Constraints(networkType: NetworkType.connected),
     );
   }
