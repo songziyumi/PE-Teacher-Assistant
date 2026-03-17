@@ -35,7 +35,10 @@
       "Bash(/tmp/setpath.ps1:*)",
       "Bash(\"D:/flutter/bin/cache/dart-sdk/bin/dart.exe\":*)",
       "Bash(mvn clean:*)",
-      "Bash(mvn spring-boot:run:*)"
+      "Bash(mvn spring-boot:run:*)",
+      "Bash(git checkout:*)",
+      "Bash(mvn test:*)",
+      "Bash(flutter analyze:*)"
     ]
   }
 }

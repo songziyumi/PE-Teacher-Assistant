@@ -3,10 +3,15 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
 
@@ -283,6 +288,59 @@ public class MessageService {
             msg.setIsRead(true);
             messageRepo.save(msg);
         }
+    }
+
+    // ===== 全校审批记录（管理员导出用） =====
+
+    public List<InternalMessage> getSchoolCourseRequests(School school) {
+        return messageRepo.findBySchoolAndTypeOrderBySentAtDesc(school, "COURSE_REQUEST");
+    }
+
+    // ===== 审批记录 xlsx 导出 =====
+
+    public byte[] exportCourseRequestsXlsx(List<InternalMessage> messages) throws IOException {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("审批记录");
+            CellStyle headerStyle = wb.createCellStyle();
+            Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+
+            String[] cols = {"编号", "申请时间", "申请人", "申请课程", "申请内容", "状态", "审批人", "审批时间", "审批备注"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < cols.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(cols[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            int rowNum = 1;
+            for (InternalMessage m : messages) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(m.getId() != null ? m.getId() : 0);
+                row.createCell(1).setCellValue(m.getSentAt() != null ? m.getSentAt().format(fmt) : "");
+                row.createCell(2).setCellValue(m.getSenderName() != null ? m.getSenderName() : "");
+                row.createCell(3).setCellValue(m.getRelatedCourseName() != null ? m.getRelatedCourseName() : "");
+                row.createCell(4).setCellValue(m.getContent() != null ? m.getContent() : "");
+                row.createCell(5).setCellValue(translateStatus(m.getStatus()));
+                row.createCell(6).setCellValue(m.getHandledByName() != null ? m.getHandledByName() : "");
+                row.createCell(7).setCellValue(m.getHandledAt() != null ? m.getHandledAt().format(fmt) : "");
+                row.createCell(8).setCellValue(m.getHandleRemark() != null ? m.getHandleRemark() : "");
+            }
+            for (int i = 0; i < cols.length; i++) sheet.autoSizeColumn(i);
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private static String translateStatus(String status) {
+        if (status == null) return "";
+        return switch (status) {
+            case "PENDING"  -> "待处理";
+            case "APPROVED" -> "已同意";
+            case "REJECTED" -> "已拒绝";
+            default         -> status;
+        };
     }
 
     // ===== 教师列表（供学生发消息选择） =====

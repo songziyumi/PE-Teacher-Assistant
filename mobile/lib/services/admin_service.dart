@@ -1,5 +1,7 @@
+import 'dart:typed_data';
 import '../models/school_class.dart';
 import '../models/elective_class.dart';
+import '../models/teacher_permission.dart';
 import 'api_service.dart';
 
 class AdminService {
@@ -57,6 +59,7 @@ class AdminService {
     String? idCard,
     String? electiveClass,
     required int classId,
+    String? studentStatus,
   }) async {
     await ApiService.post('/admin/students/save', {
       if (id != null) 'id': id,
@@ -66,7 +69,61 @@ class AdminService {
       if (idCard != null) 'idCard': idCard,
       if (electiveClass != null && electiveClass.isNotEmpty) 'electiveClass': electiveClass,
       'classId': classId,
+      if (studentStatus != null && studentStatus.isNotEmpty) 'studentStatus': studentStatus,
     });
+  }
+
+  static Future<bool> checkStudentNo(String studentNo, {int? excludeId}) async {
+    final q = StringBuffer('/admin/students/check-student-no?studentNo=${Uri.encodeComponent(studentNo)}');
+    if (excludeId != null) q.write('&excludeId=$excludeId');
+    final data = await ApiService.get(q.toString()) as Map;
+    return data['available'] == true;
+  }
+
+  static Future<Map<String, dynamic>> batchUpdateStudentStatus(
+    List<int> studentIds,
+    String studentStatus,
+  ) async {
+    final data = await ApiService.post('/admin/students/batch-update-status', {
+      'studentIds': studentIds,
+      'studentStatus': studentStatus,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchUpdateStudentElectiveClass(
+    List<int> studentIds, {
+    String? electiveClass,
+  }) async {
+    final data = await ApiService.post('/admin/students/batch-update-elective-class', {
+      'studentIds': studentIds,
+      'electiveClass': electiveClass,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchDeleteStudents(
+    List<int> studentIds,
+  ) async {
+    final data = await ApiService.post('/admin/students/batch-delete', {
+      'studentIds': studentIds,
+    }) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Map<String, dynamic> _normalizeBatchResult(Map data) {
+    final failedItems = ((data['failedItems'] as List?) ?? const [])
+        .map((item) {
+          final entry = Map<String, dynamic>.from((item as Map?) ?? const {});
+          return {'id': entry['id'], 'reason': entry['reason']?.toString() ?? ''};
+        })
+        .toList(growable: false);
+    return {
+      'totalCount': (data['totalCount'] as num?)?.toInt() ?? 0,
+      'successCount': (data['successCount'] as num?)?.toInt() ?? 0,
+      'failedCount': (data['failedCount'] as num?)?.toInt() ?? 0,
+      'failedItems': failedItems,
+    };
   }
 
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');
@@ -106,4 +163,56 @@ class AdminService {
 
   static Future<void> deleteTermGrade(int id) =>
       ApiService.delete('/admin/term-grades/$id');
+
+  // 导出审批记录（返回 xlsx 字节）
+  static Future<Uint8List> exportCourseRequests() =>
+      ApiService.downloadFile('/admin/course-requests/export');
+
+  // 导出学生名单（返回 xlsx 字节）
+  static Future<Uint8List> exportStudents({int? gradeId, int? classId}) async {
+    final q = StringBuffer('/admin/students/export?_=1');
+    if (gradeId != null) q.write('&gradeId=$gradeId');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
+
+  // 教师功能权限
+  static Future<TeacherPermission> getTeacherPermissions() async {
+    final data = await ApiService.get('/admin/teacher-permissions') as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  static Future<TeacherPermission> updateTeacherPermissions(
+      TeacherPermission perm) async {
+    final data = await ApiService.put(
+        '/admin/teacher-permissions', perm.toJson()) as Map;
+    return TeacherPermission.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  // 导出考勤记录（返回 xlsx 字节）
+  static Future<Uint8List> exportAttendance({
+    required String startDate,
+    String? endDate,
+    int? gradeId,
+    int? classId,
+  }) async {
+    final q = StringBuffer(
+      '/admin/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
+    );
+    if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
+    if (gradeId != null) q.write('&gradeId=$gradeId');
+    if (classId != null) q.write('&classId=$classId');
+    return ApiService.downloadFile(q.toString());
+  }
+
+  static Future<Map<String, dynamic>> getOperationTimeline({
+    int page = 0,
+    int size = 20,
+    int? teacherId,
+  }) async {
+    final q = StringBuffer('/admin/operation-timeline?page=$page&size=$size');
+    if (teacherId != null) q.write('&teacherId=$teacherId');
+    final data = await ApiService.get(q.toString());
+    return data as Map<String, dynamic>;
+  }
 }

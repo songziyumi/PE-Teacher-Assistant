@@ -457,7 +457,8 @@
                         </div>
                         <div class="form-group">
                             <label>学号</label>
-                            <input type="text" name="studentNo" id="edit-studentNo">
+                            <input type="text" name="studentNo" id="edit-studentNo" autocomplete="off">
+                            <div id="edit-studentNo-hint" style="font-size:12px;margin-top:4px;min-height:16px"></div>
                         </div>
                         <div class="form-group">
                             <label>身份证号</label>
@@ -621,10 +622,18 @@ function openAdd() {
 }
 function closeAdd() { document.getElementById('addModal').classList.remove('active'); }
 
+let _editStudentId = null;
+let _editOriginalStudentNo = '';
+let _studentNoTimer = null;
+let _studentNoChecking = false;
+
 function openEdit(btn) {
+    _editStudentId = btn.dataset.id;
+    _editOriginalStudentNo = btn.dataset.studentno || '';
+
     document.getElementById('edit-name').value = btn.dataset.name;
     document.getElementById('edit-gender').value = btn.dataset.gender || '男';
-    document.getElementById('edit-studentNo').value = btn.dataset.studentno || '';
+    document.getElementById('edit-studentNo').value = _editOriginalStudentNo;
     document.getElementById('edit-idCard').value = btn.dataset.idcard || '';
     document.getElementById('edit-studentStatus').value = btn.dataset.studentstatus || '在籍';
 
@@ -634,8 +643,63 @@ function openEdit(btn) {
     document.getElementById('edit-elective').value = btn.dataset.elective || '';
     filterEditElectiveClasses();
     document.getElementById('editForm').action = '/admin/students/edit/' + btn.dataset.id;
+
+    // 重置校验状态
+    clearTimeout(_studentNoTimer);
+    setStudentNoHint('', '');
+    document.querySelector('#editModal .btn-primary').disabled = false;
+
     document.getElementById('editModal').classList.add('active');
 }
+
+function setStudentNoHint(msg, type) {
+    const hint = document.getElementById('edit-studentNo-hint');
+    hint.textContent = msg;
+    hint.style.color = type === 'ok' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#888';
+}
+
+function checkEditStudentNo(value) {
+    if (!value || value === _editOriginalStudentNo) {
+        setStudentNoHint('', '');
+        document.querySelector('#editModal .btn-primary').disabled = false;
+        return;
+    }
+    setStudentNoHint('正在校验学号…', 'checking');
+    document.querySelector('#editModal .btn-primary').disabled = true;
+    const url = '/admin/students/check-student-no?studentNo=' + encodeURIComponent(value)
+        + (_editStudentId ? '&excludeId=' + _editStudentId : '');
+    fetch(url, {credentials: 'same-origin'})
+        .then(r => r.json())
+        .then(data => {
+            if (document.getElementById('edit-studentNo').value.trim() !== value) return;
+            if (data.available) {
+                setStudentNoHint('✓ 学号可用', 'ok');
+                document.querySelector('#editModal .btn-primary').disabled = false;
+            } else {
+                setStudentNoHint('✗ ' + (data.message || '学号已存在'), 'error');
+                document.querySelector('#editModal .btn-primary').disabled = true;
+            }
+        })
+        .catch(() => {
+            setStudentNoHint('', '');
+            document.querySelector('#editModal .btn-primary').disabled = false;
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('edit-studentNo').addEventListener('input', function() {
+        const val = this.value.trim();
+        clearTimeout(_studentNoTimer);
+        if (!val || val === _editOriginalStudentNo) {
+            setStudentNoHint('', '');
+            document.querySelector('#editModal .btn-primary').disabled = false;
+            return;
+        }
+        setStudentNoHint('正在校验学号…', 'checking');
+        document.querySelector('#editModal .btn-primary').disabled = true;
+        _studentNoTimer = setTimeout(() => checkEditStudentNo(val), 350);
+    });
+});
 
 function filterEditClasses() {
     const gid = document.getElementById('edit-grade').value;
