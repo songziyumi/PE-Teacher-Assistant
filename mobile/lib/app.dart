@@ -10,10 +10,17 @@ import 'screens/teacher/course_request_center.dart';
 import 'screens/teacher/course_request_detail.dart';
 import 'screens/teacher/teacher_message_center.dart';
 import 'screens/teacher/teacher_profile_screen.dart';
+import 'screens/teacher/attendance_export_screen.dart';
+import 'screens/teacher/data_export_screen.dart';
+import 'screens/teacher/teacher_operation_timeline_screen.dart';
 import 'screens/admin/admin_home.dart';
 import 'screens/admin/student_list.dart';
 import 'screens/admin/physical_list.dart';
 import 'screens/admin/grade_list.dart';
+import 'screens/admin/attendance_export_screen.dart';
+import 'screens/admin/data_export_screen.dart';
+import 'screens/admin/teacher_permission_screen.dart';
+import 'screens/admin/admin_operation_timeline_screen.dart';
 import 'screens/student/student_home.dart';
 import 'screens/student/student_my_courses.dart';
 import 'screens/student/student_message_center.dart';
@@ -106,6 +113,18 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
             className: state.uri.queryParameters['name'] ?? '',
           ),
         ),
+        GoRoute(
+          path: '/teacher/attendance-export',
+          builder: (_, __) => const TeacherAttendanceExportScreen(),
+        ),
+        GoRoute(
+          path: '/teacher/data-export',
+          builder: (_, __) => const TeacherDataExportScreen(),
+        ),
+        GoRoute(
+          path: '/teacher/operation-timeline',
+          builder: (_, __) => const TeacherOperationTimelineScreen(),
+        ),
         GoRoute(path: '/admin', builder: (_, __) => const AdminHome()),
         GoRoute(
           path: '/admin/students',
@@ -118,6 +137,22 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         GoRoute(
           path: '/admin/term-grades',
           builder: (_, __) => const GradeListScreen(),
+        ),
+        GoRoute(
+          path: '/admin/attendance-export',
+          builder: (_, __) => const AdminAttendanceExportScreen(),
+        ),
+        GoRoute(
+          path: '/admin/data-export',
+          builder: (_, __) => const AdminDataExportScreen(),
+        ),
+        GoRoute(
+          path: '/admin/teacher-permissions',
+          builder: (_, __) => const TeacherPermissionScreen(),
+        ),
+        GoRoute(
+          path: '/admin/operation-timeline',
+          builder: (_, __) => const AdminOperationTimelineScreen(),
         ),
       ],
     );

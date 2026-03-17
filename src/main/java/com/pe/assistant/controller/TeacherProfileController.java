@@ -1,18 +1,20 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.entity.CourseRequestAudit;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.repository.AttendanceRepository;
+import com.pe.assistant.repository.CourseRequestAuditRepository;
 import com.pe.assistant.repository.TeacherRepository;
+import com.pe.assistant.service.ClassService;
 import com.pe.assistant.service.CurrentUserService;
+import com.pe.assistant.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -21,7 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.Locale;
+import java.util.*;
 
 @Controller
 @RequiredArgsConstructor
@@ -33,12 +35,48 @@ public class TeacherProfileController {
     private final TeacherRepository teacherRepository;
     private final CurrentUserService currentUserService;
     private final PasswordEncoder passwordEncoder;
+    private final ClassService classService;
+    private final AttendanceRepository attendanceRepository;
+    private final MessageService messageService;
+    private final CourseRequestAuditRepository courseRequestAuditRepository;
 
     @GetMapping("/teacher/profile")
     public String profilePage(Model model) {
         Teacher teacher = currentUserService.getCurrentTeacher();
         model.addAttribute("teacher", teacher);
         return "teacher/profile";
+    }
+
+    @GetMapping("/teacher/profile/stats")
+    @ResponseBody
+    public Map<String, Object> profileStats() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        int classCount = classService.findByTeacher(teacher).size();
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        long monthlyAttendanceCount = attendanceRepository
+                .countDistinctDatesByTeacherAndDateRange(teacher.getId(), monthStart, today);
+        long pendingRequestCount = messageService.countTeacherCourseRequests(teacher, "PENDING");
+        long processedRequestCount = courseRequestAuditRepository.countByOperatorTeacherId(teacher.getId());
+        List<CourseRequestAudit> recentAudits = courseRequestAuditRepository
+                .findTop10ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+        List<Map<String, Object>> activities = new ArrayList<>();
+        for (CourseRequestAudit a : recentAudits) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("action", a.getAction());
+            m.put("time", a.getHandledAt() != null ? a.getHandledAt().toString().substring(0, 16).replace("T", " ") : "");
+            m.put("studentName", a.getSenderName());
+            m.put("courseName", a.getRelatedCourseName());
+            m.put("remark", a.getRemark());
+            activities.add(m);
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("classCount", classCount);
+        result.put("monthlyAttendanceCount", monthlyAttendanceCount);
+        result.put("pendingRequestCount", pendingRequestCount);
+        result.put("processedRequestCount", processedRequestCount);
+        result.put("recentActivities", activities);
+        return result;
     }
 
     @PostMapping("/teacher/profile/save")

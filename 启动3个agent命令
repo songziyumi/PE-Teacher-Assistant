@@ -1,0 +1,20 @@
+直接在一个 PowerShell 里执行这段：
+                                                                                                         
+  $codex = "C:\Users\28970\AppData\Roaming\npm\codex.ps1"                                                
+                                                                                                         
+  Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='students';    
+  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_students'; & '$codex'"  
+  Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='approval';    
+  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_approval'; & '$codex'"  
+  Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='messages';    
+  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_messages'; & '$codex'" 
+
+  1. 不要让他们互相改范围外文件。                          
+  2. 要求每个 Agent 完成第一批后只汇报三样东西：           
+      - 改了什么                                           
+      - 跑了什么验证                                       
+      - 提交 hash                                          
+  3. 不要让他们自己合并分支。                              
+  4. 等三边都有第一批提交后，再让我帮你进入 integration 收 
+     口。                                                  
+             

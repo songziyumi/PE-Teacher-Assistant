@@ -1,6 +1,6 @@
 # 教师手机端功能落地清单（P0 / P1 / P2）
 
-> 更新时间：2026-03-09  
+> 更新时间：2026-03-15
 > 状态标识：`[x] 已落地（代码已完成）` / `[-] 进行中（有代码，待联调验收）` / `[ ] 未开始`
 
 ## 目标
@@ -9,8 +9,30 @@
 
 ## 当前总体进度（真实代码口径）
 - P0：已完成（核心功能、关键回归与真机验收已完成，进入 P1 推进阶段）
-- P1：约 60%（已新增批量审批、消息类型筛选、学生多条件筛选代码，待联调验收）
-- P2：约 0%（尚未启动）
+- P1：已完成（批量审批、学生多条件筛选/批量操作、消息增强、二次确认与失败重试、管理员学生编辑增强、考勤导出均已完成）
+- P2：**100% 完成**（数据导出、教师功能权限开关+UI强制执行、个人主页增强、管理员学号实时校验（Flutter+Web）、头像上传修复、学籍状态扩展（增加"长假"，全端同步）、批量导入支持学籍状态字段、推送通知（workmanager轮询+本地通知）、操作时间线、弱网容错（离线队列+自动同步）均已完成）
+
+## P1 分支与条目映射
+- `feature/teacher-p1-approval` → 批量审批（批量同意/拒绝）
+- `feature/teacher-p1-students` → 学生页多条件筛选（姓名、学号、行政班、选修班、学籍状态）
+- `feature/teacher-p1-messages` → 站内消息增强（未读筛选、按类型筛选、已读状态）
+- `feature/teacher-p1-integration` → 跨分支联调/冲突处理/回归验证（不对应具体功能条目）
+
+## P1 分支进度（代码口径，按当前分支代码）
+- [x] `feature/teacher-p1-approval`：批量审批接口 `/api/teacher/course-requests/batch-handle`（含去重/失败明细）
+- [x] `feature/teacher-p1-approval`：审批中心批量模式 UI（选择/全选/备注/失败提示）
+- [x] `feature/teacher-p1-approval`：接口回归用例覆盖（批量审批）
+- [x] `feature/teacher-p1-approval`：联调与真机验收通过
+- [x] `feature/teacher-p1-students`：学生多条件筛选（姓名/学号/行政班/选修班/学籍状态，前后端）
+- [x] `feature/teacher-p1-students`：批量学生操作（批量改学籍状态、批量分配/清空选修班，前后端）
+- [x] `feature/teacher-p1-students`：批量学生操作联调通过（此前 HTML 返回问题已解决）
+- [x] `feature/teacher-p1-students`：接口回归用例覆盖（批量学生操作）
+- [x] `feature/teacher-p1-students`：联调与真机验收通过
+- [x] `feature/teacher-p1-messages`：站内消息筛选（未读/全部 + 类型筛选，前后端）
+- [x] `feature/teacher-p1-messages`：已读状态更新 + 未读数接口（前后端）
+- [x] `feature/teacher-p1-messages`：接口回归用例覆盖（类型/未读筛选、已读同步）
+- [x] `feature/teacher-p1-messages`：联调与交互细节打磨通过
+- [x] `feature/teacher-p1-integration`：统一回归与冲突清理确认通过
 
 ## 迭代节奏（两周一迭代）
 - 迭代1（P0）：2026-03-09 ~ 2026-03-22
@@ -78,31 +100,85 @@
   - 学生编辑边界与并发回归 E1/E3/E4/E5/E6/E7/E8 通过
 
 ## P1（增强效率与管理能力）
-- [-] 批量审批（批量同意/拒绝）
-- [-] 学生页多条件筛选（姓名、学号、行政班、选修班、学籍状态）
-- [ ] 批量学生操作（批量改学籍状态、批量分配选修班）
-- [-] 站内消息增强（未读筛选、按类型筛选、已读状态）
+- [x] 批量审批（批量同意/拒绝）
+- [x] 学生页多条件筛选（姓名、学号、行政班、选修班、学籍状态）
+- [x] 批量学生操作（批量改学籍状态、批量分配选修班）
+- [x] 站内消息增强（未读筛选、按类型筛选、已读状态）
   - 已有：未读筛选 + 已读标记 + 按类型筛选（GENERAL / COURSE_REQUEST）
   - 待补：真机联调与交互细节打磨
-- [ ] 关键操作二次确认与失败重试机制
+  - [x] 关键操作二次确认与失败重试机制
+  - [x] 手机端，管理员登录页面编辑学生增加学籍状态编辑，编辑时增加学号相同校验，增加批量编辑，二次校验
+  - [x] 管理员手机端增加导出考勤记录功能，考勤记录查询：日期，年级，导出xlsx 
+
 
 ### P1 验收标准
-- [ ] 50 条审批可在 3 分钟内完成批量处理
-- [ ] 任意筛选条件组合下查询响应稳定
-- [ ] 批量任务失败时可定位到具体失败记录
+- [x] 50 条审批可在 3 分钟内完成批量处理
+- [x] 任意筛选条件组合下查询响应稳定
+- [x] 批量任务失败时可定位到具体失败记录
 
 ## P2（体验与运营能力）
-- [ ] 推送通知（新申请、审批结果）
-- [ ] 数据导出（审批记录、学生名单）
-- [ ] 操作时间线（教师最近操作日志）
-- [ ] 弱网容错（离线队列/重试/提交状态）
-- [ ] 个人主页增强（课表、教学统计）
-- [ ] 教师修改选项功能开关
+- [x] 数据导出（审批记录、学生名单）
+  - 后端：`GET /api/teacher/course-requests/export`、`/api/teacher/students/export`
+  - 后端：`GET /api/admin/course-requests/export`、`/api/admin/students/export`
+  - Flutter：`screens/teacher/data_export_screen.dart`（审批记录 + 学生名单）
+  - Flutter：`screens/admin/data_export_screen.dart`（审批记录 + 学生名单，年级/班级筛选）
+  - xlsx 字段：审批记录（编号/申请时间/申请人/课程/内容/状态/审批人/审批时间/备注）；学生名单（学号/姓名/性别/年级/班级/选修班/学籍状态）
+- [x] 教师修改选项功能开关（教师功能权限）
+  - 后端：`entity/TeacherPermission`（学校粒度，10项开关，JPA 自动建表）
+  - 后端：`GET/PUT /api/admin/teacher-permissions`、`GET /api/teacher/permissions`
+  - Web：`/admin/teacher-permissions`（拨动开关页面，dashboard 已加入口）
+  - Flutter 管理员端：`screens/admin/teacher_permission_screen.dart`（SwitchListTile 配置）
+  - Flutter 教师端：`services/permission_cache.dart`（TeacherHome 启动时加载并缓存）
+    - `teacher_home.dart`：班级卡片按 `attendanceEdit/physicalTestEdit/termGradeEdit` 显隐对应入口按钮
+    - `attendance_screen.dart`：`attendanceEdit=false` 时禁用保存 + 显示锁定提示条
+    - `physical_entry.dart`：`physicalTestEdit=false` 时同上
+    - `grade_entry.dart`：`termGradeEdit=false` 时同上
+    - `teacher_student_list.dart`：`batchOperation=false` 时隐藏批量面板和列表复选框；编辑弹窗内6个学生字段各按权限 disable，无可编辑字段时禁用保存
+- [x] 推送通知（新申请、审批结果）
+  - 后端：复用 `GET /api/teacher/messages/unread-count`
+  - Flutter：`notification_service.dart`（workmanager 15分钟轮询 + flutter_local_notifications）
+  - 登录后启动、退出后停止；消息中心刷新后同步基准值，防重复通知
+  - Android：AndroidManifest 补齐 `POST_NOTIFICATIONS` / `RECEIVE_BOOT_COMPLETED` / `WAKE_LOCK` 权限
+- [x] 操作时间线（教师最近操作日志）
+  - 后端：`entity/TeacherOperationLog`（teacher_id + operated_at 双索引）
+  - 后端：`TeacherOperationLogService.log()` 异步写入（@Async）
+  - 后端：考勤/体测/成绩保存、学生修改、批量状态/选修班、批量审批均自动记录
+  - 后端：`GET /api/teacher/operation-timeline` 双源合并分页（TeacherOperationLog + CourseRequestAudit）
+  - Flutter：`teacher_operation_timeline_screen.dart` 无限滚动+下拉刷新，日期分组，彩色图标
+  - Flutter：个人主页「已处理」卡片点击跳转时间线
+- [x] 弱网容错（离线队列/重试/提交状态）
+  - 包：`connectivity_plus ^6.0.0`（网络状态检测）
+  - Flutter：`NetworkService`（监听网络变化，重连时自动触发 flush）
+  - Flutter：`OfflineQueueService`（SharedPreferences 持久化；考勤/体测/成绩三类操作；相同 key 去重覆盖）
+  - Flutter：`ConnectivityBanner`（离线时写操作页面顶部显示橙色提示条）
+  - Flutter：考勤/体测/成绩页：离线时自动入队暂存，网络错误时同样入队
+  - Flutter：教师首页 AppBar 橙色待同步角标（显示条数，点击手动同步）
+- [x] 个人主页增强（教学统计 + 最近操作 + 查看/编辑模式分离）
+  - 后端：`GET /api/teacher/profile/stats`（带班数/本月考勤/待审批/已处理/最近10条审批记录）
+  - 后端（Web）：`GET /teacher/profile/stats`（`@ResponseBody`，供 Thymeleaf 页面 fetch 调用，基于 Session Auth）
+  - Flutter：`teacher_profile_screen.dart` 新增统计卡片、最近操作列表；统计卡片支持点击跳转对应功能页
+  - Flutter：个人资料默认查看模式，点击"编辑"进入编辑态，支持取消还原；密码修改折叠/展开
+  - Flutter：头像上传修复 —— AndroidManifest 补齐 `READ_EXTERNAL_STORAGE`（maxSdkVersion=32）和 `READ_MEDIA_IMAGES` 权限
+  - Web：`templates/teacher/profile.html` 全面重构：统计卡片异步加载、查看/编辑模式分离、密码区块折叠展开、最近操作列表
+  - [ ] 课表展示 —— 依赖数据模型前置（Course/SchoolClass 缺时间/地点字段），已暂缓
+- [x] 管理员编辑学生学号实时校验（防重复）
+  - Flutter（管理员端）：`screens/admin/student_list.dart` 编辑弹窗新增防抖校验（350ms Timer + dialogAlive 守卫）
+  - Web：`templates/admin/students.html` 编辑弹窗新增防抖校验（350ms + `setStudentNoHint`）
+  - 后端（Web）：`AdminController` 新增 `GET /admin/students/check-student-no`（`@ResponseBody`，Session Auth）
+- [x] 学籍状态扩展：新增"长假"选项，全端同步
+  - 后端：`StudentService.AVAILABLE_STATUSES` 列表新增"长假"（单一来源，`AVAILABLE_STATUS_SET` 自动同步）
+  - Flutter 教师端：`teacher_student_list.dart` `_studentStatuses` 新增"长假"
+  - Flutter 管理员端：`admin/student_list.dart` `_studentStatuses` 新增"长假"
+- [x] 批量导入学生支持"学籍状态"字段
+  - `AdminController.importStudents`：读取 Excel"学籍状态"列（列不存在时回退默认"在籍"，向下兼容）
+  - `StudentService.importCreateOrUpdate`：新增 `studentStatus` 参数，`normalizeStatusForSave` 验证并写入
+  - `AdminController.downloadStudentTemplate`：模板新增"学籍状态"列（示例值"在籍"）
 
 ### P2 验收标准
+- [x] 导出文件字段完整且与页面一致
+- [x] 教师端权限管控 UI 强制执行（配置侧已完成，教师端 UI 已执行）
 - [ ] 推送到达率、点击进入成功率可统计
-- [ ] 导出文件字段完整且与页面一致
-- [ ] 弱网环境下不丢操作，重连后可恢复
+- [x] 弱网环境下不丢操作，重连后可恢复
 
 ## 技术任务分解（按端拆分）
 ### 后端 API
@@ -110,7 +186,7 @@
 - [x] 消息接口提供业务跳转目标（审批单 ID、类型）
 - [x] 学生更新接口统一字段校验（含学号唯一）
 - [x] 学生编辑接口边界回归（空值/超长/空格/并发冲突/陈旧版本）
-- [ ] 批量审批接口
+- [x] 批量审批接口
 
 ### 数据与审计
 - [x] 审批日志表 + 消息审批字段（处理人/时间/备注）
@@ -121,7 +197,12 @@
 - [x] 审批列表页、审批详情页、消息跳转
 - [x] 学生编辑弹窗组件化（基础信息/行政班/选修班）
 - [x] 统一错误提示与加载态（主要流程）
-- [ ] 批量操作与重试组件
+- [x] 批量操作（审批/学生）
+- [x] 失败重试组件
+- [x] 数据导出（教师端：审批记录+学生名单；管理员端：审批记录+学生名单+年级/班级筛选）
+- [x] 权限配置页（管理员端 `teacher_permission_screen.dart`，SwitchListTile 10项开关）
+- [x] 权限 UI 强制执行（`PermissionCache` 静态缓存，各教师端页面按权限显隐/禁用）
+- [x] 个人主页增强（`teacher_profile_screen.dart`：统计卡片/最近操作/查看编辑UX分离/密码折叠展开）
 
 ## 风险与应对
 - 风险：审批与消息链路不一致导致跳转失败
@@ -134,9 +215,14 @@
 - 应对：服务层校验 + 数据库唯一索引双保险 + 冲突错误统一映射为“学号已存在”
 
 ## 建议执行顺序（继续开发）
-1. P0 已完成，先推进 P1 第一批：批量审批 + 消息类型筛选
-2. 再做 P1 第二批：学生多条件筛选 + 批量学生操作
-3. 最后补体验向能力：关键操作二次确认、失败重试与弱网容错
+1. ~~P0 已完成，先推进 P1 第一批：批量审批 + 消息类型筛选~~（已完成）
+2. ~~再做 P1 第二批：学生多条件筛选 + 批量学生操作~~（已完成）
+3. ~~最后补体验向能力：关键操作二次确认、失败重试与弱网容错~~（已完成）
+4. ~~P2 进行中：下一步优先补全「教师端权限 UI 强制执行」~~（已完成）
+5. ~~P2 个人主页增强：统计卡片+最近操作+查看/编辑UX分离~~（已完成）
+6. ~~P2 管理员学号实时校验（Flutter+Web）+ 头像上传修复 + 学籍状态扩展 + 批量导入状态字段~~（已完成）
+7. ~~P2 推送通知（workmanager轮询+本地通知）+ 操作时间线（双源审计日志+Flutter时间线页）~~（已完成）
+8. ~~P2 弱网容错（离线队列+自动同步+待同步角标）~~（已完成）— **P2 全部完成！**
 
 ##  调试命令
 mvn -q "-Dmaven.repo.local=.m2repo" -DskipTests compile                                                

@@ -2,6 +2,9 @@ package com.pe.assistant.controller.api;
 
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.AttendanceRepository;
+import com.pe.assistant.repository.CourseRequestAuditRepository;
+import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
 import lombok.Data;
@@ -15,10 +18,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,7 +45,12 @@ public class TeacherApiController {
     private final CurrentUserService currentUserService;
     private final GradeService gradeService;
     private final TeacherRepository teacherRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final CourseRequestAuditRepository courseRequestAuditRepository;
+    private final TeacherOperationLogRepository teacherOperationLogRepository;
+    private final TeacherOperationLogService teacherOperationLogService;
     private final PasswordEncoder passwordEncoder;
+    private final TeacherPermissionService teacherPermissionService;
 
     @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
     private String uploadDir;
@@ -69,6 +80,41 @@ public class TeacherApiController {
         m.put("bio", teacher.getBio());
         m.put("schoolName", teacher.getSchool() != null ? teacher.getSchool().getName() : null);
         return ApiResponse.ok(m);
+    }
+
+    @GetMapping("/profile/stats")
+    public ApiResponse<Map<String, Object>> profileStats() {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+
+        int classCount = classService.findByTeacher(teacher).size();
+
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        long monthlyAttendanceCount = attendanceRepository
+                .countDistinctDatesByTeacherAndDateRange(teacher.getId(), monthStart, today);
+
+        long pendingRequestCount = messageService.countTeacherCourseRequests(teacher, "PENDING");
+        long processedRequestCount = courseRequestAuditRepository.countByOperatorTeacherId(teacher.getId());
+
+        List<CourseRequestAudit> recentAudits = courseRequestAuditRepository
+                .findTop10ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+        List<Map<String, Object>> activities = recentAudits.stream().map(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("action", a.getAction());
+            m.put("time", a.getHandledAt().toString());
+            m.put("studentName", a.getSenderName());
+            m.put("courseName", a.getRelatedCourseName());
+            m.put("remark", a.getRemark());
+            return m;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("classCount", classCount);
+        result.put("monthlyAttendanceCount", monthlyAttendanceCount);
+        result.put("pendingRequestCount", pendingRequestCount);
+        result.put("processedRequestCount", processedRequestCount);
+        result.put("recentActivities", activities);
+        return ApiResponse.ok(result);
     }
 
     @PutMapping("/profile")
@@ -351,6 +397,12 @@ public class TeacherApiController {
             result.put("failedCount", failedItems.size());
             result.put("successIds", successIds);
             result.put("failedItems", failedItems);
+            if (!successIds.isEmpty()) {
+                String logAction = approve ? "BATCH_APPROVE" : "BATCH_REJECT";
+                String logDesc = (approve ? "批量同意 " : "批量拒绝 ") + successIds.size() + " 条选课申请";
+                teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                        logAction, logDesc, successIds.size());
+            }
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -485,6 +537,9 @@ public class TeacherApiController {
         try {
             studentService.update(id, name, gender, studentNo, current.getIdCard(),
                     electiveClass, classId, studentStatus, version);
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                    "STUDENT_UPDATE", "修改学生信息：" + name + "（" + studentNo + "）", 1);
             return ResponseEntity.ok(ApiResponse.ok("修改成功", null));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(ApiResponse.error(409, e.getMessage()));
@@ -505,6 +560,11 @@ public class TeacherApiController {
             School school = currentUserService.getCurrentSchool();
             StudentService.BatchStudentOperationResult updated =
                     studentService.batchUpdateStudentStatus(school, body.getStudentIds(), body.getStudentStatus());
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                    "STUDENT_BATCH_STATUS",
+                    "批量修改学籍状态为「" + body.getStudentStatus() + "」，共 " + updated.getSuccessCount() + " 人",
+                    updated.getSuccessCount());
             return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -521,6 +581,13 @@ public class TeacherApiController {
             School school = currentUserService.getCurrentSchool();
             StudentService.BatchStudentOperationResult updated =
                     studentService.batchUpdateElectiveClass(school, body.getStudentIds(), body.getElectiveClass());
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            String electiveDesc = body.getElectiveClass() == null || body.getElectiveClass().isBlank()
+                    ? "清空选修班" : "分配选修班「" + body.getElectiveClass() + "」";
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                    "STUDENT_BATCH_ELECTIVE",
+                    electiveDesc + "，共 " + updated.getSuccessCount() + " 人",
+                    updated.getSuccessCount());
             return ResponseEntity.ok(ApiResponse.ok(buildBatchStudentResult(updated)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
@@ -628,7 +695,14 @@ public class TeacherApiController {
     public ApiResponse<Map<Long, String>> attendance(@RequestParam Long classId,
                                                       @RequestParam String date) {
         LocalDate d = LocalDate.parse(date);
-        List<Attendance> records = attendanceService.findByClassAndDate(classId, d);
+        SchoolClass sc = classService.findById(classId);
+        List<Attendance> records;
+        if (isElectiveType(sc.getType())) {
+            String electiveClassName = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
+            records = attendanceService.findByElectiveClassAndDate(electiveClassName, d);
+        } else {
+            records = attendanceService.findByClassAndDate(classId, d);
+        }
         Map<Long, String> map = records.stream()
                 .collect(Collectors.toMap(a -> a.getStudent().getId(), Attendance::getStatus));
         return ApiResponse.ok(map);
@@ -638,13 +712,47 @@ public class TeacherApiController {
 
     @PostMapping("/attendance/save-batch")
     public ApiResponse<String> saveAttendance(@RequestBody AttendanceBatchRequest req) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Teacher teacher = currentUserService.getCurrentTeacher();
         LocalDate date = LocalDate.parse(req.getDate());
         Map<Long, String> statusMap = req.getRecords().stream()
                 .collect(Collectors.toMap(AttendanceBatchRequest.Record::getStudentId,
                         AttendanceBatchRequest.Record::getStatus));
-        attendanceService.saveAttendance(req.getClassId(), date, statusMap, username);
+        attendanceService.saveAttendance(req.getClassId(), date, statusMap, teacher.getUsername());
+        String className = classService.findById(req.getClassId()).getName();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
+                "ATTENDANCE_SAVE",
+                "提交考勤：" + className + " " + date + "，共 " + statusMap.size() + " 条",
+                statusMap.size());
         return ApiResponse.ok("保存成功，共 " + statusMap.size() + " 条", null);
+    }
+
+    @GetMapping(value = "/attendance/export", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportAttendance(
+            @RequestParam String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long classId) throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        LocalDate start = LocalDate.parse(startDate);
+        LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        List<Attendance> records;
+        if (classId != null) {
+            SchoolClass sc = classService.findById(classId);
+            if (sc.getTeacher() == null || !sc.getTeacher().getId().equals(teacher.getId())) {
+                return ResponseEntity.status(403).build();
+            }
+            records = attendanceService.findByClassIdsAndDateRange(List.of(classId), start, end);
+        } else {
+            List<Long> classIds = classService.findByTeacher(teacher).stream()
+                    .map(SchoolClass::getId).collect(Collectors.toList());
+            records = classIds.isEmpty() ? List.of()
+                    : attendanceService.findByClassIdsAndDateRange(classIds, start, end);
+        }
+        byte[] bytes = attendanceService.exportXlsx(records);
+        String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
+        String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
     }
 
     @Data
@@ -713,6 +821,11 @@ public class TeacherApiController {
             });
         }
         int saved = physicalTestService.saveBatch(students, records, school, academicYear, semester);
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                "PHYSICAL_TEST_SAVE",
+                "录入体测数据：" + academicYear + " " + semester + "，共 " + saved + " 条",
+                saved);
         return ApiResponse.ok("保存成功，共 " + saved + " 条", null);
     }
 
@@ -778,6 +891,11 @@ public class TeacherApiController {
         }
         int saved = termGradeService.saveBatch(students, records, school,
                 req.getAcademicYear(), req.getSemester());
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                "TERM_GRADE_SAVE",
+                "录入期末成绩：" + req.getAcademicYear() + " " + req.getSemester() + "，共 " + saved + " 条",
+                saved);
         return ApiResponse.ok("保存成功，共 " + saved + " 条", null);
     }
 
@@ -795,6 +913,69 @@ public class TeacherApiController {
             private Double theoryScore;
             private String remark;
         }
+    }
+
+    // ===== 教师功能权限 =====
+
+    @GetMapping("/permissions")
+    public ApiResponse<Map<String, Object>> getPermissions() {
+        School school = currentUserService.getCurrentSchool();
+        TeacherPermission p = teacherPermissionService.getOrCreate(school);
+        return ApiResponse.ok(toPermissionMap(p));
+    }
+
+    // ===== 审批记录导出 =====
+
+    @GetMapping(value = "/course-requests/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportCourseRequests() throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        List<InternalMessage> messages = messageService.getTeacherCourseRequests(teacher, "ALL");
+        byte[] bytes = messageService.exportCourseRequestsXlsx(messages);
+        String filename = URLEncoder.encode("审批记录_" + teacher.getName() + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    // ===== 学生名单导出 =====
+
+    @GetMapping(value = "/students/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportStudents(
+            @RequestParam(required = false) Long classId) throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students;
+        if (classId != null) {
+            students = studentService.findByClassIdForTeacher(school, classId);
+        } else {
+            List<Long> classIds = classService.findByTeacher(teacher).stream()
+                    .map(SchoolClass::getId).collect(Collectors.toList());
+            students = classIds.stream()
+                    .flatMap(id -> studentService.findByClassId(id).stream())
+                    .collect(Collectors.toList());
+        }
+        byte[] bytes = studentService.exportStudentsXlsx(students);
+        String filename = URLEncoder.encode("学生名单_" + teacher.getName() + ".xlsx", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
+    private static Map<String, Object> toPermissionMap(TeacherPermission p) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("editStudentName", p.isEditStudentName());
+        m.put("editStudentGender", p.isEditStudentGender());
+        m.put("editStudentNo", p.isEditStudentNo());
+        m.put("editStudentStatus", p.isEditStudentStatus());
+        m.put("editStudentClass", p.isEditStudentClass());
+        m.put("editStudentElectiveClass", p.isEditStudentElectiveClass());
+        m.put("attendanceEdit", p.isAttendanceEdit());
+        m.put("physicalTestEdit", p.isPhysicalTestEdit());
+        m.put("termGradeEdit", p.isTermGradeEdit());
+        m.put("batchOperation", p.isBatchOperation());
+        return m;
     }
 
     private boolean isElectiveType(String type) {
@@ -845,6 +1026,81 @@ public class TeacherApiController {
         Path dest = dir.resolve(filename);
         photo.transferTo(dest.toFile());
         return "/uploads/teachers/" + filename;
+    }
+
+    // ===== 操作时间线 =====
+
+    @GetMapping("/operation-timeline")
+    public ApiResponse<Map<String, Object>> operationTimeline(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+
+        // 拉取两类来源的最近100条
+        List<TeacherOperationLog> opLogs =
+                teacherOperationLogRepository.findTop100ByTeacherIdOrderByOperatedAtDesc(teacher.getId());
+        List<CourseRequestAudit> audits =
+                courseRequestAuditRepository.findTop100ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+
+        List<Map<String, Object>> entries = new ArrayList<>();
+
+        for (TeacherOperationLog log : opLogs) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "op_" + log.getId());
+            e.put("action", log.getAction());
+            e.put("title", actionToTitle(log.getAction()));
+            e.put("description", log.getDescription());
+            e.put("targetCount", log.getTargetCount());
+            e.put("operatedAt", log.getOperatedAt().toString());
+            entries.add(e);
+        }
+
+        for (CourseRequestAudit audit : audits) {
+            boolean approved = "APPROVE".equals(audit.getAction());
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "audit_" + audit.getId());
+            e.put("action", approved ? "APPROVE" : "REJECT");
+            e.put("title", approved ? "同意选课申请" : "拒绝选课申请");
+            String coursePart = audit.getRelatedCourseName() != null ? audit.getRelatedCourseName() : "未知课程";
+            String senderPart = audit.getSenderName() != null ? "，申请人：" + audit.getSenderName() : "";
+            e.put("description", coursePart + senderPart);
+            e.put("targetCount", 1);
+            e.put("operatedAt", audit.getHandledAt().toString());
+            entries.add(e);
+        }
+
+        // 按时间倒序排列
+        entries.sort((a, b) -> ((String) b.get("operatedAt")).compareTo((String) a.get("operatedAt")));
+
+        // 分页
+        int total = entries.size();
+        int start = page * size;
+        List<Map<String, Object>> paged = start >= total
+                ? Collections.emptyList()
+                : entries.subList(start, Math.min(start + size, total));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("content", paged);
+        result.put("totalElements", total);
+        result.put("totalPages", (int) Math.ceil((double) total / size));
+        result.put("page", page);
+        result.put("size", size);
+        return ApiResponse.ok(result);
+    }
+
+    private static String actionToTitle(String action) {
+        if (action == null) return "操作";
+        return switch (action) {
+            case "ATTENDANCE_SAVE"     -> "提交考勤";
+            case "PHYSICAL_TEST_SAVE"  -> "录入体测数据";
+            case "TERM_GRADE_SAVE"     -> "录入期末成绩";
+            case "STUDENT_UPDATE"      -> "修改学生信息";
+            case "STUDENT_BATCH_STATUS"   -> "批量修改学籍状态";
+            case "STUDENT_BATCH_ELECTIVE" -> "批量修改选修班";
+            case "BATCH_APPROVE"       -> "批量同意申请";
+            case "BATCH_REJECT"        -> "批量拒绝申请";
+            default -> action;
+        };
     }
 
     private void validatePassword(String password) {

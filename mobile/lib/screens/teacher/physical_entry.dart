@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/student.dart';
 import '../../models/physical_test.dart';
+import '../../services/network_service.dart';
+import '../../services/offline_queue_service.dart';
+import '../../services/permission_cache.dart';
 import '../../services/teacher_service.dart';
+import '../../widgets/connectivity_banner.dart';
 
 class PhysicalEntryScreen extends StatefulWidget {
   final int classId;
@@ -73,29 +77,44 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
     }
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      final items = <Map<String, dynamic>>[];
-      for (final s in _students) {
-        final c = _ctrls[s.id]!;
-        items.add({
+  List<Map<String, dynamic>> _buildItems() {
+    return [
+      for (final s in _students)
+        {
           'studentId': s.id,
           'academicYear': _academicYear,
           'semester': _semester,
           'testDate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
-          'height': double.tryParse(c['height']!.text),
-          'weight': double.tryParse(c['weight']!.text),
-          'lungCapacity': int.tryParse(c['lungCapacity']!.text),
-          'sprint50m': double.tryParse(c['sprint50m']!.text),
-          'sitReach': double.tryParse(c['sitReach']!.text),
-          'standingJump': double.tryParse(c['standingJump']!.text),
-          'pullUps': s.isMale ? int.tryParse(c['pullUps']!.text) : null,
-          'sitUps': s.isFemale ? int.tryParse(c['sitUps']!.text) : null,
-          'run800m': s.isFemale ? double.tryParse(c['run800m']!.text) : null,
-          'run1000m': s.isMale ? double.tryParse(c['run1000m']!.text) : null,
-          'remark': c['remark']!.text.isEmpty ? null : c['remark']!.text,
-        });
+          'height': double.tryParse(_ctrls[s.id]!['height']!.text),
+          'weight': double.tryParse(_ctrls[s.id]!['weight']!.text),
+          'lungCapacity': int.tryParse(_ctrls[s.id]!['lungCapacity']!.text),
+          'sprint50m': double.tryParse(_ctrls[s.id]!['sprint50m']!.text),
+          'sitReach': double.tryParse(_ctrls[s.id]!['sitReach']!.text),
+          'standingJump': double.tryParse(_ctrls[s.id]!['standingJump']!.text),
+          'pullUps': s.isMale ? int.tryParse(_ctrls[s.id]!['pullUps']!.text) : null,
+          'sitUps': s.isFemale ? int.tryParse(_ctrls[s.id]!['sitUps']!.text) : null,
+          'run800m': s.isFemale ? double.tryParse(_ctrls[s.id]!['run800m']!.text) : null,
+          'run1000m': s.isMale ? double.tryParse(_ctrls[s.id]!['run1000m']!.text) : null,
+          'remark': _ctrls[s.id]!['remark']!.text.isEmpty
+              ? null
+              : _ctrls[s.id]!['remark']!.text,
+        },
+    ];
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final items = _buildItems();
+      if (!NetworkService.isOnline) {
+        await _queuePhysical(items);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('当前离线，体测数据已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
       }
       await TeacherService.savePhysicalTests(items);
       if (mounted) {
@@ -103,7 +122,16 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
             const SnackBar(content: Text('体测数据保存成功'), backgroundColor: Colors.green));
       }
     } catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (!NetworkService.isOnline) {
+        await _queuePhysical(_buildItems());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('网络中断，体测数据已暂存，联网后自动同步'),
+            backgroundColor: Colors.orange,
+          ));
+        }
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red));
       }
@@ -112,14 +140,24 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
     }
   }
 
+  Future<void> _queuePhysical(List<Map<String, dynamic>> items) =>
+      OfflineQueueService.enqueuePhysicalTests(
+        classId: widget.classId,
+        className: widget.className,
+        academicYear: _academicYear,
+        semester: _semester,
+        items: items,
+      );
+
   @override
   Widget build(BuildContext context) {
+    final canEdit = PermissionCache.current.physicalTestEdit;
     return Scaffold(
       appBar: AppBar(
         title: Text('体测录入 - ${widget.className}'),
         actions: [
           TextButton.icon(
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || !canEdit ? null : _save,
             icon: const Icon(Icons.save, color: Colors.white),
             label: const Text('保存', style: TextStyle(color: Colors.white)),
           ),
@@ -127,6 +165,19 @@ class _PhysicalEntryScreenState extends State<PhysicalEntryScreen> {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
+          if (!canEdit)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(children: [
+                Icon(Icons.lock_outline, size: 16, color: Colors.orange),
+                SizedBox(width: 6),
+                Text('管理员已禁用体测录入功能',
+                    style: TextStyle(color: Colors.orange)),
+              ]),
+            ),
           // 学年学期选择
           _buildFilterBar(),
           Expanded(
