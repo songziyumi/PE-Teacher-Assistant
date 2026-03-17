@@ -235,12 +235,14 @@ public class AdminApiController {
             @RequestParam String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) Long gradeId,
-            @RequestParam(required = false) Long classId) throws IOException {
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) String status) throws IOException {
         School school = currentUserService.getCurrentSchool();
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        String statusFilter = (status != null && !status.isBlank()) ? status : null;
         List<com.pe.assistant.entity.Attendance> records =
-                attendanceService.findBySchoolAndFilters(school, start, end, gradeId, classId);
+                attendanceService.findBySchoolAndFilters(school, start, end, gradeId, classId, statusFilter);
         byte[] bytes = attendanceService.exportXlsx(records);
         String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
         String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);

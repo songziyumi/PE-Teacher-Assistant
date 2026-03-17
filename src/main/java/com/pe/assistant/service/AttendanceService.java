@@ -124,8 +124,8 @@ public class AttendanceService {
         return attendanceRepository.findByClassIdsAndDateRange(classIds, start, end);
     }
 
-    public List<Attendance> findBySchoolAndFilters(School school, LocalDate start, LocalDate end, Long gradeId, Long classId) {
-        return attendanceRepository.findBySchoolAndFilters(school, start, end, gradeId, classId);
+    public List<Attendance> findBySchoolAndFilters(School school, LocalDate start, LocalDate end, Long gradeId, Long classId, String status) {
+        return attendanceRepository.findBySchoolAndFilters(school, start, end, gradeId, classId, status);
     }
 
     public byte[] exportXlsx(List<Attendance> records) throws IOException {
