@@ -154,7 +154,7 @@ class _AdminAttendanceExportScreenState
                         const SizedBox(height: 16),
                         // 年级选择
                         DropdownButtonFormField<int?>(
-                          value: _selectedGradeId,
+                          initialValue: _selectedGradeId,
                           decoration: const InputDecoration(
                             labelText: '年级（可选）',
                             border: OutlineInputBorder(),
@@ -176,7 +176,7 @@ class _AdminAttendanceExportScreenState
                         const SizedBox(height: 12),
                         // 班级选择（联动年级）
                         DropdownButtonFormField<int?>(
-                          value: _selectedClassId,
+                          initialValue: _selectedClassId,
                           decoration: const InputDecoration(
                             labelText: '班级（可选）',
                             border: OutlineInputBorder(),
@@ -199,7 +199,7 @@ class _AdminAttendanceExportScreenState
                         const SizedBox(height: 12),
                         // 考勤状态选择
                         DropdownButtonFormField<String?>(
-                          value: _selectedStatus,
+                          initialValue: _selectedStatus,
                           decoration: const InputDecoration(
                             labelText: '考勤状态（可选）',
                             border: OutlineInputBorder(),
