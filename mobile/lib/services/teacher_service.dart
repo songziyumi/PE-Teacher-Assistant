@@ -311,7 +311,7 @@ class TeacherService {
   ) async {
     await ApiService.post(
       '/teacher/physical-tests/save-batch',
-      {'items': items} as Map<String, dynamic>,
+      items,
     );
   }
 
