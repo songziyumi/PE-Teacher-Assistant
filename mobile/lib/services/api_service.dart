@@ -25,7 +25,7 @@ class ApiService {
   static Future<http.Response> _send(
     String method,
     String path, {
-    Map<String, dynamic>? body,
+    Object? body,
     bool json = true,
   }) async {
     final uri = Uri.parse('${ApiConfig.apiBase}$path');
@@ -42,12 +42,12 @@ class ApiService {
     return _handle(res);
   }
 
-  static Future<dynamic> post(String path, Map<String, dynamic> body) async {
+  static Future<dynamic> post(String path, Object body) async {
     final res = await _send('POST', path, body: body);
     return _handle(res);
   }
 
-  static Future<dynamic> put(String path, Map<String, dynamic> body) async {
+  static Future<dynamic> put(String path, Object body) async {
     final res = await _send('PUT', path, body: body);
     return _handle(res);
   }
