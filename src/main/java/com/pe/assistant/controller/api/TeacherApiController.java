@@ -948,7 +948,18 @@ public class TeacherApiController {
         School school = currentUserService.getCurrentSchool();
         List<Student> students;
         if (classId != null) {
-            students = studentService.findByClassIdForTeacher(school, classId);
+            SchoolClass selectedClass = classService.findById(classId);
+            if (selectedClass.getSchool() != null && school != null
+                    && !Objects.equals(selectedClass.getSchool().getId(), school.getId())) {
+                students = Collections.emptyList();
+            } else if ("选修课".equals(selectedClass.getType())) {
+                String electiveClass = selectedClass.getGrade() != null
+                        ? selectedClass.getGrade().getName() + "/" + selectedClass.getName()
+                        : selectedClass.getName();
+                students = studentService.findByElectiveClassForTeacher(school, electiveClass);
+            } else {
+                students = studentService.findByClassIdForTeacher(school, classId);
+            }
         } else {
             List<Long> classIds = classService.findByTeacher(teacher).stream()
                     .map(SchoolClass::getId).collect(Collectors.toList());
