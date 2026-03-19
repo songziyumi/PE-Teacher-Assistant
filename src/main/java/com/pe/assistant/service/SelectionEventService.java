@@ -66,8 +66,9 @@ public class SelectionEventService {
             Student s = studentRepo.findById(sid).orElse(null);
             if (s == null) continue;
             // 初始化学生密码（若未设置，默认密码=学号）
-            if (s.getPassword() == null) {
+            if (shouldResetStudentPassword(s)) {
                 s.setPassword(passwordEncoder.encode(s.getStudentNo()));
+                s.setEnabled(true);
                 studentRepo.save(s);
             }
             EventStudent es = new EventStudent();
@@ -132,7 +133,7 @@ public class SelectionEventService {
         List<Student> students = studentRepo.findBySchoolOrderByStudentNo(school);
         int count = 0;
         for (Student s : students) {
-            if (s.getPassword() == null) {
+            if (shouldResetStudentPassword(s)) {
                 s.setPassword(passwordEncoder.encode(s.getStudentNo()));
                 s.setEnabled(true);
                 studentRepo.save(s);
@@ -140,6 +141,23 @@ public class SelectionEventService {
             }
         }
         return count;
+    }
+
+    private boolean shouldResetStudentPassword(Student student) {
+        if (student == null || student.getStudentNo() == null || student.getStudentNo().isBlank()) {
+            return false;
+        }
+        if (student.getPassword() == null || student.getPassword().isBlank()) {
+            return true;
+        }
+        if (Boolean.FALSE.equals(student.getEnabled())) {
+            return true;
+        }
+        try {
+            return !passwordEncoder.matches(student.getStudentNo(), student.getPassword());
+        } catch (Exception ignored) {
+            return true;
+        }
     }
 
     /** 判断当前时间是否在第一轮窗口内 */
