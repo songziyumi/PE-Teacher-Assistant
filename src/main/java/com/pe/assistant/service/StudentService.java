@@ -78,6 +78,46 @@ public class StudentService {
         return studentRepository.findById(id);
     }
 
+    /**
+     * Resolve a student login account deterministically when legacy data contains
+     * duplicate student numbers.
+     */
+    public Optional<Student> resolveLoginStudent(String studentNo) {
+        if (studentNo == null || studentNo.isBlank()) {
+            return Optional.empty();
+        }
+        List<Student> candidates = studentRepository.findAllByStudentNoOrderByIdDesc(studentNo.trim());
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        return candidates.stream()
+                .filter(s -> Boolean.TRUE.equals(s.getEnabled()))
+                .filter(this::hasUsablePassword)
+                .findFirst()
+                .or(() -> candidates.stream()
+                        .filter(s -> Boolean.TRUE.equals(s.getEnabled()))
+                        .findFirst())
+                .or(() -> candidates.stream()
+                        .filter(this::hasUsablePassword)
+                        .findFirst())
+                .or(() -> Optional.of(candidates.get(0)));
+    }
+
+    public Optional<Student> resolveStudentPrincipal(String principal) {
+        if (principal == null || principal.isBlank()) {
+            return Optional.empty();
+        }
+        if (principal.startsWith("student:")) {
+            try {
+                Long id = Long.parseLong(principal.substring("student:".length()));
+                return findByIdOptional(id);
+            } catch (NumberFormatException ignored) {
+                return Optional.empty();
+            }
+        }
+        return resolveLoginStudent(principal);
+    }
+
     public List<Student> findByElectiveClass(String electiveClass) {
         return studentRepository.findByElectiveClassOrderByStudentNo(electiveClass);
     }
@@ -201,7 +241,7 @@ public class StudentService {
         String normalizedStatus = normalizeStatusForSave(studentStatus);
         Optional<Student> existing = studentRepository.findByStudentNoAndSchool(normalizedStudentNo, effectiveSchool);
         if (existing.isEmpty()) {
-            existing = studentRepository.findByStudentNo(normalizedStudentNo)
+            existing = resolveLoginStudent(normalizedStudentNo)
                     .filter(s -> s.getSchool() == null
                             || (effectiveSchool != null && Objects.equals(s.getSchool().getId(), effectiveSchool.getId())));
         }
@@ -292,10 +332,14 @@ public class StudentService {
 
     @Transactional
     public void updateElectiveByStudentNo(String studentNo, String electiveClass) {
-        Student s = studentRepository.findByStudentNo(studentNo)
+        Student s = resolveLoginStudent(studentNo)
                 .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
         s.setElectiveClass(electiveClass);
         studentRepository.save(s);
+    }
+
+    private boolean hasUsablePassword(Student student) {
+        return student != null && student.getPassword() != null && !student.getPassword().isBlank();
     }
 
     @Transactional
