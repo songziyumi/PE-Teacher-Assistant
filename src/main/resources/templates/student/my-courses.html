@@ -6,85 +6,70 @@
     <title>我的选课 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        body { background:#f4f6fb; }
-        .student-nav { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:56px; }
-        .student-nav .brand { font-weight:700; color:#4a90e2; font-size:1.05rem; }
-        .student-nav .nav-right { display:flex; align-items:center; gap:16px; font-size:.9rem; }
-        .page-wrap { max-width:720px; margin:24px auto; padding:0 16px; }
-        .card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:24px; margin-bottom:16px; }
-        .sel-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; }
-        .sel-row:last-child { border-bottom:none; }
-        .sel-course { font-weight:600; font-size:.95rem; flex:1; }
-        .sel-meta { font-size:.82rem; color:#888; }
-        .badge { display:inline-block; padding:3px 12px; border-radius:20px; font-size:.78rem; font-weight:600; }
-        .badge-confirmed { background:#27ae60; color:#fff; }
-        .badge-pending   { background:#f39c12; color:#fff; }
-        .badge-fail      { background:#e74c3c; color:#fff; }
-        .badge-cancelled { background:#bdc3c7; color:#fff; }
-        .empty-box { text-align:center; padding:50px 0; color:#aaa; }
-        .empty-box .icon { font-size:2.5rem; margin-bottom:8px; }
+        body { background: #f4f6fb; }
+        .student-nav { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+        .student-nav .brand { font-weight: 700; color: #4a90e2; font-size: 1.05rem; }
+        .student-nav .nav-right { display: flex; align-items: center; gap: 16px; font-size: .9rem; }
+        .page-wrap { max-width: 760px; margin: 24px auto; padding: 0 16px; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); padding: 24px; margin-bottom: 16px; }
+        .sel-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
+        .sel-row:last-child { border-bottom: none; }
+        .sel-course { font-weight: 600; font-size: .95rem; }
+        .sel-meta { font-size: .82rem; color: #777; }
+        .status { font-size: .82rem; color: #555; }
     </style>
 </head>
 <body>
 <nav class="student-nav">
-    <div class="brand">🏃 体育选课</div>
+    <div class="brand">体育选课</div>
     <div class="nav-right">
-        <a th:href="@{/student/courses}" style="color:#4a90e2;">← 返回选课</a>
-        <span th:text="${student?.name}"></span>
+        <a th:href="@{/student/courses}" style="color:#4a90e2;">返回选课</a>
+        <span th:text="${student != null ? student.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:.88rem;">退出</button>
         </form>
     </div>
 </nav>
+
 <div class="page-wrap">
     <h2 style="font-size:1.15rem;margin-bottom:16px;">我的选课记录</h2>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-    <div th:if="${error}"   class="alert alert-error"   th:text="${error}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-    <div th:if="${event == null or mySelections == null or #lists.isEmpty(mySelections)}" class="card empty-box">
-        <div class="icon">📋</div>
+    <div th:if="${event == null or mySelections == null or #lists.isEmpty(mySelections)}" class="card" style="text-align:center;color:#999;">
         <p>暂无选课记录</p>
-        <a th:href="@{/student/courses}" class="btn btn-primary btn-sm" style="margin-top:8px;">去选课</a>
+        <a th:href="@{/student/courses}" class="btn btn-primary btn-sm">去选课</a>
     </div>
 
-    <div th:if="${!#lists.isEmpty(mySelections)}" class="card">
+    <div th:if="${mySelections != null and !#lists.isEmpty(mySelections)}" class="card">
         <div th:each="sel : ${mySelections}" class="sel-row">
-            <div>
+            <div style="flex:1;">
                 <div class="sel-course" th:text="${sel.course.name}"></div>
                 <div class="sel-meta">
-                    <span th:text="${sel.round == 1} ? ('第一轮 · ' + sel.preference + '志愿') : (${sel.round == 2} ? '第二轮' : '手动加入')"></span>
-                    &nbsp;·&nbsp;
-                    <span th:text="${sel.selectedAt != null} ? ${#temporals.format(sel.selectedAt,'MM-dd HH:mm')} : ''"></span>
+                    <span th:if="${sel.round == 1}" th:text="${'第一轮 · ' + sel.preference + '志愿'}"></span>
+                    <span th:if="${sel.round == 2}">第二轮</span>
+                    <span th:if="${sel.round != 1 and sel.round != 2}">手动加入</span>
+                    <span th:if="${sel.selectedAt != null}" th:text="${' · ' + #temporals.format(sel.selectedAt, 'MM-dd HH:mm')}"></span>
                 </div>
             </div>
-            <span class="badge"
-                  th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
-                                  (${sel.status == 'PENDING'} ? 'badge-pending' :
-                                  (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                  th:text="${sel.status == 'CONFIRMED'} ? '✅ 已确认' :
-                            (${sel.status == 'PENDING'} ? '⏳ 待抽签' :
-                            (${sel.status == 'LOTTERY_FAIL'} ? '❌ 未中签' : '已取消'))">
-            </span>
-            <!-- 已确认的课程可以退课 -->
+
+            <div class="status" th:text="${sel.status}"></div>
+
             <form th:if="${sel.status == 'CONFIRMED'}"
-                  th:action="@{/student/selections/{id}/drop(id=${sel.id})}" method="post"
-                  onsubmit="return confirm('确认退课？退课后将进入第二轮抢课名单。')">
+                  th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
+                  method="post"
+                  onsubmit="return confirm('确认退课？')">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <button type="submit" class="btn btn-danger btn-xs">退课</button>
             </form>
         </div>
     </div>
 
-    <div th:if="${event != null}" style="text-align:center;margin-top:12px;">
-        <p style="font-size:.83rem;color:#aaa;">
-            活动：<span th:text="${event.name}"></span> ·
-            状态：<span th:text="${event.status == 'ROUND1'} ? '第一轮进行中' :
-                                  (${event.status == 'ROUND2'} ? '第二轮进行中' :
-                                  (${event.status == 'PROCESSING'} ? '结算中' : '已结束'))">
-            </span>
-        </p>
+    <div th:if="${event != null}" style="text-align:center;margin-top:12px;color:#777;font-size:.84rem;">
+        <span th:text="${'活动：' + event.name}"></span>
+        <span th:text="${' · 状态：' + event.status}"></span>
     </div>
 </div>
 </body>
