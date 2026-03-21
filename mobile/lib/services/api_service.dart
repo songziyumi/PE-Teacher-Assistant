@@ -102,6 +102,11 @@ class ApiService {
     final body = utf8.decode(res.bodyBytes);
     // Guard against HTML error pages (e.g. Spring Boot's 404/500 ErrorController)
     if (body.trimLeft().startsWith('<')) {
+      // Some gateways/login pages may respond with HTML + 200.
+      // Treat this as auth expired so the UI doesn't show a confusing "server error (200)".
+      if (res.statusCode == 200) {
+        throw ApiException(401, '登录已失效，请重新登录');
+      }
       if (res.statusCode == 401) throw ApiException(401, '未授权，请先登录');
       if (res.statusCode == 403) throw ApiException(403, '权限不足');
       if (res.statusCode == 404) throw ApiException(404, '接口不存在');

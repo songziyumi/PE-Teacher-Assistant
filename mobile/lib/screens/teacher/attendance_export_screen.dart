@@ -17,10 +17,18 @@ class _TeacherAttendanceExportScreenState
     extends State<TeacherAttendanceExportScreen> {
   List<SchoolClass> _classes = [];
   int? _selectedClassId;
+  String? _selectedStatus;
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
   bool _loading = false;
   bool _exporting = false;
+
+  static const _statusOptions = [
+    _StatusOption(label: '全部状态', value: null),
+    _StatusOption(label: '出勤', value: '出勤'),
+    _StatusOption(label: '缺勤', value: '缺勤'),
+    _StatusOption(label: '请假', value: '请假'),
+  ];
 
   @override
   void initState() {
@@ -72,6 +80,7 @@ class _TeacherAttendanceExportScreenState
         startDate: start,
         endDate: end,
         classId: _selectedClassId,
+        status: _selectedStatus,
       );
       final dir = await getTemporaryDirectory();
       final suffix = end != null && end != start ? '_$end' : '';
@@ -123,7 +132,7 @@ class _TeacherAttendanceExportScreenState
                         const SizedBox(height: 16),
                         // 班级选择
                         DropdownButtonFormField<int?>(
-                          value: _selectedClassId,
+                          initialValue: _selectedClassId,
                           decoration: const InputDecoration(
                             labelText: '班级（可选，不选则导出全部）',
                             border: OutlineInputBorder(),
@@ -142,6 +151,25 @@ class _TeacherAttendanceExportScreenState
                           ],
                           onChanged: (v) =>
                               setState(() => _selectedClassId = v),
+                        ),
+                        const SizedBox(height: 12),
+                        // 考勤状态选择
+                        DropdownButtonFormField<String?>(
+                          initialValue: _selectedStatus,
+                          decoration: const InputDecoration(
+                            labelText: '考勤状态（可选）',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                          items: _statusOptions
+                              .map((o) => DropdownMenuItem(
+                                    value: o.value,
+                                    child: Text(o.label),
+                                  ))
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _selectedStatus = v),
                         ),
                         const SizedBox(height: 16),
                         // 开始日期
@@ -259,4 +287,10 @@ class _DatePickerRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StatusOption {
+  final String label;
+  final String? value;
+  const _StatusOption({required this.label, required this.value});
 }

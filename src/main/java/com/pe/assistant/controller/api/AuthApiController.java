@@ -4,17 +4,19 @@ import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.dto.LoginRequest;
 import com.pe.assistant.dto.LoginResponse;
 import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.security.JwtUtil;
+import com.pe.assistant.security.LoginAttemptService;
 import com.pe.assistant.service.CurrentUserService;
-import com.pe.assistant.service.StudentService;
+import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,14 +32,18 @@ public class AuthApiController {
     private final JwtUtil jwtUtil;
     private final CurrentUserService currentUserService;
     private final TeacherRepository teacherRepository;
-    private final StudentService studentService;
-    private final PasswordEncoder passwordEncoder;
+    private final StudentAccountService studentAccountService;
+    private final LoginAttemptService loginAttemptService;
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req) {
+        String loginInput = req.getUsername() != null ? req.getUsername().trim() : "";
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+            if (!loginInput.isBlank()) {
+                loginAttemptService.loginSucceeded(loginInput);
+            }
 
             Teacher teacher = teacherRepository.findByUsername(auth.getName()).orElse(null);
             if (teacher != null) {
@@ -54,21 +60,27 @@ public class AuthApiController {
                         false));
             }
 
-            Student student = studentService.resolveLoginStudent(auth.getName()).orElseThrow();
+            StudentAccount account = studentAccountService.resolvePrincipal(auth.getName()).orElseThrow();
+            studentAccountService.markLoginSuccess(account);
+            Student student = account.getStudent();
             Long schoolId = student.getSchool() != null ? student.getSchool().getId() : null;
             String schoolName = student.getSchool() != null ? student.getSchool().getName() : null;
-            String token = jwtUtil.generateToken("student:" + student.getId(), "STUDENT", schoolId);
-            boolean mustChangePassword = isStudentUsingInitialPassword(student);
+            String token = jwtUtil.generateToken("student-account:" + account.getId(), "STUDENT", schoolId);
             return ApiResponse.ok(new LoginResponse(
                     token,
-                    student.getStudentNo(),
+                    account.getLoginId(),
                     student.getName(),
                     "STUDENT",
                     schoolId,
                     schoolName,
-                    mustChangePassword));
+                    studentAccountService.requiresPasswordChange(account)));
+        } catch (LockedException e) {
+            return ApiResponse.error(401, e.getMessage());
         } catch (BadCredentialsException e) {
-            return ApiResponse.error(401, "用户名或密码错误");
+            if (!loginInput.isBlank()) {
+                loginAttemptService.loginFailed(loginInput);
+            }
+            return ApiResponse.error(401, "账号或密码错误");
         } catch (Exception e) {
             return ApiResponse.error(401, "登录失败，请联系管理员检查学生账号数据");
         }
@@ -90,28 +102,17 @@ public class AuthApiController {
                     false));
         } catch (Exception ignored) {
             Student student = currentUserService.getCurrentStudent();
+            StudentAccount account = currentUserService.getCurrentStudentAccount();
             Long schoolId = student.getSchool() != null ? student.getSchool().getId() : null;
             String schoolName = student.getSchool() != null ? student.getSchool().getName() : null;
-            boolean mustChangePassword = isStudentUsingInitialPassword(student);
             return ApiResponse.ok(new LoginResponse(
                     null,
-                    student.getStudentNo(),
+                    account != null ? account.getLoginId() : null,
                     student.getName(),
                     "STUDENT",
                     schoolId,
                     schoolName,
-                    mustChangePassword));
-        }
-    }
-
-    private boolean isStudentUsingInitialPassword(Student student) {
-        if (student == null || student.getStudentNo() == null || student.getPassword() == null) {
-            return false;
-        }
-        try {
-            return passwordEncoder.matches(student.getStudentNo(), student.getPassword());
-        } catch (Exception ignored) {
-            return false;
+                    studentAccountService.requiresPasswordChange(account)));
         }
     }
 }

@@ -235,12 +235,14 @@ public class AdminApiController {
             @RequestParam String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) Long gradeId,
-            @RequestParam(required = false) Long classId) throws IOException {
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) String status) throws IOException {
         School school = currentUserService.getCurrentSchool();
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        String statusFilter = (status != null && !status.isBlank()) ? status : null;
         List<com.pe.assistant.entity.Attendance> records =
-                attendanceService.findBySchoolAndFilters(school, start, end, gradeId, classId);
+                attendanceService.findBySchoolAndFilters(school, start, end, gradeId, classId, statusFilter);
         byte[] bytes = attendanceService.exportXlsx(records);
         String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
         String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);
@@ -380,8 +382,22 @@ public class AdminApiController {
             @RequestParam(required = false) Long gradeId,
             @RequestParam(required = false) Long classId) throws IOException {
         School school = currentUserService.getCurrentSchool();
-        List<Student> students = studentService.findListWithFilters(school, classId, gradeId,
-                null, null, null, null, null);
+        Long effectiveClassId = classId;
+        String electiveClass = null;
+        if (classId != null) {
+            SchoolClass selectedClass = classService.findById(classId);
+            if (selectedClass.getSchool() != null && school != null
+                    && !Objects.equals(selectedClass.getSchool().getId(), school.getId())) {
+                effectiveClassId = null;
+            } else if ("选修课".equals(selectedClass.getType())) {
+                effectiveClassId = null;
+                electiveClass = selectedClass.getGrade() != null
+                        ? selectedClass.getGrade().getName() + "/" + selectedClass.getName()
+                        : selectedClass.getName();
+            }
+        }
+        List<Student> students = studentService.findListWithFilters(school, effectiveClassId, gradeId,
+                null, null, null, electiveClass, null);
         byte[] bytes = studentService.exportStudentsXlsx(students);
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String filename = URLEncoder.encode("学生名单_" + date + ".xlsx", StandardCharsets.UTF_8);

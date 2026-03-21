@@ -351,12 +351,14 @@ class TeacherService {
     required String startDate,
     String? endDate,
     int? classId,
+    String? status,
   }) async {
     final q = StringBuffer(
       '/teacher/attendance/export?startDate=${Uri.encodeComponent(startDate)}',
     );
     if (endDate != null) q.write('&endDate=${Uri.encodeComponent(endDate)}');
     if (classId != null) q.write('&classId=$classId');
+    if (status != null) q.write('&status=${Uri.encodeComponent(status)}');
     return ApiService.downloadFile(q.toString());
   }
 
