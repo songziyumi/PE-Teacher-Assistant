@@ -1,14 +1,24 @@
 package com.pe.assistant.service;
 
-import com.pe.assistant.entity.*;
-import com.pe.assistant.repository.*;
+import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.EventStudent;
+import com.pe.assistant.entity.School;
+import com.pe.assistant.entity.SelectionEvent;
+import com.pe.assistant.entity.Student;
+import com.pe.assistant.repository.CourseClassCapacityRepository;
+import com.pe.assistant.repository.CourseRepository;
+import com.pe.assistant.repository.CourseSelectionRepository;
+import com.pe.assistant.repository.EventStudentRepository;
+import com.pe.assistant.repository.SelectionEventRepository;
+import com.pe.assistant.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +30,8 @@ public class SelectionEventService {
     private final CourseSelectionRepository selectionRepo;
     private final EventStudentRepository eventStudentRepo;
     private final StudentRepository studentRepo;
-    private final PasswordEncoder passwordEncoder;
+    private final StudentAccountService studentAccountService;
     private final LotteryService lotteryService;
-
-    // ===== 活动管理 =====
 
     public List<SelectionEvent> findBySchool(School school) {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(school);
@@ -44,16 +52,14 @@ public class SelectionEventService {
         if (!"DRAFT".equals(event.getStatus())) {
             throw new RuntimeException("只能删除草稿状态的活动");
         }
-        selectionRepo.findByEventAndStatus(event, "PENDING").forEach(s -> selectionRepo.delete(s));
+        selectionRepo.findByEventAndStatus(event, "PENDING").forEach(selectionRepo::delete);
         eventStudentRepo.deleteByEvent(event);
-        courseRepo.findByEventOrderByNameAsc(event).forEach(c -> {
-            capacityRepo.deleteByCourse(c);
-            courseRepo.delete(c);
+        courseRepo.findByEventOrderByNameAsc(event).forEach(course -> {
+            capacityRepo.deleteByCourse(course);
+            courseRepo.delete(course);
         });
         eventRepo.delete(event);
     }
-
-    // ===== 参与学生管理 =====
 
     public List<Student> findEventStudents(SelectionEvent event) {
         return eventStudentRepo.findStudentsByEvent(event);
@@ -62,56 +68,45 @@ public class SelectionEventService {
     @Transactional
     public void setEventStudents(SelectionEvent event, List<Long> studentIds) {
         eventStudentRepo.deleteByEvent(event);
-        for (Long sid : studentIds) {
-            Student s = studentRepo.findById(sid).orElse(null);
-            if (s == null) continue;
-            // 初始化学生密码（若未设置，默认密码=学号）
-            if (shouldResetStudentPassword(s)) {
-                s.setPassword(passwordEncoder.encode(s.getStudentNo()));
-                s.setEnabled(true);
-                studentRepo.save(s);
+        for (Long studentId : studentIds) {
+            Student student = studentRepo.findById(studentId).orElse(null);
+            if (student == null) {
+                continue;
             }
-            EventStudent es = new EventStudent();
-            es.setEvent(event);
-            es.setStudent(s);
-            eventStudentRepo.save(es);
+            studentAccountService.initializeAccount(student);
+            EventStudent relation = new EventStudent();
+            relation.setEvent(event);
+            relation.setStudent(student);
+            eventStudentRepo.save(relation);
         }
     }
 
-    // ===== 第一轮结算（抽签）=====
-
-    /**
-     * 管理员手动触发：将活动置为 PROCESSING 状态，然后异步启动抽签。
-     * 方法立即返回，抽签在后台逐课程执行（每门课间隔60秒）。
-     */
     @Transactional
     public void processRound1(Long eventId) {
         SelectionEvent event = findById(eventId);
         if (!"ROUND1".equals(event.getStatus())) {
-            throw new RuntimeException("活动当前状态不允许执行抽签（需为 ROUND1）");
+            throw new RuntimeException("活动当前状态不允许执行抽签");
         }
         event.setStatus("PROCESSING");
-        event.setLotteryNote("抽签即将开始…");
+        event.setLotteryNote("抽签即将开始");
         eventRepo.save(event);
-        // 异步执行，立即返回
         lotteryService.runLottery(eventId);
     }
 
-    /** 获取抽签进度说明（供前端轮询） */
     public Map<String, String> getLotteryProgress(Long eventId) {
         SelectionEvent event = findById(eventId);
-        Map<String, String> result = new java.util.HashMap<>();
+        Map<String, String> result = new HashMap<>();
         result.put("status", event.getStatus());
         result.put("note", event.getLotteryNote() != null ? event.getLotteryNote() : "");
         return result;
     }
 
-    // ===== 活动状态推进 =====
-
     @Transactional
     public void startRound1(Long eventId) {
         SelectionEvent event = findById(eventId);
-        if (!"DRAFT".equals(event.getStatus())) throw new RuntimeException("活动不在草稿状态");
+        if (!"DRAFT".equals(event.getStatus())) {
+            throw new RuntimeException("活动不在草稿状态");
+        }
         event.setStatus("ROUND1");
         eventRepo.save(event);
     }
@@ -123,56 +118,32 @@ public class SelectionEventService {
         eventRepo.save(event);
     }
 
-    // ===== 查询辅助 =====
-
-    /**
-     * 批量初始化本校所有学生的密码（初始密码=学号），仅对 password=null 的学生生效
-     */
     @Transactional
     public int initStudentPasswords(School school) {
-        List<Student> students = studentRepo.findBySchoolOrderByStudentNo(school);
         int count = 0;
-        for (Student s : students) {
-            if (shouldResetStudentPassword(s)) {
-                s.setPassword(passwordEncoder.encode(s.getStudentNo()));
-                s.setEnabled(true);
-                studentRepo.save(s);
+        for (Student student : studentRepo.findBySchoolOrderByStudentNo(school)) {
+            if (studentAccountService.initializeAccount(student).isPresent()) {
                 count++;
             }
         }
         return count;
     }
 
-    private boolean shouldResetStudentPassword(Student student) {
-        if (student == null || student.getStudentNo() == null || student.getStudentNo().isBlank()) {
-            return false;
-        }
-        if (student.getPassword() == null || student.getPassword().isBlank()) {
-            return true;
-        }
-        if (Boolean.FALSE.equals(student.getEnabled())) {
-            return true;
-        }
-        try {
-            return !passwordEncoder.matches(student.getStudentNo(), student.getPassword());
-        } catch (Exception ignored) {
-            return true;
-        }
-    }
-
-    /** 判断当前时间是否在第一轮窗口内 */
     public boolean isInRound1(SelectionEvent event) {
         LocalDateTime now = LocalDateTime.now();
         return "ROUND1".equals(event.getStatus())
-                && event.getRound1Start() != null && event.getRound1End() != null
-                && now.isAfter(event.getRound1Start()) && now.isBefore(event.getRound1End());
+                && event.getRound1Start() != null
+                && event.getRound1End() != null
+                && now.isAfter(event.getRound1Start())
+                && now.isBefore(event.getRound1End());
     }
 
-    /** 判断当前时间是否在第二轮窗口内 */
     public boolean isInRound2(SelectionEvent event) {
         LocalDateTime now = LocalDateTime.now();
         return "ROUND2".equals(event.getStatus())
-                && event.getRound2Start() != null && event.getRound2End() != null
-                && now.isAfter(event.getRound2Start()) && now.isBefore(event.getRound2End());
+                && event.getRound2Start() != null
+                && event.getRound2End() != null
+                && now.isAfter(event.getRound2Start())
+                && now.isBefore(event.getRound2End());
     }
 }

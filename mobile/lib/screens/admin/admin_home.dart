@@ -77,6 +77,13 @@ class _AdminHomeState extends State<AdminHome> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 8),
             _MenuCard(
+              icon: Icons.manage_accounts,
+              title: '学生账号管理',
+              subtitle: '批量生成、重置、启用、禁用、导出学生账号',
+              color: const Color(0xFFd97706),
+              onTap: () => context.push('/admin/student-accounts'),
+            ),
+            _MenuCard(
               icon: Icons.people,
               title: '学生管理',
               subtitle: '搜索、查看学生信息',

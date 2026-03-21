@@ -8,6 +8,7 @@ import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SchoolClass;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.CourseRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
@@ -18,6 +19,7 @@ import com.pe.assistant.repository.SchoolRepository;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.repository.StudentRepository;
 import com.pe.assistant.repository.TeacherRepository;
+import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -36,15 +38,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SeedLocalP1Data implements CommandLineRunner {
 
-    private static final String ADMIN_CLASS_TYPE = "\u884c\u653f\u73ed"; // 行政班
-    private static final String ELECTIVE_CLASS_TYPE = "\u9009\u4fee\u8bfe"; // 选修课
+    private static final String ADMIN_CLASS_TYPE = "\u884c\u653f\u73ed"; // 琛屾斂鐝?
+    private static final String ELECTIVE_CLASS_TYPE = "\u9009\u4fee\u8bfe"; // 閫変慨璇?
 
     private static final List<String> STUDENT_STATUSES = List.of(
-            "\u5728\u7c4d", // 在籍
-            "\u4f11\u5b66", // 休学
-            "\u6bd5\u4e1a", // 毕业
-            "\u5728\u5916\u501f\u8bfb", // 在外借读
-            "\u501f\u8bfb" // 借读
+            "\u5728\u7c4d", // 鍦ㄧ睄
+            "\u4f11\u5b66", // 浼戝
+            "\u6bd5\u4e1a", // 姣曚笟
+            "\u5728\u5916\u501f\u8bfb", // 鍦ㄥ鍊熻
+            "\u501f\u8bfb" // 鍊熻
     );
 
     private final SchoolRepository schoolRepository;
@@ -57,6 +59,7 @@ public class SeedLocalP1Data implements CommandLineRunner {
     private final InternalMessageRepository messageRepository;
     private final CourseRequestAuditRepository auditRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StudentAccountService studentAccountService;
 
     @Value("${app.seed.p1.enabled:true}")
     private boolean seedEnabled;
@@ -183,6 +186,7 @@ public class SeedLocalP1Data implements CommandLineRunner {
         List<Student> existingSeed = studentRepository.findBySchoolOrderByStudentNo(school).stream()
                 .filter(s -> s.getStudentNo() != null && s.getStudentNo().startsWith("P1"))
                 .toList();
+        existingSeed.forEach(this::ensureStudentAccount);
         if (existingSeed.size() >= studentCount) {
             return existingSeed;
         }
@@ -194,17 +198,17 @@ public class SeedLocalP1Data implements CommandLineRunner {
             String studentNo = String.format(Locale.ROOT, "P1%04d", index);
             Optional<Student> existing = studentRepository.findByStudentNoAndSchool(studentNo, school);
             if (existing.isPresent()) {
-                created.add(existing.get());
+                Student existingStudent = existing.get();
+                ensureStudentAccount(existingStudent);
+                created.add(existingStudent);
                 index++;
                 continue;
             }
 
             Student s = new Student();
             s.setName(String.format(Locale.ROOT, "P1 Student %02d", index));
-            s.setGender(index % 2 == 0 ? "\u7537" : "\u5973"); // 男/女
+            s.setGender(index % 2 == 0 ? "\u7537" : "\u5973");
             s.setStudentNo(studentNo);
-            s.setPassword("123456");
-            s.setEnabled(true);
             s.setSchool(school);
             s.setStudentStatus(STUDENT_STATUSES.get(index % STUDENT_STATUSES.size()));
 
@@ -215,11 +219,27 @@ public class SeedLocalP1Data implements CommandLineRunner {
                 s.setElectiveClass(electiveNames.get(index % electiveNames.size()));
             }
 
-            created.add(studentRepository.save(s));
+            Student saved = studentRepository.save(s);
+            ensureStudentAccount(saved);
+            created.add(saved);
             createdCount++;
             index++;
         }
         return created;
+    }
+
+    private void ensureStudentAccount(Student student) {
+        Optional<StudentAccount> existing = studentAccountService.findByStudent(student);
+        if (existing.isPresent()) {
+            StudentAccount account = existing.get();
+            if (Boolean.FALSE.equals(account.getEnabled())
+                    || account.getPasswordHash() == null
+                    || account.getPasswordHash().isBlank()) {
+                studentAccountService.regenerateAccount(student);
+            }
+            return;
+        }
+        studentAccountService.generateAccount(student);
     }
 
     private SelectionEvent ensureEvent(School school, String name) {

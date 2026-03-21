@@ -1,9 +1,9 @@
 package com.pe.assistant.security;
 
-import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.TeacherRepository;
-import com.pe.assistant.service.StudentService;
+import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,14 +19,15 @@ import java.util.List;
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final TeacherRepository teacherRepository;
-    private final StudentService studentService;
+    private final StudentAccountService studentAccountService;
     private final LoginAttemptService loginAttemptService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        if (loginAttemptService.isBlocked(username)) {
+        if (!isInternalStudentPrincipal(username) && loginAttemptService.isBlocked(username)) {
             throw new LockedException("账号已被锁定，请 15 分钟后再试");
         }
+
         Teacher teacher = teacherRepository.findByUsername(username).orElse(null);
         if (teacher != null) {
             return new org.springframework.security.core.userdetails.User(
@@ -35,18 +36,28 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     List.of(new SimpleGrantedAuthority("ROLE_" + teacher.getRole()))
             );
         }
-        Student student = studentService.resolveStudentPrincipal(username)
-                .orElseThrow(() -> new UsernameNotFoundException("用户名或密码错误"));
-        if (student.getPassword() == null || student.getPassword().isBlank()) {
-            throw new UsernameNotFoundException("用户名或密码错误");
+
+        StudentAccount account = studentAccountService.resolvePrincipal(username)
+                .orElseThrow(() -> new UsernameNotFoundException("账号或密码错误"));
+        if (account.getPasswordHash() == null || account.getPasswordHash().isBlank()) {
+            throw new UsernameNotFoundException("账号或密码错误");
         }
-        if (Boolean.FALSE.equals(student.getEnabled())) {
-            throw new LockedException("账号已被禁用");
+        if (Boolean.FALSE.equals(account.getEnabled())) {
+            throw new LockedException("账号已禁用");
         }
+        if (studentAccountService.isLocked(account)) {
+            throw new LockedException("账号已锁定，请联系管理员");
+        }
+
         return new org.springframework.security.core.userdetails.User(
-                username.startsWith("student:") ? username : student.getStudentNo(),
-                student.getPassword(),
+                "student-account:" + account.getId(),
+                account.getPasswordHash(),
                 List.of(new SimpleGrantedAuthority("ROLE_STUDENT"))
         );
+    }
+
+    private boolean isInternalStudentPrincipal(String username) {
+        return username != null
+                && (username.startsWith("student-account:") || username.startsWith("student:"));
     }
 }
