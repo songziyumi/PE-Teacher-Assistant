@@ -109,10 +109,10 @@ public class AdminStudentAccountController {
         }
         Teacher teacher = currentUserService.getCurrentTeacher();
         teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
-                "STUDENT_ACCOUNT_GENERATE", "批量生成学生账号", createdCount);
+                "STUDENT_ACCOUNT_GENERATE", "\u6279\u91cf\u751f\u6210\u5b66\u751f\u8d26\u53f7", createdCount);
         ra.addFlashAttribute("success", createdCount > 0
-                ? "已生成 " + createdCount + " 个学生账号，请及时导出账号清单"
-                : "所选学生都已有账号，无需重复生成");
+                ? "\u5df2\u751f\u6210 " + createdCount + " \u4e2a\u5b66\u751f\u8d26\u53f7\uff0c\u8bf7\u53ca\u65f6\u5bfc\u51fa\u8d26\u53f7\u6e05\u5355"
+                : "\u6240\u9009\u5b66\u751f\u90fd\u5df2\u6709\u8d26\u53f7\uff0c\u65e0\u9700\u91cd\u590d\u751f\u6210");
         return redirectToList(gradeId, classId, keyword, accountStatus);
     }
 
@@ -123,23 +123,27 @@ public class AdminStudentAccountController {
                                 @RequestParam(defaultValue = "") String keyword,
                                 @RequestParam(defaultValue = "") String accountStatus,
                                 RedirectAttributes ra) {
-        School school = currentUserService.getCurrentSchool();
-        List<Student> targets = resolveTargets(school, studentIds, gradeId, classId, keyword, accountStatus);
-        int resetCount = 0;
-        for (Student student : targets) {
-            if (studentAccountService.findByStudent(student).isPresent()) {
-                studentAccountService.resetPassword(student);
-            } else {
-                studentAccountService.generateAccount(student);
+        try {
+            School school = currentUserService.getCurrentSchool();
+            List<Student> targets = resolveTargets(school, studentIds, gradeId, classId, keyword, accountStatus);
+            int resetCount = 0;
+            for (Student student : targets) {
+                if (studentAccountService.findByStudent(student).isPresent()) {
+                    studentAccountService.resetPassword(student);
+                } else {
+                    studentAccountService.generateAccount(student);
+                }
+                resetCount++;
             }
-            resetCount++;
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
+                    "STUDENT_ACCOUNT_RESET", "\u6279\u91cf\u91cd\u7f6e\u5b66\u751f\u8d26\u53f7\u521d\u59cb\u5bc6\u7801", resetCount);
+            ra.addFlashAttribute("success", resetCount > 0
+                    ? "\u5df2\u4e3a " + resetCount + " \u540d\u5b66\u751f\u91cd\u7f6e\u521d\u59cb\u5bc6\u7801\uff0c\u8bf7\u91cd\u65b0\u5bfc\u51fa\u8d26\u53f7\u6e05\u5355"
+                    : "\u672a\u627e\u5230\u53ef\u91cd\u7f6e\u7684\u5b66\u751f\u8d26\u53f7");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", "\u91cd\u7f6e\u5bc6\u7801\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u5b66\u751f\u8d26\u53f7\u6570\u636e");
         }
-        Teacher teacher = currentUserService.getCurrentTeacher();
-        teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
-                "STUDENT_ACCOUNT_RESET", "批量重置学生账号初始密码", resetCount);
-        ra.addFlashAttribute("success", resetCount > 0
-                ? "已为 " + resetCount + " 名学生重置初始密码，请重新导出账号清单"
-                : "未找到可重置的学生账号");
         return redirectToList(gradeId, classId, keyword, accountStatus);
     }
 
@@ -175,14 +179,14 @@ public class AdminStudentAccountController {
         Map<Long, StudentAccount> accounts = studentAccountService.mapByStudents(targets);
         byte[] bytes = exportAccountsXlsx(targets, accounts);
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm"));
-        String filename = URLEncoder.encode("学生账号_" + date + ".xlsx", StandardCharsets.UTF_8);
+        String filename = URLEncoder.encode("\u5b66\u751f\u8d26\u53f7_" + date + ".xlsx", StandardCharsets.UTF_8);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + filename);
         response.getOutputStream().write(bytes);
 
         Teacher teacher = currentUserService.getCurrentTeacher();
         teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
-                "STUDENT_ACCOUNT_EXPORT", "导出学生账号清单", targets.size());
+                "STUDENT_ACCOUNT_EXPORT", "\u5bfc\u51fa\u5b66\u751f\u8d26\u53f7\u6e05\u5355", targets.size());
     }
 
     private String updateEnabled(List<Long> studentIds,
@@ -204,11 +208,11 @@ public class AdminStudentAccountController {
         Teacher teacher = currentUserService.getCurrentTeacher();
         teacherOperationLogService.log(teacher.getId(), teacher.getName(), school,
                 enabled ? "STUDENT_ACCOUNT_ENABLE" : "STUDENT_ACCOUNT_DISABLE",
-                enabled ? "批量启用学生账号" : "批量禁用学生账号",
+                enabled ? "\u6279\u91cf\u542f\u7528\u5b66\u751f\u8d26\u53f7" : "\u6279\u91cf\u7981\u7528\u5b66\u751f\u8d26\u53f7",
                 changedCount);
         ra.addFlashAttribute("success", changedCount > 0
-                ? (enabled ? "已启用 " : "已禁用 ") + changedCount + " 个学生账号"
-                : "所选学生中没有可操作的账号");
+                ? (enabled ? "\u5df2\u542f\u7528 " : "\u5df2\u7981\u7528 ") + changedCount + " \u4e2a\u5b66\u751f\u8d26\u53f7"
+                : "\u6240\u9009\u5b66\u751f\u4e2d\u6ca1\u6709\u53ef\u64cd\u4f5c\u7684\u8d26\u53f7");
         return redirectToList(gradeId, classId, keyword, accountStatus);
     }
 
@@ -294,11 +298,11 @@ public class AdminStudentAccountController {
             return true;
         }
         return switch (accountStatus) {
-            case "UNGENERATED" -> "未生成".equals(row.status());
-            case "PENDING" -> "未激活".equals(row.status());
-            case "ACTIVE" -> "正常".equals(row.status());
-            case "DISABLED" -> "已禁用".equals(row.status());
-            case "LOCKED" -> "已锁定".equals(row.status());
+            case "UNGENERATED" -> "\u672a\u751f\u6210".equals(row.status());
+            case "PENDING" -> "\u672a\u6fc0\u6d3b".equals(row.status());
+            case "ACTIVE" -> "\u6b63\u5e38".equals(row.status());
+            case "DISABLED" -> "\u5df2\u7981\u7528".equals(row.status());
+            case "LOCKED" -> "\u5df2\u9501\u5b9a".equals(row.status());
             default -> true;
         };
     }
@@ -336,13 +340,13 @@ public class AdminStudentAccountController {
 
     private byte[] exportAccountsXlsx(List<Student> students, Map<Long, StudentAccount> accounts) throws IOException {
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("学生账号");
+            Sheet sheet = workbook.createSheet("\u5b66\u751f\u8d26\u53f7");
             CellStyle headerStyle = workbook.createCellStyle();
             Font font = workbook.createFont();
             font.setBold(true);
             headerStyle.setFont(font);
 
-            String[] headers = {"姓名", "学号", "年级", "班级", "账号", "初始密码", "账号状态"};
+            String[] headers = {"\u59d3\u540d", "\u5b66\u53f7", "\u5e74\u7ea7", "\u73ed\u7ea7", "\u8d26\u53f7", "\u521d\u59cb\u5bc6\u7801", "\u8d26\u53f7\u72b6\u6001"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);

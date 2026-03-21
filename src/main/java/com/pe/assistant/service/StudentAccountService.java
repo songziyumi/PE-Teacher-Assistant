@@ -110,18 +110,18 @@ public class StudentAccountService {
 
     public String resolveStatus(StudentAccount account) {
         if (account == null) {
-            return "未生成";
+            return "\u672a\u751f\u6210";
         }
         if (Boolean.FALSE.equals(account.getEnabled())) {
-            return "已禁用";
+            return "\u5df2\u7981\u7528";
         }
         if (isLocked(account)) {
-            return "已锁定";
+            return "\u5df2\u9501\u5b9a";
         }
         if (!Boolean.TRUE.equals(account.getActivated()) || Boolean.TRUE.equals(account.getPasswordResetRequired())) {
-            return "未激活";
+            return "\u672a\u6fc0\u6d3b";
         }
-        return "正常";
+        return "\u6b63\u5e38";
     }
 
     @Transactional
@@ -149,14 +149,17 @@ public class StudentAccountService {
     @Transactional
     public IssuedStudentAccount resetPassword(Student student) {
         StudentAccount account = findByStudent(student)
-                .orElseThrow(() -> new IllegalArgumentException("该学生尚未生成账号"));
+                .orElseThrow(() -> new IllegalArgumentException("\u8be5\u5b66\u751f\u5c1a\u672a\u751f\u6210\u8d26\u53f7"));
+        if (account.getLoginId() == null || account.getLoginId().isBlank()) {
+            account.setLoginId(generateUniqueLoginId());
+        }
         return issuePassword(account, false);
     }
 
     @Transactional
     public void setEnabled(Student student, boolean enabled) {
         StudentAccount account = findByStudent(student)
-                .orElseThrow(() -> new IllegalArgumentException("该学生尚未生成账号"));
+                .orElseThrow(() -> new IllegalArgumentException("\u8be5\u5b66\u751f\u5c1a\u672a\u751f\u6210\u8d26\u53f7"));
         account.setEnabled(enabled);
         if (enabled) {
             account.setLocked(false);
@@ -168,17 +171,17 @@ public class StudentAccountService {
     @Transactional
     public void changePassword(StudentAccount account, String oldPassword, String newPassword) {
         if (account == null) {
-            throw new IllegalArgumentException("学生账号不存在");
+            throw new IllegalArgumentException("\u5b66\u751f\u8d26\u53f7\u4e0d\u5b58\u5728");
         }
         if (oldPassword == null || oldPassword.isBlank() || newPassword == null || newPassword.isBlank()) {
-            throw new IllegalArgumentException("旧密码和新密码不能为空");
+            throw new IllegalArgumentException("\u65e7\u5bc6\u7801\u548c\u65b0\u5bc6\u7801\u4e0d\u80fd\u4e3a\u7a7a");
         }
         if (!passwordEncoder.matches(oldPassword, account.getPasswordHash())) {
-            throw new IllegalArgumentException("旧密码不正确");
+            throw new IllegalArgumentException("鏃у瘑鐮佷笉姝ｇ‘");
         }
         validatePassword(newPassword);
         if (passwordEncoder.matches(newPassword, account.getPasswordHash())) {
-            throw new IllegalArgumentException("新密码不能与旧密码相同");
+            throw new IllegalArgumentException("\u65b0\u5bc6\u7801\u4e0d\u80fd\u4e0e\u65e7\u5bc6\u7801\u76f8\u540c");
         }
         account.setPasswordHash(passwordEncoder.encode(newPassword));
         account.setActivated(true);
@@ -205,12 +208,12 @@ public class StudentAccountService {
 
     public void validatePassword(String password) {
         if (password == null || password.length() < 8) {
-            throw new IllegalArgumentException("密码长度不能少于 8 位");
+            throw new IllegalArgumentException("\u5bc6\u7801\u957f\u5ea6\u4e0d\u80fd\u5c11\u4e8e 8 \u4f4d");
         }
         boolean hasLetter = password.chars().anyMatch(Character::isLetter);
         boolean hasDigit = password.chars().anyMatch(Character::isDigit);
         if (!hasLetter || !hasDigit) {
-            throw new IllegalArgumentException("密码必须同时包含字母和数字");
+            throw new IllegalArgumentException("\u5bc6\u7801\u5fc5\u987b\u540c\u65f6\u5305\u542b\u5b57\u6bcd\u548c\u6570\u5b57");
         }
     }
 
@@ -222,7 +225,7 @@ public class StudentAccountService {
 
     private IssuedStudentAccount issueAccount(Student student, boolean regenerateLoginId, StudentAccount current) {
         if (student == null || student.getId() == null) {
-            throw new IllegalArgumentException("学生不存在");
+            throw new IllegalArgumentException("\u5b66\u751f\u4e0d\u5b58\u5728");
         }
         StudentAccount account = current != null ? current : new StudentAccount();
         account.setStudent(student);
@@ -254,7 +257,7 @@ public class StudentAccountService {
                 return loginId;
             }
         }
-        throw new IllegalStateException("生成学生账号失败，请重试");
+        throw new IllegalStateException("\u751f\u6210\u5b66\u751f\u8d26\u53f7\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5");
     }
 
     private String generateInitialPassword() {
@@ -291,7 +294,7 @@ public class StudentAccountService {
     public void assertStudentInSchool(Student student, School school) {
         if (student == null || student.getSchool() == null || school == null
                 || !Objects.equals(student.getSchool().getId(), school.getId())) {
-            throw new IllegalArgumentException("学生不属于当前学校");
+            throw new IllegalArgumentException("\u5b66\u751f\u4e0d\u5c5e\u4e8e\u5f53\u524d\u5b66\u6821");
         }
     }
 
