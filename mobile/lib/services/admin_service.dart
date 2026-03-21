@@ -44,6 +44,74 @@ class AdminService {
     return (await ApiService.get(q.toString())) as Map<String, dynamic>;
   }
 
+  // 学生账号列表（分页）
+  static Future<Map<String, dynamic>> getStudentAccounts({
+    String keyword = '',
+    int? classId,
+    int? gradeId,
+    String accountStatus = '',
+    int page = 0,
+    int size = 20,
+  }) async {
+    final q = StringBuffer('/admin/student-accounts?page=$page&size=$size');
+    if (keyword.isNotEmpty) q.write('&keyword=${Uri.encodeComponent(keyword)}');
+    if (classId != null) q.write('&classId=$classId');
+    if (gradeId != null) q.write('&gradeId=$gradeId');
+    if (accountStatus.isNotEmpty) {
+      q.write('&accountStatus=${Uri.encodeComponent(accountStatus)}');
+    }
+    return (await ApiService.get(q.toString())) as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> batchGenerateStudentAccounts(
+    Map<String, dynamic> params,
+  ) async {
+    final data =
+        await ApiService.post('/admin/student-accounts/generate', params) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchResetStudentAccounts(
+    Map<String, dynamic> params,
+  ) async {
+    final data = await ApiService.post(
+        '/admin/student-accounts/reset-password', params) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchEnableStudentAccounts(
+    Map<String, dynamic> params,
+  ) async {
+    final data =
+        await ApiService.post('/admin/student-accounts/enable', params) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Map<String, dynamic>> batchDisableStudentAccounts(
+    Map<String, dynamic> params,
+  ) async {
+    final data =
+        await ApiService.post('/admin/student-accounts/disable', params) as Map;
+    return _normalizeBatchResult(data);
+  }
+
+  static Future<Uint8List> exportStudentAccounts({
+    List<int>? studentIds,
+    int? gradeId,
+    int? classId,
+    String keyword = '',
+    String accountStatus = '',
+  }) async {
+    final query = _buildStudentAccountExportQuery(
+      studentIds: studentIds,
+      gradeId: gradeId,
+      classId: classId,
+      keyword: keyword,
+      accountStatus: accountStatus,
+    );
+    return ApiService.downloadFile('/admin/student-accounts/export?$query');
+  }
+
   // 选修班列表
   static Future<List<ElectiveClass>> getElectiveClasses() async {
     final data = await ApiService.get('/admin/elective-classes') as List;
@@ -124,6 +192,25 @@ class AdminService {
       'failedCount': (data['failedCount'] as num?)?.toInt() ?? 0,
       'failedItems': failedItems,
     };
+  }
+
+  static String _buildStudentAccountExportQuery({
+    List<int>? studentIds,
+    int? gradeId,
+    int? classId,
+    String keyword = '',
+    String accountStatus = '',
+  }) {
+    final params = <String, List<String>>{};
+    if (studentIds != null && studentIds.isNotEmpty) {
+      params['studentIds'] = studentIds.map((e) => e.toString()).toList();
+    }
+    if (gradeId != null) params['gradeId'] = [gradeId.toString()];
+    if (classId != null) params['classId'] = [classId.toString()];
+    if (keyword.isNotEmpty) params['keyword'] = [keyword];
+    if (accountStatus.isNotEmpty) params['accountStatus'] = [accountStatus];
+    if (params.isEmpty) return '_=1';
+    return Uri(queryParametersAll: params).query;
   }
 
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');

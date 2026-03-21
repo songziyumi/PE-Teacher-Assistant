@@ -47,6 +47,7 @@ public class StudentService {
     private final EventStudentRepository eventStudentRepository;
     private final CourseRepository courseRepository;
     private final CourseClassCapacityRepository courseClassCapacityRepository;
+    private final StudentAccountRepository studentAccountRepository;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassIdOrderByStudentNo(classId);
@@ -90,15 +91,22 @@ public class StudentService {
         if (candidates.isEmpty()) {
             return Optional.empty();
         }
+        Map<Long, StudentAccount> accountByStudentId = studentAccountRepository.findByStudentIn(candidates).stream()
+                .filter(account -> account.getStudent() != null && account.getStudent().getId() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        account -> account.getStudent().getId(),
+                        account -> account,
+                        (left, right) -> left,
+                        HashMap::new));
         return candidates.stream()
-                .filter(s -> Boolean.TRUE.equals(s.getEnabled()))
-                .filter(this::hasUsablePassword)
+                .filter(s -> hasEnabledAccount(accountByStudentId.get(s.getId())))
+                .filter(s -> hasUsableAccountPassword(accountByStudentId.get(s.getId())))
                 .findFirst()
                 .or(() -> candidates.stream()
-                        .filter(s -> Boolean.TRUE.equals(s.getEnabled()))
+                        .filter(s -> hasEnabledAccount(accountByStudentId.get(s.getId())))
                         .findFirst())
                 .or(() -> candidates.stream()
-                        .filter(this::hasUsablePassword)
+                        .filter(s -> hasUsableAccountPassword(accountByStudentId.get(s.getId())))
                         .findFirst())
                 .or(() -> Optional.of(candidates.get(0)));
     }
@@ -338,8 +346,14 @@ public class StudentService {
         studentRepository.save(s);
     }
 
-    private boolean hasUsablePassword(Student student) {
-        return student != null && student.getPassword() != null && !student.getPassword().isBlank();
+    private boolean hasEnabledAccount(StudentAccount account) {
+        return account != null && Boolean.TRUE.equals(account.getEnabled());
+    }
+
+    private boolean hasUsableAccountPassword(StudentAccount account) {
+        return account != null
+                && account.getPasswordHash() != null
+                && !account.getPasswordHash().isBlank();
     }
 
     @Transactional
