@@ -14,6 +14,7 @@ import 'screens/teacher/attendance_export_screen.dart';
 import 'screens/teacher/data_export_screen.dart';
 import 'screens/teacher/teacher_operation_timeline_screen.dart';
 import 'screens/admin/admin_home.dart';
+import 'screens/admin/student_account_screen.dart';
 import 'screens/admin/student_list.dart';
 import 'screens/admin/physical_list.dart';
 import 'screens/admin/grade_list.dart';
@@ -126,6 +127,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
           builder: (_, __) => const TeacherOperationTimelineScreen(),
         ),
         GoRoute(path: '/admin', builder: (_, __) => const AdminHome()),
+        GoRoute(
+          path: '/admin/student-accounts',
+          builder: (_, __) => const StudentAccountScreen(),
+        ),
         GoRoute(
           path: '/admin/students',
           builder: (_, __) => const StudentListScreen(),
