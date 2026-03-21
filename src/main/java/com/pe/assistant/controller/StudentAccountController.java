@@ -40,11 +40,11 @@ public class StudentAccountController {
         try {
             StudentAccount account = currentUserService.getCurrentStudentAccount();
             if (!newPassword.equals(confirmPassword)) {
-                throw new IllegalArgumentException("两次输入的新密码不一致");
+                throw new IllegalArgumentException("\u4e24\u6b21\u8f93\u5165\u7684\u65b0\u5bc6\u7801\u4e0d\u4e00\u81f4");
             }
             studentAccountService.changePassword(account, oldPassword, newPassword);
-            ra.addFlashAttribute("success", "密码修改成功");
-            return "redirect:/student/courses";
+            ra.addFlashAttribute("success", "密码修改成功，账号已激活");
+            return "redirect:/student/password?force=false";
         } catch (IllegalArgumentException e) {
             ra.addFlashAttribute("error", e.getMessage());
             return "redirect:/student/password?force=" + force;
