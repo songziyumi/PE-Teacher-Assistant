@@ -38,7 +38,10 @@
       "Bash(mvn spring-boot:run:*)",
       "Bash(git checkout:*)",
       "Bash(mvn test:*)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(dart analyze:*)",
+      "Bash(flutter pub:*)",
+      "Bash(cd \"C:\\\\Users\\\\28970\\\\Desktop\\\\code\\\\PE_TEACHER_ASSISTANT_JAVA\" && sed -n '669,700p' src/main/java/com/pe/assistant/controller/api/TeacherApiController.java && echo \"===\" && sed -n '759,800p' src/main/java/com/pe/assistant/controller/api/TeacherApiController.java && echo \"===\" && sed -n '834,870p' src/main/java/com/pe/assistant/controller/api/TeacherApiController.java)"
     ]
   }
 }

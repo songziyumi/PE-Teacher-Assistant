@@ -48,10 +48,6 @@ class _CourseRequestDetailScreenState extends State<CourseRequestDetailScreen> {
     }
   }
 
-  Future<void> _handle(bool approve) async {
-    await _submitHandle(approve);
-  }
-
   Future<void> _submitHandle(
     bool approve, {
     bool skipConfirm = false,

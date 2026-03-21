@@ -201,16 +201,26 @@ class AdminService {
     String keyword = '',
     String accountStatus = '',
   }) {
-    final params = <String, List<String>>{};
+    final parts = <String>[];
     if (studentIds != null && studentIds.isNotEmpty) {
-      params['studentIds'] = studentIds.map((e) => e.toString()).toList();
+      for (final studentId in studentIds) {
+        parts.add('studentIds=${Uri.encodeQueryComponent(studentId.toString())}');
+      }
     }
-    if (gradeId != null) params['gradeId'] = [gradeId.toString()];
-    if (classId != null) params['classId'] = [classId.toString()];
-    if (keyword.isNotEmpty) params['keyword'] = [keyword];
-    if (accountStatus.isNotEmpty) params['accountStatus'] = [accountStatus];
-    if (params.isEmpty) return '_=1';
-    return Uri(queryParametersAll: params).query;
+    if (gradeId != null) {
+      parts.add('gradeId=${Uri.encodeQueryComponent(gradeId.toString())}');
+    }
+    if (classId != null) {
+      parts.add('classId=${Uri.encodeQueryComponent(classId.toString())}');
+    }
+    if (keyword.isNotEmpty) {
+      parts.add('keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    if (accountStatus.isNotEmpty) {
+      parts.add('accountStatus=${Uri.encodeQueryComponent(accountStatus)}');
+    }
+    if (parts.isEmpty) return '_=1';
+    return parts.join('&');
   }
 
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');
