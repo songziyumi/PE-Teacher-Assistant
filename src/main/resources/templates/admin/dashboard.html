@@ -8,7 +8,7 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
@@ -21,43 +21,47 @@
     <div class="page-header"><h2>管理后台</h2></div>
     <div class="admin-grid">
         <a th:href="@{/admin/grades}" class="admin-card">
-            <div class="admin-card-icon">🎓</div>
+            <div class="admin-card-icon">年</div>
             <div class="admin-card-title">年级管理</div>
         </a>
         <a th:href="@{/admin/classes}" class="admin-card">
-            <div class="admin-card-icon">🏫</div>
+            <div class="admin-card-icon">班</div>
             <div class="admin-card-title">班级管理</div>
         </a>
         <a th:href="@{/admin/teachers}" class="admin-card">
-            <div class="admin-card-icon">👨‍🏫</div>
+            <div class="admin-card-icon">师</div>
             <div class="admin-card-title">教师管理</div>
         </a>
         <a th:href="@{/admin/students}" class="admin-card">
-            <div class="admin-card-icon">👨‍🎓</div>
+            <div class="admin-card-icon">生</div>
             <div class="admin-card-title">学生管理</div>
         </a>
+        <a th:href="@{/admin/student-accounts}" class="admin-card">
+            <div class="admin-card-icon">账</div>
+            <div class="admin-card-title">学生账号管理</div>
+        </a>
         <a th:href="@{/admin/stats}" class="admin-card">
-            <div class="admin-card-icon">📊</div>
+            <div class="admin-card-icon">统</div>
             <div class="admin-card-title">考勤统计</div>
         </a>
         <a th:href="@{/admin/import}" class="admin-card">
-            <div class="admin-card-icon">📥</div>
+            <div class="admin-card-icon">导</div>
             <div class="admin-card-title">数据导入</div>
         </a>
         <a th:href="@{/admin/physical-tests}" class="admin-card">
-            <div class="admin-card-icon">🏋️</div>
+            <div class="admin-card-icon">测</div>
             <div class="admin-card-title">体质健康测试</div>
         </a>
         <a th:href="@{/admin/term-grades}" class="admin-card">
-            <div class="admin-card-icon">📝</div>
+            <div class="admin-card-icon">绩</div>
             <div class="admin-card-title">期末成绩管理</div>
         </a>
         <a th:href="@{/admin/courses}" class="admin-card">
-            <div class="admin-card-icon">🎯</div>
+            <div class="admin-card-icon">课</div>
             <div class="admin-card-title">学生选课管理</div>
         </a>
         <a th:href="@{/admin/teacher-permissions}" class="admin-card">
-            <div class="admin-card-icon">🔒</div>
+            <div class="admin-card-icon">权</div>
             <div class="admin-card-title">教师功能权限</div>
         </a>
     </div>
@@ -65,7 +69,7 @@
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>
-    <span>© 2026 陈胜松 版权所有</span>
+    <span>© 2026 体育教师助手</span>
 </footer>
 </body>
 </html>

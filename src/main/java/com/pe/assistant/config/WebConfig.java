@@ -1,5 +1,8 @@
 package com.pe.assistant.config;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -7,12 +10,11 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.nio.file.Path;
 
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
     @Value("${app.version:unknown}")
@@ -21,8 +23,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
     private String uploadDir;
 
+    private final StudentPasswordEnforcementInterceptor studentPasswordEnforcementInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(studentPasswordEnforcementInterceptor).addPathPatterns("/student/**");
         registry.addInterceptor(new HandlerInterceptor() {
             @Override
             public void postHandle(HttpServletRequest request, HttpServletResponse response,
@@ -41,7 +46,6 @@ public class WebConfig implements WebMvcConfigurer {
         if (!location.endsWith("/")) {
             location += "/";
         }
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(location);
+        registry.addResourceHandler("/uploads/**").addResourceLocations(location);
     }
 }
