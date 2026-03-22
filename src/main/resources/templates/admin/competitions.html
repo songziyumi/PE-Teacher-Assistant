@@ -24,6 +24,8 @@
         .message { min-height:20px; color:#6b7280; font-size:13px; }
         .message.success { color:#047857; }
         .message.error { color:#b91c1c; }
+        .helper-text { margin-top:8px; color:#6b7280; font-size:13px; }
+        .empty-state { text-align:center; color:#6b7280; padding:24px 12px; }
         @media (max-width: 900px) {
             .summary-bar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
             .form-grid, .filter-grid { grid-template-columns: 1fr; }
@@ -47,7 +49,7 @@
 
     <div class="summary-bar">
         <div class="summary-card">
-            <div class="label">可见赛事数</div>
+            <div class="label">当前可见赛事数</div>
             <div class="value" th:text="${#lists.size(competitions)}">0</div>
         </div>
         <div class="summary-card">
@@ -90,6 +92,7 @@
                 <a class="btn btn-link" th:href="@{/admin/competitions}">重置</a>
             </div>
         </form>
+        <div class="helper-text">支持按赛事名称、编码、级别和状态快速定位赛事。</div>
     </div>
 
     <div class="panel">
@@ -136,7 +139,7 @@
             </thead>
             <tbody>
             <tr th:if="${#lists.isEmpty(competitions)}">
-                <td colspan="7" style="text-align:center;color:#6b7280;">暂无赛事数据</td>
+                <td colspan="7" class="empty-state">当前筛选条件下没有赛事。可以调整筛选条件，或先创建一条赛事。</td>
             </tr>
             <tr th:each="c : ${competitions}">
                 <td th:text="${c.name}"></td>
@@ -172,17 +175,30 @@
         node.className = 'message' + (message ? (ok ? ' success' : ' error') : '');
     }
 
+    async function requestJson(url, options) {
+        try {
+            const response = await fetch(url, options);
+            const json = await response.json().catch(function () { return null; });
+            if (json) {
+                return json;
+            }
+            return { code: response.status || 500, message: '服务返回异常，请稍后重试' };
+        } catch (error) {
+            return { code: 500, message: '网络异常，请检查后重试' };
+        }
+    }
+
     document.getElementById('competitionForm').addEventListener('submit', async function (e) {
         e.preventDefault();
+        setMessage('createMsg', '', true);
         const data = Object.fromEntries(new FormData(e.target).entries());
-        const res = await fetch('/api/admin/competition', {
+        const json = await requestJson('/api/admin/competition', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        const json = await res.json();
         if (json.code === 200) {
-            setMessage('createMsg', '创建成功，页面即将刷新', true);
+            setMessage('createMsg', '创建成功，页面即将刷新。', true);
             window.location.reload();
         } else {
             setMessage('createMsg', json.message || '创建失败', false);
@@ -191,14 +207,18 @@
 
     async function changeStatus(select) {
         if (!select.value) return;
-        const res = await fetch('/api/admin/competition/' + select.dataset.id + '/status', {
+        const targetStatus = select.value;
+        if (!window.confirm('确认将赛事状态切换为 ' + targetStatus + ' 吗？')) {
+            select.value = '';
+            return;
+        }
+        const json = await requestJson('/api/admin/competition/' + select.dataset.id + '/status', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ targetStatus: select.value })
+            body: JSON.stringify({ targetStatus: targetStatus })
         });
-        const json = await res.json();
         if (json.code === 200) {
-            setMessage('listMsg', '赛事状态已更新', true);
+            setMessage('listMsg', '赛事状态已更新。', true);
             window.location.reload();
         } else {
             setMessage('listMsg', json.message || '状态更新失败', false);
