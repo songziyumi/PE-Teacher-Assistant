@@ -57,8 +57,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
-                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthFilter(jwtUtil, userDetailsService),
                         UsernamePasswordAuthenticationFilter.class)
@@ -96,10 +96,10 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/manifest.json", "/sw.js",
                                 "/offline.html", "/uploads/**").permitAll()
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
-                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
+                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")

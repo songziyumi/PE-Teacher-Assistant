@@ -7,6 +7,7 @@ import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.service.CurrentUserService;
+import com.pe.assistant.service.StudentAccountScopeStatsService;
 import com.pe.assistant.service.StudentAccountService;
 import com.pe.assistant.service.StudentService;
 import com.pe.assistant.service.TeacherOperationLogService;
@@ -48,6 +49,14 @@ public class AdminStudentAccountApiController {
     private final StudentAccountService studentAccountService;
     private final CurrentUserService currentUserService;
     private final TeacherOperationLogService teacherOperationLogService;
+    private final StudentAccountScopeStatsService studentAccountScopeStatsService;
+
+    @GetMapping("/stats")
+    public ApiResponse<Map<String, Object>> stats(
+            @RequestParam(defaultValue = "school") String groupBy) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        return ApiResponse.ok(studentAccountScopeStatsService.buildStats(teacher, groupBy));
+    }
 
     @GetMapping
     public ApiResponse<PageDto<Map<String, Object>>> list(

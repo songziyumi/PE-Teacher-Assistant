@@ -2,6 +2,7 @@ package com.pe.assistant.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -31,6 +32,10 @@ public class Teacher {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "school_id")
     private School school; // SUPER_ADMIN 为 null
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "managed_org_id")
+    private Organization managedOrg;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();

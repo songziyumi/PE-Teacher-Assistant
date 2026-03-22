@@ -26,4 +26,5 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
     List<Teacher> findBySchool(School school);
     List<Teacher> findBySchoolAndRole(School school, String role);
+    List<Teacher> findByManagedOrgId(Long managedOrgId);
 }

@@ -1,8 +1,11 @@
 package com.pe.assistant.config;
 
+import com.pe.assistant.entity.Organization;
+import com.pe.assistant.entity.OrganizationType;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.*;
+import com.pe.assistant.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -21,6 +24,7 @@ public class DataInitializer implements CommandLineRunner {
     private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+    private final OrganizationService organizationService;
 
     @Value("${app.admin.default-password:Admin@2024!}")
     private String adminDefaultPassword;
@@ -50,7 +54,31 @@ public class DataInitializer implements CommandLineRunner {
             return schoolRepository.save(s);
         });
 
-        // 3. 创建默认学校管理员（兼容旧数据：若已存在则关联学校）
+        // 3. 初始化默认组织树并绑定默认学校
+        Organization cityOrg = organizationService.ensureNode(
+                "DEFAULT_CITY",
+                "默认市级组织",
+                OrganizationType.CITY,
+                null,
+                0);
+        Organization districtOrg = organizationService.ensureNode(
+                "DEFAULT_DISTRICT",
+                "默认区县组织",
+                OrganizationType.DISTRICT,
+                cityOrg,
+                10);
+        Organization schoolOrg = organizationService.ensureNode(
+                "SCHOOL_" + school.getCode(),
+                school.getName(),
+                OrganizationType.SCHOOL,
+                districtOrg,
+                0);
+        if (school.getOrganization() == null) {
+            school.setOrganization(schoolOrg);
+            schoolRepository.save(school);
+        }
+
+        // 4. 创建默认学校管理员（兼容旧数据：若已存在则关联学校）
         if (!teacherRepository.existsByUsername("admin")) {
             Teacher admin = new Teacher();
             admin.setUsername("admin");
@@ -58,17 +86,26 @@ public class DataInitializer implements CommandLineRunner {
             admin.setName("管理员");
             admin.setRole("ADMIN");
             admin.setSchool(school);
+            admin.setManagedOrg(school.getOrganization());
             teacherRepository.save(admin);
         } else {
             teacherRepository.findByUsername("admin").ifPresent(admin -> {
+                boolean changed = false;
                 if (admin.getSchool() == null) {
                     admin.setSchool(school);
+                    changed = true;
+                }
+                if (admin.getManagedOrg() == null && school.getOrganization() != null) {
+                    admin.setManagedOrg(school.getOrganization());
+                    changed = true;
+                }
+                if (changed) {
                     teacherRepository.save(admin);
                 }
             });
         }
 
-        // 4. 将所有 school=null 的数据迁移到默认学校
+        // 5. 将所有 school=null 的数据迁移到默认学校
         gradeRepository.findAll().stream()
             .filter(g -> g.getSchool() == null)
             .forEach(g -> { g.setSchool(school); gradeRepository.save(g); });
@@ -83,6 +120,12 @@ public class DataInitializer implements CommandLineRunner {
 
         teacherRepository.findAll().stream()
             .filter(t -> t.getSchool() == null && !"SUPER_ADMIN".equals(t.getRole()))
-            .forEach(t -> { t.setSchool(school); teacherRepository.save(t); });
+            .forEach(t -> {
+                t.setSchool(school);
+                if (t.getManagedOrg() == null && school.getOrganization() != null) {
+                    t.setManagedOrg(school.getOrganization());
+                }
+                teacherRepository.save(t);
+            });
     }
 }
