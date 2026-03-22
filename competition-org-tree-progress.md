@@ -13,6 +13,7 @@
 - [x] `milestone/competition-admin-pages` -> `7f9359a`
 - [x] `milestone/competition-pages-and-tests` -> `b1aa4b5`
 - [x] `milestone/competition-pre-browser-polish` -> `a5bfb7f`
+- [x] `backup/feature-competition-system-pre-browser-polish` -> `e0463e0`
 
 ## 最近完成的提交
 
@@ -105,7 +106,7 @@
 - [x] 当前本地可通过 Maven 编译
 - [x] 关键赛事回归测试已具备持续扩展基础
 - [x] 已新增联调前页面收口 tag：`milestone/competition-pre-browser-polish`
-- [ ] 如需远端备份，仍需先处理 Git 代理配置问题
+- [x] 已完成远端备份 tag：`backup/feature-competition-system-pre-browser-polish`
 
 ## 8. 还需要你重点验证的事项
 
@@ -119,3 +120,4 @@
 - [ ] 进行浏览器联调，整理页面异常与交互问题
 - [ ] 根据联调结果继续修正页面细节、空状态和错误提示
 - [ ] 视需要再补本地 tag 或准备远端备份
+
