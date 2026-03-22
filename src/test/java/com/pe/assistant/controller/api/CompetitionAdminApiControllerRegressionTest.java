@@ -157,6 +157,28 @@ class CompetitionAdminApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.name").value("run-100m"));
     }
 
+    @Test
+    void createEventShouldReturnBadRequestWhenRejected() throws Exception {
+        Teacher teacher = buildTeacher();
+        Competition competition = new Competition();
+        competition.setId(41L);
+
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(competitionService.requireVisible(eq(teacher), eq(41L))).thenReturn(competition);
+        when(competitionEventService.create(eq(competition), anyMap()))
+                .thenThrow(new IllegalArgumentException("invalid event payload"));
+
+        mockMvc.perform(post("/api/admin/competition/41/events")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "run-100m",
+                                "eventCode", "RUN100"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("invalid event payload"));
+    }
+
     private Teacher buildTeacher() {
         Teacher teacher = new Teacher();
         teacher.setId(1L);

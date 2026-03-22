@@ -125,6 +125,21 @@ class CompetitionResultAdminApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.publishedCount").value(3));
     }
 
+    @Test
+    void saveBatchShouldReturnBadRequestWhenRejected() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(competitionResultService.saveBatch(eq(teacher), eq(20L), org.mockito.ArgumentMatchers.anyList()))
+                .thenThrow(new IllegalArgumentException("invalid batch payload"));
+
+        mockMvc.perform(post("/api/admin/competition/20/results/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(List.of(Map.of()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("invalid batch payload"));
+    }
+
     private Teacher buildTeacher() {
         Teacher teacher = new Teacher();
         teacher.setId(1L);
