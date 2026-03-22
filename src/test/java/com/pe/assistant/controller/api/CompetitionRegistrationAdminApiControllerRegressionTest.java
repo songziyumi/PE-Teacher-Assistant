@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -93,6 +94,51 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.status").value("SUBMITTED"))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.approvalRecords").isArray());
+    }
+
+    @Test
+    void removeItemShouldReturnSuccess() throws Exception {
+        Teacher teacher = buildTeacher();
+        CompetitionRegistration registration = buildRegistration(18L, CompetitionRegistrationStatus.DRAFT);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(registrationService.requireVisible(eq(teacher), eq(18L))).thenReturn(registration);
+
+        mockMvc.perform(delete("/api/admin/competition/registrations/18/items/5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("删除成功"));
+    }
+
+    @Test
+    void districtReviewShouldReturnUpdatedStatus() throws Exception {
+        Teacher teacher = buildTeacher();
+        CompetitionRegistration registration = buildRegistration(20L, CompetitionRegistrationStatus.DISTRICT_APPROVED);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(registrationService.districtReview(eq(teacher), eq(20L), eq("APPROVE"), eq("区县通过"))).thenReturn(registration);
+        when(registrationService.toMap(registration)).thenReturn(Map.of("id", 20L, "status", "DISTRICT_APPROVED"));
+
+        mockMvc.perform(put("/api/admin/competition/registrations/20/district-review")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "区县通过"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.status").value("DISTRICT_APPROVED"));
+    }
+
+    @Test
+    void cityReviewShouldReturnUpdatedStatus() throws Exception {
+        Teacher teacher = buildTeacher();
+        CompetitionRegistration registration = buildRegistration(21L, CompetitionRegistrationStatus.CITY_APPROVED);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(registrationService.cityReview(eq(teacher), eq(21L), eq("APPROVE"), eq("市级通过"))).thenReturn(registration);
+        when(registrationService.toMap(registration)).thenReturn(Map.of("id", 21L, "status", "CITY_APPROVED"));
+
+        mockMvc.perform(put("/api/admin/competition/registrations/21/city-review")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "市级通过"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.status").value("CITY_APPROVED"));
     }
 
     private Teacher buildTeacher() {

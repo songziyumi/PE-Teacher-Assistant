@@ -30,6 +30,13 @@ public class CompetitionRegistrationService {
         return registrationRepository.findByApplicantSchoolIdOrderByCreatedAtDesc(school.getId());
     }
 
+    public List<CompetitionRegistration> listVisibleByCompetition(Teacher teacher, Long competitionId) {
+        competitionService.requireVisible(teacher, competitionId);
+        return registrationRepository.findByCompetitionIdOrderByCreatedAtDesc(competitionId).stream()
+                .filter(registration -> organizationScopeService.canManageSchool(teacher, registration.getApplicantSchool()))
+                .toList();
+    }
+
     public CompetitionRegistration requireVisible(Teacher teacher, Long registrationId) {
         CompetitionRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new IllegalArgumentException("报名记录不存在"));

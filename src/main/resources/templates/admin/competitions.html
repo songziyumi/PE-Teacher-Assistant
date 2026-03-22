@@ -3,26 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>赛事管理 - 体育教师助手</title>
+    <title>赛事管理</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .page-tools { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; }
+        .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:18px; }
         .summary-bar { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:12px; margin-bottom:16px; }
         .summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px; }
         .summary-card .label { color:#6b7280; font-size:12px; }
         .summary-card .value { font-size:22px; font-weight:700; margin-top:6px; }
-        .event-form { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:18px; }
-        .event-form-grid { display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap:12px; }
-        .event-form input, .event-form select, .event-form textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; }
+        .form-grid { display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap:12px; }
+        .filter-grid { display:grid; grid-template-columns: 1.4fr 1fr 1fr auto; gap:12px; align-items:end; }
+        .panel input, .panel select, .panel textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; }
+        .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
         .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
         .status-draft { background:#f3f4f6; color:#6b7280; }
         .status-open { background:#eff6ff; color:#1d4ed8; }
         .status-review { background:#fff7ed; color:#c2410c; }
         .status-ready { background:#ecfdf5; color:#047857; }
         .status-end { background:#fef2f2; color:#b91c1c; }
+        .message { min-height:20px; color:#6b7280; font-size:13px; }
+        .message.success { color:#047857; }
+        .message.error { color:#b91c1c; }
         @media (max-width: 900px) {
             .summary-bar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
-            .event-form-grid { grid-template-columns: 1fr; }
+            .form-grid, .filter-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -52,80 +56,122 @@
         </div>
         <div class="summary-card">
             <div class="label">当前角色</div>
-            <div class="value" th:text="${teacher.role}">ADMIN</div>
+            <div class="value" th:text="${teacher.role}">ORG_ADMIN</div>
         </div>
         <div class="summary-card">
-            <div class="label">默认视角</div>
-            <div class="value">赛事列表</div>
+            <div class="label">当前视角</div>
+            <div class="value" th:text="${managedOrgType != null ? managedOrgType.name() : 'SCHOOL'}">SCHOOL</div>
         </div>
     </div>
 
-    <div class="event-form">
-        <h3 style="margin-top:0;">创建赛事</h3>
-        <form id="competitionForm">
-            <div class="event-form-grid">
-                <div><input name="name" placeholder="赛事名称" required></div>
-                <div><input name="code" placeholder="赛事编码" required></div>
-                <div>
-                    <select name="level">
-                        <option th:each="level : ${levels}" th:value="${level.name()}" th:text="${level.name()}"></option>
-                    </select>
-                </div>
-                <div><input name="schoolYear" placeholder="学年，如 2025-2026"></div>
-                <div><input name="term" placeholder="学期，如 SECOND"></div>
-                <div><input name="registrationStartAt" placeholder="报名开始，例 2026-04-01T08:00:00"></div>
-                <div><input name="registrationEndAt" placeholder="报名截止，例 2026-04-15T18:00:00"></div>
-                <div><input name="competitionStartAt" placeholder="比赛开始，例 2026-05-01T08:00:00"></div>
-                <div><input name="competitionEndAt" placeholder="比赛结束，例 2026-05-03T18:00:00"></div>
+    <div class="panel">
+        <h3 style="margin-top:0;">筛选赛事</h3>
+        <form method="get" th:action="@{/admin/competitions}" class="filter-grid">
+            <div>
+                <label for="keyword">关键字</label>
+                <input id="keyword" name="keyword" th:value="${keyword}" placeholder="赛事名称或编码">
             </div>
-            <div style="margin-top:12px;">
-                <textarea name="description" rows="3" placeholder="赛事说明"></textarea>
+            <div>
+                <label for="level">级别</label>
+                <select id="level" name="level">
+                    <option value="">全部级别</option>
+                    <option th:each="levelOption : ${levels}" th:value="${levelOption.name()}" th:selected="${selectedLevel == levelOption.name()}" th:text="${levelOption.name()}"></option>
+                </select>
             </div>
-            <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
-                <button type="submit" class="btn btn-primary">创建赛事</button>
-                <span id="createMsg" style="color:#6b7280;font-size:13px;"></span>
+            <div>
+                <label for="status">状态</label>
+                <select id="status" name="status">
+                    <option value="">全部状态</option>
+                    <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:selected="${selectedStatus == statusOption.name()}" th:text="${statusOption.name()}"></option>
+                </select>
+            </div>
+            <div class="row-actions">
+                <button type="submit" class="btn btn-secondary">查询</button>
+                <a class="btn btn-link" th:href="@{/admin/competitions}">重置</a>
             </div>
         </form>
     </div>
 
-    <table class="table">
-        <thead>
-        <tr>
-            <th>赛事名称</th>
-            <th>编码</th>
-            <th>级别</th>
-            <th>主办组织</th>
-            <th>状态</th>
-            <th>报名时间</th>
-            <th>操作</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:if="${#lists.isEmpty(competitions)}">
-            <td colspan="7" style="text-align:center;color:#6b7280;">暂无赛事数据</td>
-        </tr>
-        <tr th:each="c : ${competitions}">
-            <td th:text="${c.name}"></td>
-            <td th:text="${c.code}"></td>
-            <td th:text="${c.level}"></td>
-            <td th:text="${c.hostOrg != null ? c.hostOrg.name : '-'}"></td>
-            <td>
-                <span class="status-badge"
-                      th:classappend="${c.status.name() == 'DRAFT'} ? ' status-draft' :
-                                      (${c.status.name() == 'REGISTRATION_OPEN'} ? ' status-open' :
-                                      (${c.status.name() == 'UNDER_REVIEW'} ? ' status-review' :
-                                      (${c.status.name() == 'READY'} ? ' status-ready' : ' status-end')))"
-                      th:text="${c.status}"></span>
-            </td>
-            <td th:text="${c.registrationStartAt != null ? #temporals.format(c.registrationStartAt, 'yyyy-MM-dd HH:mm') : '-'} + ' ~ ' + ${c.registrationEndAt != null ? #temporals.format(c.registrationEndAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
-            <td>
-                <a class="btn btn-secondary btn-sm" th:href="@{/admin/competitions/{id}(id=${c.id})}">详情</a>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="panel">
+        <h3 style="margin-top:0;">创建赛事</h3>
+        <form id="competitionForm">
+            <div class="form-grid">
+                <div><input name="name" placeholder="赛事名称" required></div>
+                <div><input name="code" placeholder="赛事编码" required></div>
+                <div>
+                    <select name="level">
+                        <option th:each="levelOption : ${levels}" th:value="${levelOption.name()}" th:text="${levelOption.name()}"></option>
+                    </select>
+                </div>
+                <div><input name="schoolYear" placeholder="学年，例如 2025-2026"></div>
+                <div><input name="term" placeholder="学期，例如 SECOND"></div>
+                <div><input name="registrationStartAt" placeholder="报名开始，例如 2026-04-01T08:00:00"></div>
+                <div><input name="registrationEndAt" placeholder="报名截止，例如 2026-04-15T18:00:00"></div>
+                <div><input name="competitionStartAt" placeholder="比赛开始，例如 2026-05-01T08:00:00"></div>
+                <div><input name="competitionEndAt" placeholder="比赛结束，例如 2026-05-03T18:00:00"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <textarea name="description" rows="3" placeholder="赛事说明"></textarea>
+            </div>
+            <div class="row-actions" style="margin-top:12px;">
+                <button type="submit" class="btn btn-primary">创建赛事</button>
+                <span id="createMsg" class="message"></span>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h3 style="margin-top:0;">赛事列表</h3>
+        <table class="table">
+            <thead>
+            <tr>
+                <th>名称</th>
+                <th>编码</th>
+                <th>级别</th>
+                <th>主办组织</th>
+                <th>状态</th>
+                <th>报名时间</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(competitions)}">
+                <td colspan="7" style="text-align:center;color:#6b7280;">暂无赛事数据</td>
+            </tr>
+            <tr th:each="c : ${competitions}">
+                <td th:text="${c.name}"></td>
+                <td th:text="${c.code}"></td>
+                <td th:text="${c.level}"></td>
+                <td th:text="${c.hostOrg != null ? c.hostOrg.name : '-'}"></td>
+                <td>
+                    <span class="status-badge"
+                          th:classappend="${c.status.name() == 'DRAFT'} ? ' status-draft' : (${c.status.name() == 'REGISTRATION_OPEN'} ? ' status-open' : (${c.status.name() == 'REGISTRATION_CLOSED' || c.status.name() == 'UNDER_REVIEW'} ? ' status-review' : (${c.status.name() == 'READY' || c.status.name() == 'ONGOING'} ? ' status-ready' : ' status-end')))"
+                          th:text="${c.status}"></span>
+                </td>
+                <td th:text="${c.registrationStartAt != null ? #temporals.format(c.registrationStartAt, 'yyyy-MM-dd HH:mm') : '-'} + ' ~ ' + ${c.registrationEndAt != null ? #temporals.format(c.registrationEndAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                <td>
+                    <div class="row-actions">
+                        <a class="btn btn-secondary btn-sm" th:href="@{/admin/competitions/{id}(id=${c.id})}">详情</a>
+                        <select th:attr="data-id=${c.id}" onchange="changeStatus(this)">
+                            <option value="">切换状态</option>
+                            <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:text="${statusOption.name()}"></option>
+                        </select>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <div id="listMsg" class="message"></div>
+    </div>
 </div>
 <script>
+    function setMessage(id, message, ok) {
+        const node = document.getElementById(id);
+        if (!node) return;
+        node.textContent = message || '';
+        node.className = 'message' + (message ? (ok ? ' success' : ' error') : '');
+    }
+
     document.getElementById('competitionForm').addEventListener('submit', async function (e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target).entries());
@@ -135,14 +181,30 @@
             body: JSON.stringify(data)
         });
         const json = await res.json();
-        const msg = document.getElementById('createMsg');
         if (json.code === 200) {
-            msg.textContent = '创建成功，页面即将刷新';
+            setMessage('createMsg', '创建成功，页面即将刷新', true);
             window.location.reload();
         } else {
-            msg.textContent = json.message || '创建失败';
+            setMessage('createMsg', json.message || '创建失败', false);
         }
     });
+
+    async function changeStatus(select) {
+        if (!select.value) return;
+        const res = await fetch('/api/admin/competition/' + select.dataset.id + '/status', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetStatus: select.value })
+        });
+        const json = await res.json();
+        if (json.code === 200) {
+            setMessage('listMsg', '赛事状态已更新', true);
+            window.location.reload();
+        } else {
+            setMessage('listMsg', json.message || '状态更新失败', false);
+            select.value = '';
+        }
+    }
 </script>
 </body>
 </html>

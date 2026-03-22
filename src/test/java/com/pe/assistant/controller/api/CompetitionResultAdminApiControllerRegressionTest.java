@@ -52,18 +52,49 @@ class CompetitionResultAdminApiControllerRegressionTest {
     }
 
     @Test
+    void listShouldForwardEventFilter() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(competitionResultService.listResults(eq(teacher), eq(20L), eq(8L)))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/admin/competition/20/results").param("eventId", "8"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
     void saveShouldReturnBadRequestWhenServiceRejects() throws Exception {
         Teacher teacher = buildTeacher();
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
         when(competitionResultService.saveResult(eq(teacher), eq(20L), org.mockito.ArgumentMatchers.anyMap()))
-                .thenThrow(new IllegalArgumentException("项目、学生、成绩不能为空"));
+                .thenThrow(new IllegalArgumentException("missing required result fields"));
 
         mockMvc.perform(post("/api/admin/competition/20/results")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value("项目、学生、成绩不能为空"));
+                .andExpect(jsonPath("$.message").value("missing required result fields"));
+    }
+
+    @Test
+    void saveBatchShouldReturnSavedCount() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(competitionResultService.saveBatch(eq(teacher), eq(20L), org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(2);
+
+        mockMvc.perform(post("/api/admin/competition/20/results/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(List.of(
+                                Map.of("competitionEventId", 1, "studentId", 2, "resultValue", "12.10"),
+                                Map.of("competitionEventId", 1, "studentId", 3, "resultValue", "12.30")
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.savedCount").value(2));
     }
 
     @Test
@@ -80,10 +111,24 @@ class CompetitionResultAdminApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.publishedCount").value(5));
     }
 
+    @Test
+    void publishShouldRespectEventFilter() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(competitionResultService.publish(eq(teacher), eq(20L), eq(6L))).thenReturn(3);
+
+        mockMvc.perform(put("/api/admin/competition/20/results/publish")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("eventId", 6))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.publishedCount").value(3));
+    }
+
     private Teacher buildTeacher() {
         Teacher teacher = new Teacher();
         teacher.setId(1L);
-        teacher.setName("管理员");
+        teacher.setName("admin");
         return teacher;
     }
 }
