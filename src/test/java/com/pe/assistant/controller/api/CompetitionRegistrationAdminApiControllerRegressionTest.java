@@ -19,12 +19,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -52,12 +50,12 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
         Teacher teacher = buildTeacher();
         CompetitionRegistration registration = buildRegistration(11L, CompetitionRegistrationStatus.DRAFT);
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
-        when(registrationService.createDraft(eq(teacher), eq(100L), eq("初次报名"))).thenReturn(registration);
+        when(registrationService.createDraft(eq(teacher), eq(100L), eq("????"))).thenReturn(registration);
         when(registrationService.toMap(registration)).thenReturn(Map.of("id", 11L, "status", "DRAFT"));
 
         mockMvc.perform(post("/api/admin/competition/100/registrations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("remark", "初次报名"))))
+                        .content(objectMapper.writeValueAsString(Map.of("remark", "????"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(11))
@@ -69,12 +67,12 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
         Teacher teacher = buildTeacher();
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
         when(registrationService.submit(eq(teacher), eq(15L)))
-                .thenThrow(new IllegalArgumentException("当前状态不可提交报名"));
+                .thenThrow(new IllegalArgumentException("??????????"));
 
         mockMvc.perform(put("/api/admin/competition/registrations/15/submit"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value("当前状态不可提交报名"));
+                .andExpect(jsonPath("$.message").value("??????????"));
     }
 
     @Test
@@ -97,6 +95,32 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
     }
 
     @Test
+    void detailShouldReturnBadRequestWhenRegistrationIsInvisible() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(registrationService.requireVisible(eq(teacher), eq(99L)))
+                .thenThrow(new IllegalArgumentException("?????????????"));
+
+        mockMvc.perform(get("/api/admin/competition/registrations/99"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("?????????????"));
+    }
+
+    @Test
+    void itemsShouldReturnBadRequestWhenRegistrationIsInvisible() throws Exception {
+        Teacher teacher = buildTeacher();
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(registrationService.requireVisible(eq(teacher), eq(88L)))
+                .thenThrow(new IllegalArgumentException("?????????????"));
+
+        mockMvc.perform(get("/api/admin/competition/registrations/88/items"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("?????????????"));
+    }
+
+    @Test
     void removeItemShouldReturnSuccess() throws Exception {
         Teacher teacher = buildTeacher();
         CompetitionRegistration registration = buildRegistration(18L, CompetitionRegistrationStatus.DRAFT);
@@ -106,7 +130,7 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
         mockMvc.perform(delete("/api/admin/competition/registrations/18/items/5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.message").value("删除成功"));
+                .andExpect(jsonPath("$.message").value("????"));
     }
 
     @Test
@@ -114,12 +138,12 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
         Teacher teacher = buildTeacher();
         CompetitionRegistration registration = buildRegistration(20L, CompetitionRegistrationStatus.DISTRICT_APPROVED);
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
-        when(registrationService.districtReview(eq(teacher), eq(20L), eq("APPROVE"), eq("区县通过"))).thenReturn(registration);
+        when(registrationService.districtReview(eq(teacher), eq(20L), eq("APPROVE"), eq("????"))).thenReturn(registration);
         when(registrationService.toMap(registration)).thenReturn(Map.of("id", 20L, "status", "DISTRICT_APPROVED"));
 
         mockMvc.perform(put("/api/admin/competition/registrations/20/district-review")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "区县通过"))))
+                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "????"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.status").value("DISTRICT_APPROVED"));
@@ -130,12 +154,12 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
         Teacher teacher = buildTeacher();
         CompetitionRegistration registration = buildRegistration(21L, CompetitionRegistrationStatus.CITY_APPROVED);
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
-        when(registrationService.cityReview(eq(teacher), eq(21L), eq("APPROVE"), eq("市级通过"))).thenReturn(registration);
+        when(registrationService.cityReview(eq(teacher), eq(21L), eq("APPROVE"), eq("????"))).thenReturn(registration);
         when(registrationService.toMap(registration)).thenReturn(Map.of("id", 21L, "status", "CITY_APPROVED"));
 
         mockMvc.perform(put("/api/admin/competition/registrations/21/city-review")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "市级通过"))))
+                        .content(objectMapper.writeValueAsString(Map.of("decision", "APPROVE", "comment", "????"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.status").value("CITY_APPROVED"));
@@ -144,10 +168,10 @@ class CompetitionRegistrationAdminApiControllerRegressionTest {
     private Teacher buildTeacher() {
         Teacher teacher = new Teacher();
         teacher.setId(1L);
-        teacher.setName("管理员");
+        teacher.setName("???");
         School school = new School();
         school.setId(2L);
-        school.setName("测试学校");
+        school.setName("????");
         teacher.setSchool(school);
         return teacher;
     }

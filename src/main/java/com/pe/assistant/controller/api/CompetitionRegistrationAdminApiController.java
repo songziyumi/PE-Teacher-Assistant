@@ -98,7 +98,7 @@ public class CompetitionRegistrationAdminApiController {
             Teacher teacher = currentUserService.getCurrentTeacher();
             CompetitionRegistration registration = registrationService.requireVisible(teacher, registrationId);
             registrationItemService.removeItem(teacher, registration, itemId);
-            return ResponseEntity.ok(ApiResponse.ok("删除成功", null));
+            return ResponseEntity.ok(ApiResponse.ok("????", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
         }
