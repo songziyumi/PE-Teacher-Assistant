@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛事详情 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .section { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
+        .grid-2 { display:grid; grid-template-columns: 1.2fr .8fr; gap:16px; }
+        .form-inline { display:grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap:10px; margin-bottom:12px; }
+        .form-inline input, .form-inline select, .form-inline textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; }
+        .muted { color:#6b7280; font-size:13px; }
+        .tabs { display:flex; gap:8px; margin-bottom:12px; }
+        .tab-btn { border:1px solid #d1d5db; background:#fff; padding:8px 14px; border-radius:8px; cursor:pointer; }
+        .tab-btn.active { background:#111827; color:#fff; border-color:#111827; }
+        .tab-pane { display:none; }
+        .tab-pane.active { display:block; }
+        @media (max-width: 980px) { .grid-2, .form-inline { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin/competitions}">赛事列表</a>
+        <a th:href="@{/admin}">管理后台</a>
+        <span class="nav-user" th:text="${currentSchool != null ? currentSchool.name : '组织管理员'}"></span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header">
+        <h2 th:text="${competition.name}">赛事详情</h2>
+    </div>
+
+    <div class="section">
+        <div class="muted">赛事编码：<span th:text="${competition.code}"></span></div>
+        <div class="muted">级别：<span th:text="${competition.level}"></span>，状态：<span th:text="${competition.status}"></span></div>
+        <div class="muted">主办组织：<span th:text="${competition.hostOrg != null ? competition.hostOrg.name : '-'}"></span></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('events', this)">项目</button>
+        <button class="tab-btn" onclick="switchTab('registrations', this)">报名</button>
+        <button class="tab-btn" onclick="switchTab('results', this)">成绩</button>
+    </div>
+
+    <div id="events" class="tab-pane active section">
+        <h3 style="margin-top:0;">赛事项目</h3>
+        <form id="eventForm" class="form-inline">
+            <input name="name" placeholder="项目名称" required>
+            <input name="eventCode" placeholder="项目编码" required>
+            <input name="genderLimit" placeholder="性别限制">
+            <input name="teamOrIndividual" placeholder="INDIVIDUAL/TEAM" required>
+            <input name="groupRule" placeholder="分组规则">
+            <input name="maxEntriesPerSchool" placeholder="每校人数">
+            <input name="maxEntriesPerDistrict" placeholder="每区人数">
+            <input name="sortOrder" placeholder="排序" value="10">
+            <button type="submit" class="btn btn-primary">新增项目</button>
+        </form>
+        <table class="table">
+            <thead><tr><th>项目</th><th>编码</th><th>性别</th><th>类型</th><th>每校</th><th>每区</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(events)}"><td colspan="6" style="text-align:center;color:#6b7280;">暂无项目</td></tr>
+            <tr th:each="e : ${events}">
+                <td th:text="${e.name}"></td>
+                <td th:text="${e.eventCode}"></td>
+                <td th:text="${e.genderLimit}"></td>
+                <td th:text="${e.teamOrIndividual}"></td>
+                <td th:text="${e.maxEntriesPerSchool}"></td>
+                <td th:text="${e.maxEntriesPerDistrict}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="registrations" class="tab-pane section">
+        <div class="grid-2">
+            <div>
+                <h3 style="margin-top:0;">本校报名</h3>
+                <button class="btn btn-primary" onclick="createRegistration()">创建报名草稿</button>
+                <table class="table" style="margin-top:12px;">
+                    <thead><tr><th>ID</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(registrations)}"><td colspan="4" style="text-align:center;color:#6b7280;">暂无报名</td></tr>
+                    <tr th:each="r : ${registrations}">
+                        <td th:text="${r.id}"></td>
+                        <td th:text="${r.status}"></td>
+                        <td th:text="${r.submittedAt != null ? #temporals.format(r.submittedAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                        <td><a class="btn btn-secondary btn-sm" th:href="@{/admin/competitions/{id}(id=${competition.id},registrationId=${r.id})}">查看</a></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:if="${selectedRegistration != null}">
+                <h3 style="margin-top:0;">报名详情 #<span th:text="${selectedRegistration.id}"></span></h3>
+                <div class="muted">状态：<span th:text="${selectedRegistration.status}"></span></div>
+                <div class="muted" style="margin-bottom:10px;">审批级别：<span th:text="${selectedRegistration.currentApprovalLevel}"></span></div>
+                <form id="itemForm" class="form-inline">
+                    <input type="hidden" name="registrationId" th:value="${selectedRegistration.id}">
+                    <select name="studentId">
+                        <option value="">选择学生</option>
+                        <option th:each="s : ${students}" th:value="${s.id}" th:text="${s.name + ' (' + s.studentNo + ')'}"></option>
+                    </select>
+                    <select name="competitionEventId">
+                        <option value="">选择项目</option>
+                        <option th:each="e : ${events}" th:value="${e.id}" th:text="${e.name}"></option>
+                    </select>
+                    <input name="roleType" placeholder="ATHLETE">
+                    <input name="seedResult" placeholder="种子成绩">
+                    <button type="submit" class="btn btn-primary">添加条目</button>
+                </form>
+                <table class="table" style="margin-top:12px;">
+                    <thead><tr><th>学生</th><th>项目</th><th>种子成绩</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(registrationItems)}"><td colspan="3" style="text-align:center;color:#6b7280;">暂无条目</td></tr>
+                    <tr th:each="item : ${registrationItems}">
+                        <td th:text="${item.student.name + ' (' + item.student.studentNo + ')'}"></td>
+                        <td th:text="${item.competitionEvent.name}"></td>
+                        <td th:text="${item.seedResult}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button class="btn btn-primary" th:if="${selectedRegistration.status.name() == 'DRAFT' || selectedRegistration.status.name() == 'DISTRICT_REJECTED' || selectedRegistration.status.name() == 'CITY_REJECTED'}" th:attr="data-id=${selectedRegistration.id}" onclick="submitRegistration(this.dataset.id)">提交报名</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="results" class="tab-pane section">
+        <h3 style="margin-top:0;">成绩录入与发布</h3>
+        <form id="resultForm" class="form-inline">
+            <select name="competitionEventId">
+                <option value="">选择项目</option>
+                <option th:each="e : ${events}" th:value="${e.id}" th:text="${e.name}"></option>
+            </select>
+            <select name="studentId">
+                <option value="">选择学生</option>
+                <option th:each="s : ${students}" th:value="${s.id}" th:text="${s.name + ' (' + s.studentNo + ')'}"></option>
+            </select>
+            <input name="resultValue" placeholder="成绩值" required>
+            <input name="rankNo" placeholder="名次">
+            <input name="scorePoints" placeholder="积分">
+            <button type="submit" class="btn btn-primary">保存成绩</button>
+        </form>
+        <div style="margin-top:10px; margin-bottom:10px;">
+            <button class="btn btn-secondary" onclick="publishResults()">发布全部成绩</button>
+        </div>
+        <table class="table">
+            <thead><tr><th>项目</th><th>学生</th><th>成绩</th><th>名次</th><th>积分</th><th>状态</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(results)}"><td colspan="6" style="text-align:center;color:#6b7280;">暂无成绩</td></tr>
+            <tr th:each="r : ${results}">
+                <td th:text="${r.competitionEvent.name}"></td>
+                <td th:text="${r.student.name + ' (' + r.student.studentNo + ')'}"></td>
+                <td th:text="${r.resultValue}"></td>
+                <td th:text="${r.rankNo}"></td>
+                <td th:text="${r.scorePoints}"></td>
+                <td th:text="${r.recordStatus}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    document.getElementById('eventForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        const res = await fetch(window.location.pathname + '/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (json.code === 200) window.location.reload(); else alert(json.message || '新增项目失败');
+    });
+
+    async function createRegistration() {
+        const res = await fetch(window.location.pathname + '/registrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ remark: '页面创建' })
+        });
+        const json = await res.json();
+        if (json.code === 200) {
+            window.location.href = window.location.pathname + '?registrationId=' + json.data.id;
+        } else {
+            alert(json.message || '创建报名失败');
+        }
+    }
+
+    document.getElementById('itemForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        const registrationId = data.registrationId;
+        delete data.registrationId;
+        const res = await fetch('/api/admin/competition/registrations/' + registrationId + '/items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (json.code === 200) window.location.reload(); else alert(json.message || '添加报名条目失败');
+    });
+
+    async function submitRegistration(id) {
+        const res = await fetch('/api/admin/competition/registrations/' + id + '/submit', { method: 'PUT' });
+        const json = await res.json();
+        if (json.code === 200) window.location.reload(); else alert(json.message || '提交报名失败');
+    }
+
+    document.getElementById('resultForm')?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        const res = await fetch(window.location.pathname + '/results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (json.code === 200) window.location.reload(); else alert(json.message || '保存成绩失败');
+    });
+
+    async function publishResults() {
+        const res = await fetch(window.location.pathname + '/results/publish', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const json = await res.json();
+        if (json.code === 200) window.location.reload(); else alert(json.message || '发布成绩失败');
+    }
+</script>
+</body>
+</html>

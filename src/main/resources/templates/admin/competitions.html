@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛事管理 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .page-tools { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; }
+        .summary-bar { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:12px; margin-bottom:16px; }
+        .summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px; }
+        .summary-card .label { color:#6b7280; font-size:12px; }
+        .summary-card .value { font-size:22px; font-weight:700; margin-top:6px; }
+        .event-form { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:18px; }
+        .event-form-grid { display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap:12px; }
+        .event-form input, .event-form select, .event-form textarea { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; }
+        .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+        .status-draft { background:#f3f4f6; color:#6b7280; }
+        .status-open { background:#eff6ff; color:#1d4ed8; }
+        .status-review { background:#fff7ed; color:#c2410c; }
+        .status-ready { background:#ecfdf5; color:#047857; }
+        .status-end { background:#fef2f2; color:#b91c1c; }
+        @media (max-width: 900px) {
+            .summary-bar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+            .event-form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/dashboard}">首页</a>
+        <span class="nav-user" th:text="${currentSchool != null ? currentSchool.name : (managedOrg != null ? managedOrg.name : '组织管理员')}"></span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+<div class="container">
+    <div class="page-header"><h2>赛事管理</h2></div>
+
+    <div class="summary-bar">
+        <div class="summary-card">
+            <div class="label">可见赛事数</div>
+            <div class="value" th:text="${#lists.size(competitions)}">0</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">当前管理组织</div>
+            <div class="value" th:text="${managedOrg != null ? managedOrg.name : '-'}">-</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">当前角色</div>
+            <div class="value" th:text="${teacher.role}">ADMIN</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">默认视角</div>
+            <div class="value">赛事列表</div>
+        </div>
+    </div>
+
+    <div class="event-form">
+        <h3 style="margin-top:0;">创建赛事</h3>
+        <form id="competitionForm">
+            <div class="event-form-grid">
+                <div><input name="name" placeholder="赛事名称" required></div>
+                <div><input name="code" placeholder="赛事编码" required></div>
+                <div>
+                    <select name="level">
+                        <option th:each="level : ${levels}" th:value="${level.name()}" th:text="${level.name()}"></option>
+                    </select>
+                </div>
+                <div><input name="schoolYear" placeholder="学年，如 2025-2026"></div>
+                <div><input name="term" placeholder="学期，如 SECOND"></div>
+                <div><input name="registrationStartAt" placeholder="报名开始，例 2026-04-01T08:00:00"></div>
+                <div><input name="registrationEndAt" placeholder="报名截止，例 2026-04-15T18:00:00"></div>
+                <div><input name="competitionStartAt" placeholder="比赛开始，例 2026-05-01T08:00:00"></div>
+                <div><input name="competitionEndAt" placeholder="比赛结束，例 2026-05-03T18:00:00"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <textarea name="description" rows="3" placeholder="赛事说明"></textarea>
+            </div>
+            <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                <button type="submit" class="btn btn-primary">创建赛事</button>
+                <span id="createMsg" style="color:#6b7280;font-size:13px;"></span>
+            </div>
+        </form>
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>赛事名称</th>
+            <th>编码</th>
+            <th>级别</th>
+            <th>主办组织</th>
+            <th>状态</th>
+            <th>报名时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(competitions)}">
+            <td colspan="7" style="text-align:center;color:#6b7280;">暂无赛事数据</td>
+        </tr>
+        <tr th:each="c : ${competitions}">
+            <td th:text="${c.name}"></td>
+            <td th:text="${c.code}"></td>
+            <td th:text="${c.level}"></td>
+            <td th:text="${c.hostOrg != null ? c.hostOrg.name : '-'}"></td>
+            <td>
+                <span class="status-badge"
+                      th:classappend="${c.status.name() == 'DRAFT'} ? ' status-draft' :
+                                      (${c.status.name() == 'REGISTRATION_OPEN'} ? ' status-open' :
+                                      (${c.status.name() == 'UNDER_REVIEW'} ? ' status-review' :
+                                      (${c.status.name() == 'READY'} ? ' status-ready' : ' status-end')))"
+                      th:text="${c.status}"></span>
+            </td>
+            <td th:text="${c.registrationStartAt != null ? #temporals.format(c.registrationStartAt, 'yyyy-MM-dd HH:mm') : '-'} + ' ~ ' + ${c.registrationEndAt != null ? #temporals.format(c.registrationEndAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+            <td>
+                <a class="btn btn-secondary btn-sm" th:href="@{/admin/competitions/{id}(id=${c.id})}">详情</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<script>
+    document.getElementById('competitionForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        const res = await fetch('/api/admin/competition', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        const msg = document.getElementById('createMsg');
+        if (json.code === 200) {
+            msg.textContent = '创建成功，页面即将刷新';
+            window.location.reload();
+        } else {
+            msg.textContent = json.message || '创建失败';
+        }
+    });
+</script>
+</body>
+</html>
