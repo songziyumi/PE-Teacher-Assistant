@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,7 @@ public class CompetitionService {
         competition.setCompetitionStartAt(parseDateTime(body.get("competitionStartAt")));
         competition.setCompetitionEndAt(parseDateTime(body.get("competitionEndAt")));
         competition.setCreatedBy(teacher);
-        return competitionRepository.save(competition);
+        return competitionRepository.saveAndFlush(competition);
     }
 
     @Transactional
@@ -109,6 +111,13 @@ public class CompetitionService {
 
     private LocalDateTime parseDateTime(Object value) {
         String text = text(value);
-        return text == null ? null : LocalDateTime.parse(text);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(text);
+        } catch (DateTimeParseException ignored) {
+            return LocalDate.parse(text).atStartOfDay();
+        }
     }
 }

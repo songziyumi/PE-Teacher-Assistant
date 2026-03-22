@@ -35,6 +35,9 @@ public class CompetitionEvent {
     @Column(name = "max_entries_per_school")
     private Integer maxEntriesPerSchool;
 
+    @Column(name = "max_entries_per_grade")
+    private Integer maxEntriesPerGrade;
+
     @Column(name = "max_entries_per_district")
     private Integer maxEntriesPerDistrict;
 

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>组织管理员配置</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
+        .muted { color:#6b7280; font-size:13px; }
+        .form-grid { display:grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap:10px; align-items:end; }
+        .form-grid input { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; }
+        .type-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#eff6ff; color:#1d4ed8; }
+        .empty-state { text-align:center; color:#6b7280; padding:20px 12px; }
+        @media (max-width: 1100px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">体育教师助手</div>
+    <div class="nav-links">
+        <a th:href="@{/super-admin/schools}">学校管理</a>
+        <a th:href="@{/super-admin/org-admins}">组织管理员</a>
+        <span class="nav-user">超级管理员</span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="btn-link">退出</button>
+        </form>
+    </div>
+</nav>
+
+<div class="container">
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+    <div class="page-header">
+        <h2>组织管理员配置</h2>
+    </div>
+
+    <div class="panel">
+        <div class="muted">用于创建或重置市级、区县、学校三级 `ORG_ADMIN` 账号。底层权限由角色和 `managedOrg` 共同决定。</div>
+    </div>
+
+    <div class="panel">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>组织名称</th>
+                <th>组织类型</th>
+                <th>当前管理员</th>
+                <th>配置管理员账号</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(organizations)}">
+                <td colspan="4" class="empty-state">当前没有可配置的组织节点。</td>
+            </tr>
+            <tr th:each="org : ${organizations}">
+                <td>
+                    <div th:text="${org.name}"></div>
+                    <div class="muted" th:text="${org.code}"></div>
+                    <div class="muted" th:text="${org.fullName != null ? org.fullName : org.name}"></div>
+                </td>
+                <td><span class="type-badge" th:text="${org.type}"></span></td>
+                <td>
+                    <div th:if="${adminMap[org.id] != null}">
+                        <div th:text="${adminMap[org.id].name}"></div>
+                        <div class="muted" th:text="${adminMap[org.id].username}"></div>
+                    </div>
+                    <div th:if="${adminMap[org.id] == null}" class="muted">未配置</div>
+                </td>
+                <td>
+                    <form th:action="@{/super-admin/org-admins}" method="post" class="form-grid">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="orgId" th:value="${org.id}">
+                        <input name="username" placeholder="登录用户名" required>
+                        <input name="password" type="password" placeholder="密码，至少8位且含字母数字" required>
+                        <input name="name" th:placeholder="${org.name + '管理员'}">
+                        <input name="phone" placeholder="手机号，可选">
+                        <button type="submit" class="btn btn-primary">保存管理员</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

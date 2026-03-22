@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}">
     <title>赛事详情</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
@@ -75,28 +77,59 @@
         <form id="eventForm" class="form-inline">
             <input name="name" placeholder="项目名称" required>
             <input name="eventCode" placeholder="项目编码" required>
-            <input name="genderLimit" placeholder="性别限制，例如 MALE / FEMALE / MIXED">
-            <input name="teamOrIndividual" placeholder="INDIVIDUAL 或 TEAM" required>
-            <input name="groupRule" placeholder="分组规则">
-            <input name="maxEntriesPerSchool" placeholder="每校限报人数">
-            <input name="maxEntriesPerDistrict" placeholder="每区限报人数">
+            <select name="genderLimit">
+                <option value="">性别不限</option>
+                <option value="男子">男子</option>
+                <option value="女子">女子</option>
+                <option value="混合">混合</option>
+            </select>
+            <select name="teamOrIndividual" required>
+                <option value="">请选择项目类型</option>
+                <option value="个人">个人</option>
+                <option value="团体">团体</option>
+            </select>
+            <select id="groupRulePreset" onchange="applyGroupRulePreset(this.value)">
+                <option value="">选择分组规则模板</option>
+                <option value="七年级组">七年级组</option>
+                <option value="八年级组">八年级组</option>
+                <option value="九年级组">九年级组</option>
+                <option value="男子组">男子组</option>
+                <option value="女子组">女子组</option>
+                <option value="混合组">混合组</option>
+                <option value="不分组">不分组</option>
+                <option value="__custom__">自定义填写</option>
+            </select>
+            <input id="groupRuleInput" name="groupRule" placeholder="分组规则，例如 七年级组 / 八年级组 / 男子组 / 不分组">
+            <input name="maxEntriesPerGrade" th:if="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'}" placeholder="年级限报人数，可留空">
+            <input name="maxEntriesPerSchool" th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}" placeholder="每校限报人数，可留空">
+            <input name="maxEntriesPerDistrict" th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}" placeholder="每区限报人数，可留空">
             <div class="row-actions">
-                <input name="sortOrder" placeholder="排序" value="10">
+                <input name="sortOrder" placeholder="显示顺序，数字越小越靠前" value="10">
                 <button type="submit" class="btn btn-primary">新增项目</button>
             </div>
         </form>
-        <div class="helper-text">项目创建后会直接出现在报名和成绩录入中，请优先确认项目编码、报名上限和分组规则。</div>
+        <div class="helper-text" th:if="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'}">学校赛事下，性别和项目类型都可以直接选中文，不需要填写英文。分组规则建议写成“七年级组”“八年级组”“男子组”等。学校赛事默认不显示“每区限报人数”，年级限报人数可以留空。</div>
+        <div class="helper-text" th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}">项目创建后会直接出现在报名和成绩录入中。性别和项目类型可以直接选中文；区县、市级赛事可按需要填写每校和每区限报人数。</div>
         <table class="table">
-            <thead><tr><th>项目</th><th>编码</th><th>性别</th><th>类型</th><th>每校限报</th><th>每区限报</th></tr></thead>
+            <thead>
+            <tr>
+                <th>项目</th>
+                <th>编码</th>
+                <th>性别</th>
+                <th>类型</th>
+                <th th:text="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? '年级限报' : '每校限报'">每校限报</th>
+                <th th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}">每区限报</th>
+            </tr>
+            </thead>
             <tbody>
-            <tr th:if="${#lists.isEmpty(events)}"><td colspan="6" class="empty-state">当前赛事还没有项目，请先创建至少一个比赛项目。</td></tr>
+            <tr th:if="${#lists.isEmpty(events)}"><td th:colspan="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? 5 : 6" class="empty-state">当前赛事还没有项目，请先创建至少一个比赛项目。</td></tr>
             <tr th:each="event : ${events}">
                 <td th:text="${event.name}"></td>
                 <td th:text="${event.eventCode}"></td>
                 <td th:text="${event.genderLimit != null ? event.genderLimit : '-'}"></td>
                 <td th:text="${event.teamOrIndividual}"></td>
-                <td th:text="${event.maxEntriesPerSchool != null ? event.maxEntriesPerSchool : '-'}"></td>
-                <td th:text="${event.maxEntriesPerDistrict != null ? event.maxEntriesPerDistrict : '-'}"></td>
+                <td th:text="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? ${event.maxEntriesPerGrade != null ? event.maxEntriesPerGrade : '-'} : ${event.maxEntriesPerSchool != null ? event.maxEntriesPerSchool : '-'}"></td>
+                <td th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}" th:text="${event.maxEntriesPerDistrict != null ? event.maxEntriesPerDistrict : '-'}"></td>
             </tr>
             </tbody>
         </table>
@@ -254,7 +287,19 @@
 
     async function requestJson(url, options) {
         try {
+            options = options || {};
+            const headers = Object.assign({}, options.headers || {});
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+            if (csrfToken && csrfHeader) {
+                headers[csrfHeader] = csrfToken;
+            }
+            options.headers = headers;
             const response = await fetch(url, options);
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                return { code: response.status || 500, message: '接口未返回JSON，请检查登录状态或服务端异常' };
+            }
             const json = await response.json().catch(function () { return null; });
             if (json) {
                 return json;
@@ -284,10 +329,26 @@
         switchTab(activeTab, activeButton);
     }
 
+    function applyGroupRulePreset(value) {
+        const input = document.getElementById('groupRuleInput');
+        if (!input) {
+            return;
+        }
+        if (!value) {
+            input.value = '';
+            return;
+        }
+        if (value === '__custom__') {
+            input.focus();
+            return;
+        }
+        input.value = value;
+    }
+
     document.getElementById('eventForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target).entries());
-        const json = await requestJson(window.location.pathname + '/events', {
+        const json = await requestJson('/api/admin/competition/' + competitionId + '/events', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -323,7 +384,7 @@
     }
 
     async function createRegistration() {
-        const json = await requestJson(window.location.pathname + '/registrations', {
+        const json = await requestJson('/api/admin/competition/' + competitionId + '/registrations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ remark: '页面创建' })
@@ -401,7 +462,7 @@
     document.getElementById('resultForm')?.addEventListener('submit', async function (e) {
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target).entries());
-        const json = await requestJson(window.location.pathname + '/results', {
+        const json = await requestJson('/api/admin/competition/' + competitionId + '/results', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -431,7 +492,7 @@
         if (!window.confirm(confirmText)) {
             return;
         }
-        const json = await requestJson(window.location.pathname + '/results/publish', {
+        const json = await requestJson('/api/admin/competition/' + competitionId + '/results/publish', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(eventId ? { eventId: eventId } : {})

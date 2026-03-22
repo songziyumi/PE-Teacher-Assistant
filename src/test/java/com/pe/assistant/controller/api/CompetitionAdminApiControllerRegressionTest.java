@@ -143,18 +143,20 @@ class CompetitionAdminApiControllerRegressionTest {
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
         when(competitionService.requireVisible(eq(teacher), eq(41L))).thenReturn(competition);
         when(competitionEventService.create(eq(competition), anyMap())).thenReturn(event);
-        when(competitionEventService.toMap(eq(event))).thenReturn(Map.of("id", 9L, "name", "run-100m"));
+        when(competitionEventService.toMap(eq(event))).thenReturn(Map.of("id", 9L, "name", "run-100m", "maxEntriesPerGrade", 3));
 
         mockMvc.perform(post("/api/admin/competition/41/events")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "run-100m",
-                                "eventCode", "RUN100"
+                                "eventCode", "RUN100",
+                                "maxEntriesPerGrade", 3
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(9))
-                .andExpect(jsonPath("$.data.name").value("run-100m"));
+                .andExpect(jsonPath("$.data.name").value("run-100m"))
+                .andExpect(jsonPath("$.data.maxEntriesPerGrade").value(3));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.pe.assistant.service;
 
+import com.pe.assistant.entity.Organization;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.SchoolClassRepository;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -37,6 +39,16 @@ public class TeacherService {
         return teacherRepository.findByUsername(username).orElse(null);
     }
 
+    public Teacher findOrgAdminByManagedOrg(Long managedOrgId) {
+        if (managedOrgId == null) {
+            return null;
+        }
+        return teacherRepository.findByManagedOrgId(managedOrgId).stream()
+                .filter(t -> "ORG_ADMIN".equals(t.getRole()))
+                .findFirst()
+                .orElse(null);
+    }
+
     @Transactional
     public Teacher create(String username, String name, String rawPassword, String role, String phone, School school) {
         if (teacherRepository.existsByUsername(username)) {
@@ -50,6 +62,46 @@ public class TeacherService {
         t.setPhone(phone);
         t.setSchool(school);
         return teacherRepository.save(t);
+    }
+
+    @Transactional
+    public Teacher createOrResetOrgAdmin(String username,
+                                         String rawPassword,
+                                         String name,
+                                         String phone,
+                                         Organization managedOrg) {
+        if (managedOrg == null || managedOrg.getId() == null) {
+            throw new IllegalArgumentException("组织节点不能为空");
+        }
+        if (rawPassword == null || !rawPassword.matches("^(?=.*[a-zA-Z])(?=.*\\d).{8,}$")) {
+            throw new IllegalArgumentException("密码至少8位，且需同时包含字母和数字");
+        }
+
+        Teacher existing = teacherRepository.findByUsername(username).orElse(null);
+        if (existing != null && (existing.getManagedOrg() == null || !managedOrg.getId().equals(existing.getManagedOrg().getId()) || !"ORG_ADMIN".equals(existing.getRole()))) {
+            throw new IllegalArgumentException("用户名已存在，请使用新的组织管理员用户名，避免覆盖现有学校管理员或教师账号");
+        }
+
+        Teacher teacher = existing != null ? existing : new Teacher();
+
+        Teacher oldAdmin = findOrgAdminByManagedOrg(managedOrg.getId());
+        if (oldAdmin != null) {
+            boolean sameTeacher = teacher.getId() != null && oldAdmin.getId().equals(teacher.getId());
+            boolean sameUsername = oldAdmin.getUsername() != null && oldAdmin.getUsername().equals(username);
+            if (!sameTeacher && !sameUsername) {
+                oldAdmin.setRole("TEACHER");
+                teacherRepository.save(oldAdmin);
+            }
+        }
+
+        teacher.setUsername(username);
+        teacher.setPassword(passwordEncoder.encode(rawPassword));
+        teacher.setName(name == null || name.isBlank() ? managedOrg.getName() + "管理员" : name.trim());
+        teacher.setPhone(phone);
+        teacher.setRole("ORG_ADMIN");
+        teacher.setManagedOrg(managedOrg);
+        teacher.setSchool(null);
+        return teacherRepository.save(teacher);
     }
 
     @Transactional

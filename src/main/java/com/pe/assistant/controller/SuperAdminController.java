@@ -1,14 +1,26 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.entity.Organization;
+import com.pe.assistant.entity.OrganizationType;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.service.OrganizationService;
 import com.pe.assistant.service.SchoolService;
+import com.pe.assistant.service.TeacherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/super-admin")
@@ -16,6 +28,8 @@ import java.util.List;
 public class SuperAdminController {
 
     private final SchoolService schoolService;
+    private final OrganizationService organizationService;
+    private final TeacherService teacherService;
 
     @GetMapping
     public String index() {
@@ -26,14 +40,53 @@ public class SuperAdminController {
     public String schools(Model model) {
         List<School> schools = schoolService.findAll();
         model.addAttribute("schools", schools);
-        // 每个学校的管理员
-        java.util.Map<Long, Teacher> adminMap = new java.util.HashMap<>();
+        Map<Long, Teacher> adminMap = new HashMap<>();
         for (School s : schools) {
             Teacher admin = schoolService.findAdminBySchool(s);
-            if (admin != null) adminMap.put(s.getId(), admin);
+            if (admin != null) {
+                adminMap.put(s.getId(), admin);
+            }
         }
         model.addAttribute("adminMap", adminMap);
         return "super-admin/schools";
+    }
+
+    @GetMapping("/org-admins")
+    public String orgAdmins(Model model) {
+        List<Organization> organizations = new ArrayList<>();
+        organizations.addAll(organizationService.findByType(OrganizationType.CITY));
+        organizations.addAll(organizationService.findByType(OrganizationType.DISTRICT));
+        organizations.addAll(organizationService.findByType(OrganizationType.SCHOOL));
+
+        Map<Long, Teacher> adminMap = new HashMap<>();
+        for (Organization org : organizations) {
+            Teacher admin = teacherService.findOrgAdminByManagedOrg(org.getId());
+            if (admin != null) {
+                adminMap.put(org.getId(), admin);
+            }
+        }
+
+        model.addAttribute("organizations", organizations);
+        model.addAttribute("adminMap", adminMap);
+        return "super-admin/org-admins";
+    }
+
+    @PostMapping("/org-admins")
+    public String createOrgAdmin(@RequestParam Long orgId,
+                                 @RequestParam String username,
+                                 @RequestParam String password,
+                                 @RequestParam(required = false) String name,
+                                 @RequestParam(required = false) String phone,
+                                 RedirectAttributes ra) {
+        try {
+            Organization org = organizationService.findById(orgId)
+                    .orElseThrow(() -> new IllegalArgumentException("组织节点不存在"));
+            teacherService.createOrResetOrgAdmin(username, password, name, phone, org);
+            ra.addFlashAttribute("success", "组织管理员账号已创建或重置");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/super-admin/org-admins";
     }
 
     @GetMapping("/schools/add")
