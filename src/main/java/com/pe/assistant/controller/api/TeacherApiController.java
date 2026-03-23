@@ -695,11 +695,12 @@ public class TeacherApiController {
     public ApiResponse<Map<Long, String>> attendance(@RequestParam Long classId,
                                                       @RequestParam String date) {
         LocalDate d = LocalDate.parse(date);
+        School school = currentUserService.getCurrentSchool();
         SchoolClass sc = classService.findById(classId);
         List<Attendance> records;
         if (isElectiveType(sc.getType())) {
             String electiveClassName = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
-            records = attendanceService.findByElectiveClassAndDate(electiveClassName, d);
+            records = attendanceService.findByElectiveClassAndDate(school, electiveClassName, d);
         } else {
             records = attendanceService.findByClassAndDate(classId, d);
         }
