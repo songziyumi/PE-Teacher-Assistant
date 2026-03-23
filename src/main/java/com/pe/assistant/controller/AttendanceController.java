@@ -42,7 +42,7 @@ public class AttendanceController {
         if (isElective) {
             String elName = electiveName(sc);
             students = studentService.findByElectiveClassForTeacher(school, elName);
-            existing = attendanceService.findByElectiveClassAndDate(elName, date);
+            existing = attendanceService.findByElectiveClassAndDate(school, elName, date);
         } else {
             students = studentService.findByClassIdForTeacher(school, classId);
             existing = attendanceService.findByClassAndDate(classId, date);
@@ -72,7 +72,7 @@ public class AttendanceController {
         if (date == null) date = LocalDate.now();
         School school = currentUserService.getCurrentSchool();
         List<Student> students = studentService.findByElectiveClassForTeacher(school, name);
-        List<Attendance> existing = attendanceService.findByElectiveClassAndDate(name, date);
+        List<Attendance> existing = attendanceService.findByElectiveClassAndDate(school, name, date);
         Map<Long, String> statusMap = new HashMap<>();
         for (Attendance a : existing) statusMap.put(a.getStudent().getId(), a.getStatus());
         model.addAttribute("classTitle", "选修课：" + name);

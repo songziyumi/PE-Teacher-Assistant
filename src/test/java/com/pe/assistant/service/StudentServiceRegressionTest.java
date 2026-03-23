@@ -20,9 +20,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -167,5 +169,22 @@ class StudentServiceRegressionTest {
 
         assertEquals("该学生已被其他设备修改，请刷新后重试", error.getMessage());
         verify(studentRepository, never()).save(any());
+    }
+    @Test
+    void findByElectiveClassForTeacherShouldRestrictToCurrentSchool() {
+        School school = new School();
+        school.setId(1L);
+        Student student = new Student();
+        student.setId(10L);
+        student.setSchool(school);
+
+        when(studentRepository.findBySchoolAndElectiveClassOrderByStudentNo(school, "高三/飞盘班"))
+                .thenReturn(List.of(student));
+
+        List<Student> result = studentService.findByElectiveClassForTeacher(school, "高三/飞盘班");
+
+        assertEquals(1, result.size());
+        assertSame(student, result.get(0));
+        verify(studentRepository, never()).findByElectiveClassOrderByStudentNo("高三/飞盘班");
     }
 }
