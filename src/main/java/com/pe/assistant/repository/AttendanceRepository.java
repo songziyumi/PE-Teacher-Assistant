@@ -40,6 +40,11 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a WHERE a.student.electiveClass = :name AND a.date = :date")
     List<Attendance> findByElectiveClassAndDate(@Param("name") String name, @Param("date") LocalDate date);
 
+    @Query("SELECT a FROM Attendance a WHERE a.student.school = :school AND a.student.electiveClass = :name AND a.date = :date")
+    List<Attendance> findBySchoolAndElectiveClassAndDate(@Param("school") School school,
+                                                         @Param("name") String name,
+                                                         @Param("date") LocalDate date);
+
     @Query("SELECT a FROM Attendance a WHERE a.student.electiveClass IN :names AND a.date = :date")
     List<Attendance> findByElectiveClassInAndDate(@Param("names") List<String> names, @Param("date") LocalDate date);
 
