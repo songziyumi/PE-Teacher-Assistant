@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,6 +93,14 @@ public class CourseService {
         }
 
         Course course = findById(courseId);
+        boolean duplicatedInOtherPreference = selectionRepo.findByEventAndStudent(event, student).stream()
+                .filter(existing -> existing.getPreference() != preference)
+                .anyMatch(existing -> existing.getCourse() != null
+                        && courseId.equals(existing.getCourse().getId())
+                        && !"CANCELLED".equals(existing.getStatus()));
+        if (duplicatedInOtherPreference) {
+            throw new RuntimeException("同一课程不能同时填报为第一志愿和第二志愿");
+        }
         if (!"ACTIVE".equals(course.getStatus())) {
             throw new RuntimeException("该课程当前不可选");
         }
@@ -295,6 +304,14 @@ public class CourseService {
 
     public List<CourseSelection> findEnrollments(Course course) {
         return selectionRepo.findByCourseOrderBySelectedAtAsc(course);
+    }
+
+    public List<CourseSelection> findConfirmedUniqueEnrollments(Course course) {
+        LinkedHashMap<Long, CourseSelection> uniqueSelections = new LinkedHashMap<>();
+        for (CourseSelection selection : selectionRepo.findByCourseAndStatusOrderBySelectedAtAsc(course, "CONFIRMED")) {
+            uniqueSelections.putIfAbsent(selection.getStudent().getId(), selection);
+        }
+        return List.copyOf(uniqueSelections.values());
     }
 
     public List<CourseSelection> findMySelections(Student student, SelectionEvent event) {

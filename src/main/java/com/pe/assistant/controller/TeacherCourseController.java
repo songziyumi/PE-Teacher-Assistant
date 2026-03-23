@@ -51,7 +51,7 @@ public class TeacherCourseController {
         Course course = courseService.findById(courseId);
         model.addAttribute("event", event);
         model.addAttribute("course", course);
-        model.addAttribute("enrollments", courseService.findEnrollments(course));
+        model.addAttribute("enrollments", courseService.findConfirmedUniqueEnrollments(course));
         return "teacher/course-enrollments";
     }
 }
