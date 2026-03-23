@@ -97,9 +97,13 @@ public class LotteryService {
         // 分离 1志愿 和 2志愿
         List<CourseSelection> pref1 = allPending.stream()
                 .filter(cs -> cs.getPreference() == 1).collect(Collectors.toList());
+        Set<Long> pref1StudentIds = pref1.stream()
+                .map(cs -> cs.getStudent().getId())
+                .collect(Collectors.toSet());
         List<CourseSelection> pref2 = allPending.stream()
                 .filter(cs -> cs.getPreference() == 2
-                        && !confirmedStudentIds.contains(cs.getStudent().getId()))
+                        && !confirmedStudentIds.contains(cs.getStudent().getId())
+                        && !pref1StudentIds.contains(cs.getStudent().getId()))
                 .collect(Collectors.toList());
 
         int capacity = course.getTotalCapacity();
@@ -134,7 +138,8 @@ public class LotteryService {
         // 被排除的已确认学生的 2志愿直接标 CANCELLED（他们已有 1志愿）
         allPending.stream()
                 .filter(cs -> cs.getPreference() == 2
-                        && confirmedStudentIds.contains(cs.getStudent().getId())
+                        && (confirmedStudentIds.contains(cs.getStudent().getId())
+                        || pref1StudentIds.contains(cs.getStudent().getId()))
                         && "PENDING".equals(cs.getStatus()))
                 .forEach(cs -> {
                     cs.setStatus("CANCELLED");
@@ -160,9 +165,13 @@ public class LotteryService {
 
             List<CourseSelection> pref1 = allPending.stream()
                     .filter(cs -> cs.getPreference() == 1).collect(Collectors.toList());
+            Set<Long> pref1StudentIds = pref1.stream()
+                    .map(cs -> cs.getStudent().getId())
+                    .collect(Collectors.toSet());
             List<CourseSelection> pref2 = allPending.stream()
                     .filter(cs -> cs.getPreference() == 2
-                            && !confirmedStudentIds.contains(cs.getStudent().getId()))
+                            && !confirmedStudentIds.contains(cs.getStudent().getId())
+                            && !pref1StudentIds.contains(cs.getStudent().getId()))
                     .collect(Collectors.toList());
 
             Collections.shuffle(pref1);
@@ -195,7 +204,8 @@ public class LotteryService {
             // 标记被排除的 2志愿
             allPending.stream()
                     .filter(cs -> cs.getPreference() == 2
-                            && confirmedStudentIds.contains(cs.getStudent().getId())
+                            && (confirmedStudentIds.contains(cs.getStudent().getId())
+                            || pref1StudentIds.contains(cs.getStudent().getId()))
                             && "PENDING".equals(cs.getStatus()))
                     .forEach(cs -> {
                         cs.setStatus("CANCELLED");

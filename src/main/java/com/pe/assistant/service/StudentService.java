@@ -130,6 +130,13 @@ public class StudentService {
         return studentRepository.findByElectiveClassOrderByStudentNo(electiveClass);
     }
 
+    public List<Student> findByElectiveClass(School school, String electiveClass) {
+        if (school == null) {
+            return findByElectiveClass(electiveClass);
+        }
+        return studentRepository.findBySchoolAndElectiveClassOrderByStudentNo(school, electiveClass);
+    }
+
     public List<Student> findByElectiveClassIn(List<String> names) {
         return studentRepository.findByElectiveClassInOrderByStudentNo(names);
     }
@@ -155,7 +162,7 @@ public class StudentService {
     }
 
     public List<Student> findByElectiveClassForTeacher(School school, String electiveClass) {
-        return filterVisibleForTeacher(school, findByElectiveClass(electiveClass));
+        return filterVisibleForTeacher(school, findByElectiveClass(school, electiveClass));
     }
 
     /** 学生名单 xlsx 导出 */

@@ -89,6 +89,13 @@ public class AttendanceService {
         return attendanceRepository.findByElectiveClassAndDate(name, date);
     }
 
+    public List<Attendance> findByElectiveClassAndDate(School school, String name, LocalDate date) {
+        if (school == null) {
+            return findByElectiveClassAndDate(name, date);
+        }
+        return attendanceRepository.findBySchoolAndElectiveClassAndDate(school, name, date);
+    }
+
     public List<Attendance> findByElectiveClassInAndDate(List<String> names, LocalDate date) {
         return attendanceRepository.findByElectiveClassInAndDate(names, date);
     }
