@@ -45,6 +45,10 @@ public class AdminController {
     // ===== Dashboard =====
     @GetMapping
     public String adminDashboard(Model model, HttpSession session) {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        if (teacher != null && "ORG_ADMIN".equals(teacher.getRole())) {
+            return "redirect:/admin/competitions";
+        }
         School school = currentUserService.getCurrentSchool();
         model.addAttribute("teacherCount", teacherService.findAll(school).size());
         model.addAttribute("classCount", classService.findAll(school).size());

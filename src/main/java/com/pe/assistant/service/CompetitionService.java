@@ -25,15 +25,17 @@ public class CompetitionService {
         if (managedOrg == null || managedOrg.getId() == null) {
             return List.of();
         }
-        List<Long> orgIds = organizationScopeService.listOrgIdsInSubtree(managedOrg, null).stream().toList();
-        return competitionRepository.findByHostOrgIdInOrderByCreatedAtDesc(orgIds);
+        return competitionRepository.findAll().stream()
+                .filter(c -> isVisibleToOrg(managedOrg, c.getHostOrg()))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .toList();
     }
 
     public Competition requireVisible(Teacher teacher, Long competitionId) {
         Competition competition = competitionRepository.findById(competitionId)
                 .orElseThrow(() -> new IllegalArgumentException("赛事不存在"));
         Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
-        if (managedOrg == null || !organizationScopeService.containsOrg(managedOrg, competition.getHostOrg())) {
+        if (managedOrg == null || !isVisibleToOrg(managedOrg, competition.getHostOrg())) {
             throw new IllegalArgumentException("无权查看该赛事");
         }
         return competition;
@@ -80,6 +82,14 @@ public class CompetitionService {
         CompetitionStatus status = CompetitionStatus.valueOf(targetStatus);
         competition.setStatus(status);
         return competitionRepository.save(competition);
+    }
+
+    private boolean isVisibleToOrg(Organization managedOrg, Organization hostOrg) {
+        if (managedOrg == null || hostOrg == null) {
+            return false;
+        }
+        return organizationScopeService.containsOrg(managedOrg, hostOrg)
+                || organizationScopeService.containsOrg(hostOrg, managedOrg);
     }
 
     public Map<String, Object> toMap(Competition competition) {
