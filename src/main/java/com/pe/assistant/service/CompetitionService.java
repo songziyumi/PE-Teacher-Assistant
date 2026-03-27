@@ -1,6 +1,10 @@
 package com.pe.assistant.service;
 
-import com.pe.assistant.entity.*;
+import com.pe.assistant.entity.Competition;
+import com.pe.assistant.entity.CompetitionLevel;
+import com.pe.assistant.entity.CompetitionStatus;
+import com.pe.assistant.entity.Organization;
+import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.CompetitionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -79,6 +83,11 @@ public class CompetitionService {
     @Transactional
     public Competition updateStatus(Teacher teacher, Long competitionId, String targetStatus) {
         Competition competition = requireVisible(teacher, competitionId);
+        Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
+        if (managedOrg == null || competition.getHostOrg() == null
+                || !managedOrg.getId().equals(competition.getHostOrg().getId())) {
+            throw new IllegalArgumentException("Only host organization can update competition status");
+        }
         CompetitionStatus status = CompetitionStatus.valueOf(targetStatus);
         competition.setStatus(status);
         return competitionRepository.save(competition);
