@@ -106,6 +106,7 @@ public class AdminCompetitionPageController {
 
         model.addAttribute("activeTab", normalizeTab(tab));
         model.addAttribute("selectedEventId", eventId);
+        model.addAttribute("canManageCompetition", competitionService.canManageCompetition(teacher, competition));
         model.addAttribute("canCreateRegistration", currentUserService.getCurrentSchool() != null);
         model.addAttribute("canReviewAsDistrict", managedOrgType == OrganizationType.DISTRICT);
         model.addAttribute("canReviewAsCity", managedOrgType == OrganizationType.CITY);

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -51,19 +51,20 @@
         <div class="meta-list">
             <div class="muted">赛事编码：<span th:text="${competition.code}"></span></div>
             <div class="muted">赛事级别：<span th:text="${competition.level}"></span></div>
-            <div class="muted">当前状态：<span th:text="${competition.status}"></span></div>
+            <div class="muted">当前状态：<span th:text="${competition.status.label}"></span></div>
             <div class="muted">主办组织：<span th:text="${competition.hostOrg != null ? competition.hostOrg.name : '-'}"></span></div>
             <div class="muted">当前管理视角：<span th:text="${managedOrgType != null ? managedOrgType.name() : 'SCHOOL'}"></span></div>
         </div>
-        <div class="row-actions" style="margin-top:10px;">
+        <div class="row-actions" style="margin-top:10px;" th:if="${canManageCompetition}">
             <select id="competitionStatusSelect">
                 <option value="">切换状态</option>
-                <option th:each="statusOption : ${competitionStatuses}" th:value="${statusOption.name()}" th:text="${statusOption.name()}"></option>
+                <option th:each="statusOption : ${competitionStatuses}" th:value="${statusOption.name()}" th:text="${statusOption.label}"></option>
             </select>
             <button class="btn btn-secondary" type="button" onclick="changeCompetitionStatus()">更新状态</button>
             <span id="pageMsg" class="message"></span>
         </div>
-        <div class="helper-text">页面支持项目配置、报名查看与成绩录入。联调时请重点关注不同组织视角下的按钮显示。</div>
+        <div class="helper-text" th:if="${canManageCompetition}">页面支持项目配置、报名查看与成绩录入。联调时请重点关注不同组织视角下的按钮显示。</div>
+        <div class="helper-text" th:if="${!canManageCompetition}">当前账号对该赛事为只读视角，可查看详情、报名和成绩，但不能修改赛事状态或项目配置。</div>
     </div>
 
     <div class="tabs">
@@ -74,7 +75,7 @@
 
     <div id="events" class="tab-pane section" th:classappend="${activeTab == 'events'} ? ' active'">
         <h3 style="margin-top:0;">比赛项目</h3>
-        <form id="eventForm" class="form-inline">
+        <form id="eventForm" class="form-inline" th:if="${canManageCompetition}">
             <input name="name" placeholder="项目名称" required>
             <input name="eventCode" placeholder="项目编码" required>
             <select name="genderLimit">
@@ -108,8 +109,9 @@
                 <button type="submit" class="btn btn-primary">新增项目</button>
             </div>
         </form>
-        <div class="helper-text" th:if="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'}">学校赛事下，性别和项目类型都可以直接选中文，不需要填写英文。分组规则建议写成“七年级组”“八年级组”“男子组”等。学校赛事默认不显示“每区限报人数”，年级限报人数可以留空。</div>
-        <div class="helper-text" th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}">项目创建后会直接出现在报名和成绩录入中。性别和项目类型可以直接选中文；区县、市级赛事可按需要填写每校和每区限报人数。</div>
+        <div class="helper-text" th:if="${canManageCompetition and competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'}">学校赛事下，性别和项目类型都可以直接选中文，不需要填写英文。分组规则建议写成“七年级组”“八年级组”“男子组”等。学校赛事默认不显示“每区限报人数”，年级限报人数可以留空。</div>
+        <div class="helper-text" th:if="${canManageCompetition and (competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL')}">项目创建后会直接出现在报名和成绩录入中。性别和项目类型可以直接选中文；区县、市级赛事可按需要填写每校和每区限报人数。</div>
+        <div class="helper-text" th:if="${!canManageCompetition}">当前视角不能新增或调整比赛项目，仅可查看现有项目配置。</div>
         <table class="table">
             <thead>
             <tr>
@@ -122,13 +124,15 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:if="${#lists.isEmpty(events)}"><td th:colspan="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? 5 : 6" class="empty-state">当前赛事还没有项目，请先创建至少一个比赛项目。</td></tr>
+            <tr th:if="${#lists.isEmpty(events)}">
+                <td th:colspan="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? 5 : 6" class="empty-state">当前赛事还没有项目，请先创建至少一个比赛项目。</td>
+            </tr>
             <tr th:each="event : ${events}">
                 <td th:text="${event.name}"></td>
                 <td th:text="${event.eventCode}"></td>
                 <td th:text="${event.genderLimit != null ? event.genderLimit : '-'}"></td>
                 <td th:text="${event.teamOrIndividual}"></td>
-                <td th:text="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL'} ? ${event.maxEntriesPerGrade != null ? event.maxEntriesPerGrade : '-'} : ${event.maxEntriesPerSchool != null ? event.maxEntriesPerSchool : '-'}"></td>
+                <td th:text="${competition.hostOrg != null and competition.hostOrg.type != null and competition.hostOrg.type.name() == 'SCHOOL' ? (event.maxEntriesPerGrade != null ? event.maxEntriesPerGrade : '-') : (event.maxEntriesPerSchool != null ? event.maxEntriesPerSchool : '-')}"></td>
                 <td th:if="${competition.hostOrg == null or competition.hostOrg.type == null or competition.hostOrg.type.name() != 'SCHOOL'}" th:text="${event.maxEntriesPerDistrict != null ? event.maxEntriesPerDistrict : '-'}"></td>
             </tr>
             </tbody>
@@ -216,7 +220,7 @@
                         <div th:if="${#lists.isEmpty(approvalRecords)}" class="muted">当前还没有审批记录。</div>
                         <div th:each="record : ${approvalRecords}" class="muted" style="margin-bottom:8px;">
                             <div><span th:text="${record.approvalLevel}"></span> / <span th:text="${record.decision}"></span></div>
-                            <div th:text="${record.approverName != null ? record.approverName : '-'} + ' / ' + ${record.approverOrgName != null ? record.approverOrgName : '-'}"></div>
+                            <div th:text="${(record.approverName != null ? record.approverName : '-') + ' / ' + (record.approverOrgName != null ? record.approverOrgName : '-')}"></div>
                             <div th:text="${record.comment != null ? record.comment : '无备注'}"></div>
                         </div>
                     </div>
@@ -363,9 +367,10 @@
 
     async function changeCompetitionStatus() {
         const select = document.getElementById('competitionStatusSelect');
-        if (!select.value) return;
+        if (!select || !select.value) return;
         const targetStatus = select.value;
-        if (!window.confirm('确认将赛事状态切换为 ' + targetStatus + ' 吗？')) {
+        const statusLabel = select.options[select.selectedIndex].text;
+        if (!window.confirm('确认将赛事状态切换为 ' + statusLabel + ' 吗？')) {
             select.value = '';
             return;
         }

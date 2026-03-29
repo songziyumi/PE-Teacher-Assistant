@@ -37,10 +37,18 @@ public class CompetitionService {
 
     public Competition requireVisible(Teacher teacher, Long competitionId) {
         Competition competition = competitionRepository.findById(competitionId)
-                .orElseThrow(() -> new IllegalArgumentException("赛事不存在"));
+                .orElseThrow(() -> new IllegalArgumentException("Competition not found"));
         Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
         if (managedOrg == null || !isVisibleToOrg(managedOrg, competition.getHostOrg())) {
-            throw new IllegalArgumentException("无权查看该赛事");
+            throw new IllegalArgumentException("No permission to view this competition");
+        }
+        return competition;
+    }
+
+    public Competition requireHostManaged(Teacher teacher, Long competitionId) {
+        Competition competition = requireVisible(teacher, competitionId);
+        if (!canManageCompetition(teacher, competition)) {
+            throw new IllegalArgumentException("Only host organization can maintain this competition");
         }
         return competition;
     }
@@ -49,17 +57,17 @@ public class CompetitionService {
     public Competition create(Teacher teacher, Map<String, Object> body) {
         Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
         if (managedOrg == null) {
-            throw new IllegalArgumentException("当前管理员未绑定组织范围");
+            throw new IllegalArgumentException("Current manager is not bound to any organization");
         }
 
         String name = text(body.get("name"));
         String code = text(body.get("code"));
         String level = text(body.get("level"));
         if (name == null || code == null || level == null) {
-            throw new IllegalArgumentException("赛事名称、编码、级别不能为空");
+            throw new IllegalArgumentException("Competition name, code and level are required");
         }
         if (competitionRepository.existsByCode(code)) {
-            throw new IllegalArgumentException("赛事编码已存在");
+            throw new IllegalArgumentException("Competition code already exists");
         }
 
         Competition competition = new Competition();
@@ -82,15 +90,20 @@ public class CompetitionService {
 
     @Transactional
     public Competition updateStatus(Teacher teacher, Long competitionId, String targetStatus) {
-        Competition competition = requireVisible(teacher, competitionId);
-        Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
-        if (managedOrg == null || competition.getHostOrg() == null
-                || !managedOrg.getId().equals(competition.getHostOrg().getId())) {
-            throw new IllegalArgumentException("Only host organization can update competition status");
-        }
+        Competition competition = requireHostManaged(teacher, competitionId);
         CompetitionStatus status = CompetitionStatus.valueOf(targetStatus);
         competition.setStatus(status);
         return competitionRepository.save(competition);
+    }
+
+    public boolean canManageCompetition(Teacher teacher, Competition competition) {
+        if (competition == null || competition.getHostOrg() == null || competition.getHostOrg().getId() == null) {
+            return false;
+        }
+        Organization managedOrg = organizationScopeService.resolveManagedOrg(teacher);
+        return managedOrg != null
+                && managedOrg.getId() != null
+                && managedOrg.getId().equals(competition.getHostOrg().getId());
     }
 
     private boolean isVisibleToOrg(Organization managedOrg, Organization hostOrg) {

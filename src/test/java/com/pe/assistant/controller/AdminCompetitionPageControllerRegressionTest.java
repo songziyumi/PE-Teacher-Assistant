@@ -2,6 +2,8 @@ package com.pe.assistant.controller;
 
 import com.pe.assistant.entity.Competition;
 import com.pe.assistant.entity.CompetitionLevel;
+import com.pe.assistant.entity.CompetitionRegistration;
+import com.pe.assistant.entity.CompetitionRegistrationStatus;
 import com.pe.assistant.entity.CompetitionStatus;
 import com.pe.assistant.entity.Organization;
 import com.pe.assistant.entity.OrganizationType;
@@ -90,6 +92,7 @@ class AdminCompetitionPageControllerRegressionTest {
         when(currentUserService.getCurrentManagedOrg()).thenReturn(managedOrg);
         when(currentUserService.getCurrentSchool()).thenReturn(school);
         when(competitionService.requireVisible(eq(teacher), eq(8L))).thenReturn(competition);
+        when(competitionService.canManageCompetition(eq(teacher), eq(competition))).thenReturn(true);
         when(competitionEventService.listByCompetition(8L)).thenReturn(List.of());
         when(competitionRegistrationService.listVisibleByCompetition(eq(teacher), eq(8L))).thenReturn(List.of());
         when(competitionResultService.listResults(eq(teacher), eq(8L), eq(6L))).thenReturn(List.of());
@@ -103,10 +106,43 @@ class AdminCompetitionPageControllerRegressionTest {
                 .andExpect(view().name("admin/competition-detail"))
                 .andExpect(model().attribute("activeTab", "results"))
                 .andExpect(model().attribute("selectedEventId", 6L))
+                .andExpect(model().attribute("canManageCompetition", true))
                 .andExpect(model().attribute("canReviewAsCity", true))
                 .andExpect(model().attribute("canReviewAsDistrict", false))
                 .andExpect(model().attribute("canCreateRegistration", true))
                 .andExpect(model().attribute("canEnterResults", true));
+    }
+
+    @Test
+    void competitionDetailShouldExposeSelectedDistrictApprovedRegistrationForCityReview() throws Exception {
+        Teacher teacher = buildTeacherWithoutSchool();
+        Organization managedOrg = buildOrg(OrganizationType.CITY, "city");
+        Competition competition = buildCompetition(18L, "city-finals", "CITY-2026", CompetitionLevel.CITY, CompetitionStatus.UNDER_REVIEW);
+        CompetitionRegistration registration = new CompetitionRegistration();
+        registration.setId(22L);
+        registration.setStatus(CompetitionRegistrationStatus.DISTRICT_APPROVED);
+        registration.setCurrentApprovalLevel("CITY");
+
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+        when(currentUserService.getCurrentManagedOrg()).thenReturn(managedOrg);
+        when(currentUserService.getCurrentSchool()).thenReturn(null);
+        when(competitionService.requireVisible(eq(teacher), eq(18L))).thenReturn(competition);
+        when(competitionService.canManageCompetition(eq(teacher), eq(competition))).thenReturn(false);
+        when(competitionEventService.listByCompetition(18L)).thenReturn(List.of());
+        when(competitionRegistrationService.listVisibleByCompetition(eq(teacher), eq(18L))).thenReturn(List.of(registration));
+        when(competitionRegistrationService.requireVisible(eq(teacher), eq(22L))).thenReturn(registration);
+        when(competitionRegistrationItemService.listByRegistration(22L)).thenReturn(List.of());
+        when(competitionRegistrationService.listApprovalRecords(22L)).thenReturn(List.of());
+        when(competitionResultService.listResults(eq(teacher), eq(18L), eq(null))).thenReturn(List.of());
+
+        mockMvc.perform(get("/admin/competitions/18")
+                        .param("tab", "registrations")
+                        .param("registrationId", "22"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/competition-detail"))
+                .andExpect(model().attribute("canManageCompetition", false))
+                .andExpect(model().attribute("canReviewAsCity", true))
+                .andExpect(model().attribute("selectedRegistration", registration));
     }
 
     private Teacher buildTeacher() {
@@ -117,6 +153,13 @@ class AdminCompetitionPageControllerRegressionTest {
         school.setId(2L);
         school.setName("demo-school");
         teacher.setSchool(school);
+        return teacher;
+    }
+
+    private Teacher buildTeacherWithoutSchool() {
+        Teacher teacher = new Teacher();
+        teacher.setId(11L);
+        teacher.setName("org-admin");
         return teacher;
     }
 

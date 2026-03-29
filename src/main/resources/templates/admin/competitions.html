@@ -86,7 +86,7 @@
                 <label for="status">状态</label>
                 <select id="status" name="status">
                     <option value="">全部状态</option>
-                    <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:selected="${selectedStatus == statusOption.name()}" th:text="${statusOption.name()}"></option>
+                    <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:selected="${selectedStatus == statusOption.name()}" th:text="${statusOption.label}"></option>
                 </select>
             </div>
             <div class="row-actions">
@@ -151,15 +151,15 @@
                 <td>
                     <span class="status-badge"
                           th:classappend="${c.status.name() == 'DRAFT'} ? ' status-draft' : (${c.status.name() == 'REGISTRATION_OPEN'} ? ' status-open' : (${c.status.name() == 'REGISTRATION_CLOSED' || c.status.name() == 'UNDER_REVIEW'} ? ' status-review' : (${c.status.name() == 'READY' || c.status.name() == 'ONGOING'} ? ' status-ready' : ' status-end')))"
-                          th:text="${c.status}"></span>
+                          th:text="${c.status.label}"></span>
                 </td>
-                <td th:text="${c.registrationStartAt != null ? #temporals.format(c.registrationStartAt, 'yyyy-MM-dd HH:mm') : '-'} + ' ~ ' + ${c.registrationEndAt != null ? #temporals.format(c.registrationEndAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                <td th:text="${(c.registrationStartAt != null ? #temporals.format(c.registrationStartAt, 'yyyy-MM-dd HH:mm') : '-') + ' ~ ' + (c.registrationEndAt != null ? #temporals.format(c.registrationEndAt, 'yyyy-MM-dd HH:mm') : '-')}"></td>
                 <td>
                     <div class="row-actions">
                         <a class="btn btn-secondary btn-sm" th:href="@{/admin/competitions/{id}(id=${c.id})}">详情</a>
                         <select th:attr="data-id=${c.id}" onchange="changeStatus(this)">
                             <option value="">切换状态</option>
-                            <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:text="${statusOption.name()}"></option>
+                            <option th:each="statusOption : ${statuses}" th:value="${statusOption.name()}" th:text="${statusOption.label}"></option>
                         </select>
                     </div>
                 </td>
@@ -250,7 +250,8 @@
     async function changeStatus(select) {
         if (!select.value) return;
         const targetStatus = select.value;
-        if (!window.confirm('确认将赛事状态切换为 ' + targetStatus + ' 吗？')) {
+        const statusLabel = select.options[select.selectedIndex].text;
+        if (!window.confirm('确认将赛事状态切换为 ' + statusLabel + ' 吗？')) {
             select.value = '';
             return;
         }

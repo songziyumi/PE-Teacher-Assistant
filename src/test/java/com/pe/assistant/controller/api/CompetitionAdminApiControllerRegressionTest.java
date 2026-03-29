@@ -141,7 +141,7 @@ class CompetitionAdminApiControllerRegressionTest {
         event.setId(9L);
 
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
-        when(competitionService.requireVisible(eq(teacher), eq(41L))).thenReturn(competition);
+        when(competitionService.requireHostManaged(eq(teacher), eq(41L))).thenReturn(competition);
         when(competitionEventService.create(eq(competition), anyMap())).thenReturn(event);
         when(competitionEventService.toMap(eq(event))).thenReturn(Map.of("id", 9L, "name", "run-100m", "maxEntriesPerGrade", 3));
 
@@ -166,7 +166,7 @@ class CompetitionAdminApiControllerRegressionTest {
         competition.setId(41L);
 
         when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
-        when(competitionService.requireVisible(eq(teacher), eq(41L))).thenReturn(competition);
+        when(competitionService.requireHostManaged(eq(teacher), eq(41L))).thenReturn(competition);
         when(competitionEventService.create(eq(competition), anyMap()))
                 .thenThrow(new IllegalArgumentException("invalid event payload"));
 

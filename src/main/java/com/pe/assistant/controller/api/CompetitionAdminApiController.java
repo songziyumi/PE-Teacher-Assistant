@@ -84,7 +84,7 @@ public class CompetitionAdminApiController {
             @RequestBody Map<String, Object> body) {
         try {
             Teacher teacher = currentUserService.getCurrentTeacher();
-            Competition competition = competitionService.requireVisible(teacher, competitionId);
+            Competition competition = competitionService.requireHostManaged(teacher, competitionId);
             return ResponseEntity.ok(ApiResponse.ok(competitionEventService.toMap(
                     competitionEventService.create(competition, body))));
         } catch (IllegalArgumentException e) {
