@@ -1,0 +1,85 @@
+package com.pe.assistant.service;
+
+import com.pe.assistant.entity.EventStudent;
+import com.pe.assistant.entity.SelectionEvent;
+import com.pe.assistant.entity.Student;
+import com.pe.assistant.repository.CourseClassCapacityRepository;
+import com.pe.assistant.repository.CourseRepository;
+import com.pe.assistant.repository.CourseSelectionRepository;
+import com.pe.assistant.repository.EventStudentRepository;
+import com.pe.assistant.repository.SelectionEventRepository;
+import com.pe.assistant.repository.StudentRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class SelectionEventServiceRegressionTest {
+
+    @Mock
+    private SelectionEventRepository eventRepo;
+    @Mock
+    private CourseRepository courseRepo;
+    @Mock
+    private CourseClassCapacityRepository capacityRepo;
+    @Mock
+    private CourseSelectionRepository selectionRepo;
+    @Mock
+    private EventStudentRepository eventStudentRepo;
+    @Mock
+    private StudentRepository studentRepo;
+    @Mock
+    private StudentAccountService studentAccountService;
+    @Mock
+    private LotteryService lotteryService;
+
+    @InjectMocks
+    private SelectionEventService selectionEventService;
+
+    @Test
+    void setEventStudentsShouldDeduplicateStudentIdsBeforeInsert() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+
+        Student first = buildStudent(101L);
+        Student second = buildStudent(102L);
+
+        when(studentRepo.findById(101L)).thenReturn(Optional.of(first));
+        when(studentRepo.findById(102L)).thenReturn(Optional.of(second));
+        when(studentAccountService.initializeAccount(first)).thenReturn(Optional.empty());
+        when(studentAccountService.initializeAccount(second)).thenReturn(Optional.empty());
+
+        selectionEventService.setEventStudents(event, List.of(101L, 101L, 102L, 102L));
+
+        verify(eventStudentRepo).deleteByEvent(event);
+        verify(eventStudentRepo).flush();
+        verify(studentRepo, times(1)).findById(101L);
+        verify(studentRepo, times(1)).findById(102L);
+        verify(studentAccountService, times(1)).initializeAccount(first);
+        verify(studentAccountService, times(1)).initializeAccount(second);
+
+        ArgumentCaptor<EventStudent> relationCaptor = ArgumentCaptor.forClass(EventStudent.class);
+        verify(eventStudentRepo, times(2)).save(relationCaptor.capture());
+        List<Long> savedStudentIds = relationCaptor.getAllValues().stream()
+                .map(relation -> relation.getStudent().getId())
+                .toList();
+        assertEquals(List.of(101L, 102L), savedStudentIds);
+    }
+
+    private Student buildStudent(Long id) {
+        Student student = new Student();
+        student.setId(id);
+        return student;
+    }
+}

@@ -17,8 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -68,7 +70,18 @@ public class SelectionEventService {
     @Transactional
     public void setEventStudents(SelectionEvent event, List<Long> studentIds) {
         eventStudentRepo.deleteByEvent(event);
-        for (Long studentId : studentIds) {
+        eventStudentRepo.flush();
+
+        Set<Long> uniqueStudentIds = new LinkedHashSet<>();
+        if (studentIds != null) {
+            for (Long studentId : studentIds) {
+                if (studentId != null) {
+                    uniqueStudentIds.add(studentId);
+                }
+            }
+        }
+
+        for (Long studentId : uniqueStudentIds) {
             Student student = studentRepo.findById(studentId).orElse(null);
             if (student == null) {
                 continue;

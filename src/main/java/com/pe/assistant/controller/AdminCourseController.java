@@ -1,13 +1,31 @@
 package com.pe.assistant.controller;
 
-import com.pe.assistant.entity.*;
+import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.School;
+import com.pe.assistant.entity.SelectionEvent;
+import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
-import com.pe.assistant.service.*;
+import com.pe.assistant.service.ClassService;
+import com.pe.assistant.service.CourseOverflowAuditService;
+import com.pe.assistant.service.CourseService;
+import com.pe.assistant.service.CurrentUserService;
+import com.pe.assistant.service.GradeService;
+import com.pe.assistant.service.SelectionEventService;
+import com.pe.assistant.service.StudentService;
+import com.pe.assistant.service.TeacherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
@@ -25,6 +43,7 @@ public class AdminCourseController {
     private final ClassService classService;
     private final GradeService gradeService;
     private final StudentService studentService;
+    private final TeacherService teacherService;
     private final CourseOverflowAuditService courseOverflowAuditService;
     private final CourseClassCapacityRepository capacityRepo;
 
@@ -32,8 +51,6 @@ public class AdminCourseController {
     public School currentSchool() {
         return currentUserService.getCurrentSchool();
     }
-
-    // ===== 批量初始化学生登录密码 =====
 
     @PostMapping("/init-passwords")
     public String initPasswords(RedirectAttributes ra) {
@@ -48,16 +65,12 @@ public class AdminCourseController {
         return "redirect:/admin/courses";
     }
 
-    // ===== 活动列表 =====
-
     @GetMapping
     public String eventList(Model model) {
         School school = currentUserService.getCurrentSchool();
         model.addAttribute("events", eventService.findBySchool(school));
         return "admin/selection-events";
     }
-
-    // ===== 活动保存 =====
 
     @PostMapping("/events/save")
     public String saveEvent(@RequestParam(required = false) Long id,
@@ -72,14 +85,18 @@ public class AdminCourseController {
             SelectionEvent event = (id != null) ? eventService.findById(id) : new SelectionEvent();
             event.setSchool(school);
             event.setName(name);
-            if (round1Start != null && !round1Start.isBlank())
+            if (round1Start != null && !round1Start.isBlank()) {
                 event.setRound1Start(LocalDateTime.parse(round1Start));
-            if (round1End != null && !round1End.isBlank())
+            }
+            if (round1End != null && !round1End.isBlank()) {
                 event.setRound1End(LocalDateTime.parse(round1End));
-            if (round2Start != null && !round2Start.isBlank())
+            }
+            if (round2Start != null && !round2Start.isBlank()) {
                 event.setRound2Start(LocalDateTime.parse(round2Start));
-            if (round2End != null && !round2End.isBlank())
+            }
+            if (round2End != null && !round2End.isBlank()) {
                 event.setRound2End(LocalDateTime.parse(round2End));
+            }
             eventService.save(event);
             ra.addFlashAttribute("success", "活动保存成功");
         } catch (Exception e) {
@@ -87,8 +104,6 @@ public class AdminCourseController {
         }
         return "redirect:/admin/courses";
     }
-
-    // ===== 活动删除 =====
 
     @PostMapping("/events/{id}/delete")
     public String deleteEvent(@PathVariable Long id, RedirectAttributes ra) {
@@ -100,8 +115,6 @@ public class AdminCourseController {
         }
         return "redirect:/admin/courses";
     }
-
-    // ===== 活动状态推进 =====
 
     @PostMapping("/events/{id}/start-round1")
     public String startRound1(@PathVariable Long id, RedirectAttributes ra) {
@@ -118,14 +131,13 @@ public class AdminCourseController {
     public String processRound1(@PathVariable Long id, RedirectAttributes ra) {
         try {
             eventService.processRound1(id);
-            ra.addFlashAttribute("success", "抽签已在后台启动，每门课程间隔1分钟，请稍后刷新查看进度");
+            ra.addFlashAttribute("success", "抽签已在后台启动，每门课程间隔 1 分钟，请稍后刷新查看进度");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/admin/courses/" + id + "/detail";
     }
 
-    /** 前端轮询：获取抽签进度 */
     @GetMapping("/events/{id}/lottery-status")
     @ResponseBody
     public ResponseEntity<Map<String, String>> lotteryStatus(@PathVariable Long id) {
@@ -143,8 +155,6 @@ public class AdminCourseController {
         return "redirect:/admin/courses/" + id + "/detail";
     }
 
-    // ===== 活动详情（课程管理 + 参与学生） =====
-
     @GetMapping("/{eventId}/detail")
     public String eventDetail(@PathVariable Long eventId, Model model) {
         School school = currentUserService.getCurrentSchool();
@@ -155,10 +165,9 @@ public class AdminCourseController {
         model.addAttribute("allStudents", studentService.findBySchool(school));
         model.addAttribute("allClasses", classService.findAll(school));
         model.addAttribute("allGrades", gradeService.findAll(school));
+        model.addAttribute("availableTeachers", teacherService.findCourseAssignableTeachers(school));
         return "admin/course-event-detail";
     }
-
-    // ===== 参与学生设置 =====
 
     @PostMapping("/{eventId}/students/save")
     public String saveEventStudents(@PathVariable Long eventId,
@@ -173,8 +182,6 @@ public class AdminCourseController {
         }
         return "redirect:/admin/courses/" + eventId + "/detail";
     }
-
-    // ===== 课程保存 =====
 
     @PostMapping("/{eventId}/courses/save")
     public String saveCourse(@PathVariable Long eventId,
@@ -200,13 +207,15 @@ public class AdminCourseController {
                 course.setTotalCapacity(totalCapacity);
             }
             if (teacherId != null) {
-                Teacher t = new Teacher();
-                t.setId(teacherId);
-                course.setTeacher(t);
+                Teacher teacher = new Teacher();
+                teacher.setId(teacherId);
+                course.setTeacher(teacher);
             } else {
                 course.setTeacher(null);
             }
-            if (course.getStatus() == null) course.setStatus("DRAFT");
+            if (course.getStatus() == null) {
+                course.setStatus("DRAFT");
+            }
             courseService.saveCourse(course, classIds, classCapacities);
             ra.addFlashAttribute("success", "课程保存成功");
         } catch (Exception e) {
@@ -215,11 +224,8 @@ public class AdminCourseController {
         return "redirect:/admin/courses/" + eventId + "/detail";
     }
 
-    // ===== 课程状态（发布/下架） =====
-
     @PostMapping("/{eventId}/courses/{courseId}/activate")
-    public String activateCourse(@PathVariable Long eventId, @PathVariable Long courseId,
-                                 RedirectAttributes ra) {
+    public String activateCourse(@PathVariable Long eventId, @PathVariable Long courseId, RedirectAttributes ra) {
         try {
             Course course = courseService.findById(courseId);
             course.setStatus("ACTIVE");
@@ -232,8 +238,7 @@ public class AdminCourseController {
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/close")
-    public String closeCourse(@PathVariable Long eventId, @PathVariable Long courseId,
-                              RedirectAttributes ra) {
+    public String closeCourse(@PathVariable Long eventId, @PathVariable Long courseId, RedirectAttributes ra) {
         try {
             Course course = courseService.findById(courseId);
             course.setStatus("CLOSED");
@@ -246,8 +251,7 @@ public class AdminCourseController {
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/delete")
-    public String deleteCourse(@PathVariable Long eventId, @PathVariable Long courseId,
-                               RedirectAttributes ra) {
+    public String deleteCourse(@PathVariable Long eventId, @PathVariable Long courseId, RedirectAttributes ra) {
         try {
             courseService.deleteCourse(courseId);
             ra.addFlashAttribute("success", "课程已删除");
@@ -256,8 +260,6 @@ public class AdminCourseController {
         }
         return "redirect:/admin/courses/" + eventId + "/detail";
     }
-
-    // ===== 报名名单 =====
 
     @GetMapping("/{eventId}/courses/{courseId}/enrollments")
     public String enrollments(@PathVariable Long eventId, @PathVariable Long courseId, Model model) {
@@ -271,10 +273,9 @@ public class AdminCourseController {
         return "admin/course-enrollments";
     }
 
-    // ===== 手动加人 / 移除 =====
-
     @PostMapping("/{eventId}/courses/{courseId}/enrollments/add")
-    public String adminEnroll(@PathVariable Long eventId, @PathVariable Long courseId,
+    public String adminEnroll(@PathVariable Long eventId,
+                              @PathVariable Long courseId,
                               @RequestParam Long studentId,
                               @RequestParam(defaultValue = "false") boolean forceOverflow,
                               @RequestParam(defaultValue = "") String forceReason,
@@ -289,8 +290,7 @@ public class AdminCourseController {
                 Teacher operator = currentUserService.getCurrentTeacher();
                 Course course = courseService.findById(courseId);
                 Student student = studentService.findById(studentId);
-                courseOverflowAuditService.recordForcedOverflow(
-                        school, course, student, operator, forceReason.trim());
+                courseOverflowAuditService.recordForcedOverflow(school, course, student, operator, forceReason.trim());
             }
             ra.addFlashAttribute("success", forceOverflow ? "已强制超编加入" : "已手动加入");
         } catch (Exception e) {
@@ -300,8 +300,10 @@ public class AdminCourseController {
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/enrollments/{selectionId}/remove")
-    public String adminDrop(@PathVariable Long eventId, @PathVariable Long courseId,
-                            @PathVariable Long selectionId, RedirectAttributes ra) {
+    public String adminDrop(@PathVariable Long eventId,
+                            @PathVariable Long courseId,
+                            @PathVariable Long selectionId,
+                            RedirectAttributes ra) {
         try {
             courseService.adminDrop(selectionId);
             ra.addFlashAttribute("success", "已移除");
