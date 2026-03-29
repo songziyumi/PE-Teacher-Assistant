@@ -1,4 +1,5 @@
 target/
+.m2repo/
 *.log
 *.class
 .idea/
