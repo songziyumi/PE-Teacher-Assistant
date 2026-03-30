@@ -108,10 +108,37 @@
                     <span th:if="${sel.preference == 2}">第二志愿</span>
                     <span th:if="${sel.preference == 0}">第二轮/管理员分配</span>
                     -
-                    <span th:text="${sel.status}"></span>
+                    <span th:if="${sel.status == 'DRAFT'}">草稿</span>
+                    <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
+                    <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
+                    <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
+                    <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
                 </li>
             </ul>
         </div>
+
+        <div th:if="${inRound1}" class="panel">
+            <h3 style="margin-top:0;">填报操作</h3>
+            <p class="muted" th:if="${!hasPref1}">请先选择第一志愿，第二志愿可选，再确认填报。</p>
+            <p class="muted" th:if="${hasPref1 && !round1SubmissionConfirmed}">当前志愿已保存为草稿，确认填报后才会参与第一轮抽签。</p>
+            <p class="muted" th:if="${round1SubmissionConfirmed}">当前志愿已确认提交。若继续修改，系统会自动退回草稿，需重新确认填报。</p>
+            <div class="actions">
+                <form th:action="@{/student/courses/save-draft}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn-secondary">保存为草稿</button>
+                </form>
+                <form th:action="@{/student/courses/confirm}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn-primary" th:disabled="${!hasPref1}">确认填报</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="round1LeaveGuard"
+             th:if="${event != null and inRound1 and (!round1SubmissionConfirmed)}"
+             th:attr="data-has-pref1=${hasPref1},
+                      data-has-pref2=${hasPref2},
+                      data-confirmed=${round1SubmissionConfirmed}"></div>
 
         <div class="course-grid">
             <div th:each="c : ${courses}" class="course-card">
@@ -163,5 +190,61 @@
         </div>
     </div>
 </div>
+<script th:inline="javascript">
+const round1LeaveGuard = document.getElementById('round1LeaveGuard');
+if (round1LeaveGuard) {
+    let allowLeave = false;
+    const hasPref1 = round1LeaveGuard.dataset.hasPref1 === 'true';
+    const hasPref2 = round1LeaveGuard.dataset.hasPref2 === 'true';
+    const confirmed = round1LeaveGuard.dataset.confirmed === 'true';
+
+    function leaveMessage() {
+        if (!hasPref1) {
+            if (!hasPref2) {
+                return '第一志愿和第二志愿都还未填报，确认后再离开这个页面！';
+            }
+            return '第一志愿还未填报，确认后再离开这个页面！';
+        }
+        if (!confirmed) {
+            return '当前志愿还未确认填报，确认后再离开这个页面！';
+        }
+        return '';
+    }
+
+    const message = leaveMessage();
+    if (message) {
+        document.querySelectorAll('form[action*="/student/courses/"]').forEach(form => {
+            form.addEventListener('submit', () => {
+                allowLeave = true;
+            });
+        });
+
+        document.querySelectorAll('a[href]').forEach(link => {
+            link.addEventListener('click', event => {
+                const href = link.getAttribute('href') || '';
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+                    return;
+                }
+                if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                if (!window.confirm(message)) {
+                    event.preventDefault();
+                    return;
+                }
+                allowLeave = true;
+            });
+        });
+
+        window.addEventListener('beforeunload', event => {
+            if (allowLeave) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = '';
+        });
+    }
+}
+</script>
 </body>
 </html>

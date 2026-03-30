@@ -55,7 +55,13 @@
                 </div>
             </div>
 
-            <div class="status" th:text="${sel.status}"></div>
+            <div class="status">
+                <span th:if="${sel.status == 'DRAFT'}">草稿</span>
+                <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
+                <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
+                <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
+                <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
+            </div>
 
             <form th:if="${sel.status == 'CONFIRMED'}"
                   th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
