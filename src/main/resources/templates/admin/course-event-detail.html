@@ -117,6 +117,11 @@
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <button type="submit" class="btn btn-primary btn-sm">执行抽签结算</button>
             </form>
+            <span th:if="${event.status == 'ROUND1'}"
+                  class="muted"
+                  style="margin-left:8px;font-size:.85rem;">
+                执行后将先结算第一志愿，再结算第二志愿
+            </span>
             <form th:if="${event.status == 'ROUND2'}"
                   th:action="@{/admin/courses/events/{id}/close(id=${event.id})}"
                   method="post"

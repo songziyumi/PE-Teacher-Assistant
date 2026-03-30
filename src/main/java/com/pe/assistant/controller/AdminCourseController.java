@@ -123,7 +123,7 @@ public class AdminCourseController {
     public String processRound1(@PathVariable Long id, RedirectAttributes ra) {
         try {
             eventService.processRound1(id);
-            ra.addFlashAttribute("success", "抽签已在后台启动，每门课程间隔 1 分钟，请稍后刷新查看进度");
+            ra.addFlashAttribute("success", "第一轮结算已在后台启动，系统将先结算第一志愿，再结算第二志愿，请稍后刷新查看进度");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
