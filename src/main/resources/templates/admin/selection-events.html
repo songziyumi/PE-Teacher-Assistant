@@ -47,12 +47,8 @@
     <div class="page-header">
         <h2>选课活动管理</h2>
         <div style="display:flex;gap:8px;">
-            <form th:action="@{/admin/courses/init-passwords}" method="post" style="display:inline"
-                  onsubmit="return confirm('将为所有尚未设置密码的学生初始化登录密码（初始密码=学号），确认执行？')">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                <button type="submit" class="btn btn-secondary">初始化学生密码</button>
-            </form>
-            <button class="btn btn-primary" onclick="openModal('addModal')">+ 新建活动</button>
+            <a th:href="@{/admin/student-accounts}" class="btn btn-secondary">学生账号管理</a>
+            <button class="btn btn-primary" onclick="openModal('addModal')">+ 新建活动并设置参与学生</button>
         </div>
     </div>
 
@@ -119,6 +115,9 @@
         <form th:action="@{/admin/courses/events/save}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="modal-body">
+                <p style="margin:0 0 12px;color:#666;font-size:.86rem;">
+                    先填写活动基础信息，保存后会进入“参与学生”步骤，再配置课程和名额。
+                </p>
                 <div class="form-row single">
                     <div class="form-group">
                         <label>活动名称 *</label>
@@ -148,7 +147,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">取消</button>
-                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="submit" class="btn btn-primary">下一步：参与学生</button>
             </div>
         </form>
     </div>

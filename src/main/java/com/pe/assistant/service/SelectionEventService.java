@@ -67,6 +67,23 @@ public class SelectionEventService {
         return eventStudentRepo.findStudentsByEvent(event);
     }
 
+    public List<Student> findParticipatingStudents(SelectionEvent event) {
+        if (!eventStudentRepo.existsByEvent(event)) {
+            return studentRepo.findBySchoolOrderByStudentNo(event.getSchool());
+        }
+        return findEventStudents(event);
+    }
+
+    public Set<Long> findParticipatingClassIds(SelectionEvent event) {
+        Set<Long> classIds = new LinkedHashSet<>();
+        for (Student student : findParticipatingStudents(event)) {
+            if (student.getSchoolClass() != null && student.getSchoolClass().getId() != null) {
+                classIds.add(student.getSchoolClass().getId());
+            }
+        }
+        return classIds;
+    }
+
     @Transactional
     public void setEventStudents(SelectionEvent event, List<Long> studentIds) {
         eventStudentRepo.deleteByEvent(event);

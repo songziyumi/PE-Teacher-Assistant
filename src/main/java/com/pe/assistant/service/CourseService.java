@@ -7,9 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +39,12 @@ public class CourseService {
     public Course saveCourse(Course course, List<Long> classIds, List<Integer> classCapacities) {
         Course saved = courseRepo.save(course);
         if ("PER_CLASS".equals(course.getCapacityMode()) && classIds != null) {
+            Map<Long, Integer> existingCounts = new HashMap<>();
+            for (CourseClassCapacity existing : capacityRepo.findByCourse(saved)) {
+                if (existing.getSchoolClass() != null && existing.getSchoolClass().getId() != null) {
+                    existingCounts.put(existing.getSchoolClass().getId(), existing.getCurrentCount());
+                }
+            }
             capacityRepo.deleteByCourse(saved);
             int total = 0;
             for (int i = 0; i < classIds.size(); i++) {
@@ -47,6 +56,7 @@ public class CourseService {
                 int max = (classCapacities != null && i < classCapacities.size())
                         ? classCapacities.get(i) : 0;
                 cap.setMaxCapacity(max);
+                cap.setCurrentCount(existingCounts.getOrDefault(classIds.get(i), 0));
                 capacityRepo.save(cap);
                 total += max;
             }
@@ -59,6 +69,9 @@ public class CourseService {
     @Transactional
     public void deleteCourse(Long id) {
         Course course = findById(id);
+        if (!selectionRepo.findByCourseOrderBySelectedAtAsc(course).isEmpty()) {
+            throw new RuntimeException("课程已有报名记录，不能直接删除");
+        }
         capacityRepo.deleteByCourse(course);
         courseRepo.delete(course);
     }
@@ -316,6 +329,42 @@ public class CourseService {
 
     public List<CourseSelection> findMySelections(Student student, SelectionEvent event) {
         return selectionRepo.findByEventAndStudent(event, student);
+    }
+
+    @Transactional
+    public Course savePerClassCourse(Course course,
+                                     List<Long> classIds,
+                                     List<Integer> classCapacities,
+                                     Set<Long> allowedClassIds) {
+        if (allowedClassIds == null || allowedClassIds.isEmpty()) {
+            throw new RuntimeException("当前参与学生没有可用班级，无法保存按班名额课程");
+        }
+        if (classIds == null || classIds.isEmpty()) {
+            throw new RuntimeException("请至少为一个参与班级设置名额");
+        }
+
+        LinkedHashMap<Long, Integer> capacityMap = new LinkedHashMap<>();
+        for (int i = 0; i < classIds.size(); i++) {
+            Long classId = classIds.get(i);
+            if (classId == null || !allowedClassIds.contains(classId)) {
+                continue;
+            }
+            int capacity = (classCapacities != null && i < classCapacities.size() && classCapacities.get(i) != null)
+                    ? classCapacities.get(i) : 0;
+            if (capacity < 0) {
+                throw new RuntimeException("班级名额不能小于 0");
+            }
+            capacityMap.put(classId, capacity);
+        }
+
+        if (capacityMap.isEmpty()) {
+            throw new RuntimeException("请为参与班级设置有效名额");
+        }
+        if (capacityMap.values().stream().noneMatch(capacity -> capacity != null && capacity > 0)) {
+            throw new RuntimeException("按班名额至少需要一个班级名额大于 0");
+        }
+
+        return saveCourse(course, List.copyOf(capacityMap.keySet()), List.copyOf(capacityMap.values()));
     }
 
     // ===== 学生可见的课程列表（第二轮仅看有余量的） =====

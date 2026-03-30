@@ -33,9 +33,19 @@
         .badge-round2 { background:#27ae60; color:#fff; }
         .badge-closed { background:#bdc3c7; color:#fff; }
         .badge-active { background:#27ae60; color:#fff; }
+        .badge-scope { background:#eef6ff; color:#1d4ed8; }
+        .summary-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px; }
+        .summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px; }
+        .summary-card strong { display:block; font-size:1.2rem; margin-bottom:4px; }
+        .summary-card span { font-size:.84rem; color:#666; }
+        .section-tip { margin:0 0 14px; color:#666; font-size:.86rem; }
         .per-class-rows { display:none; }
+        .per-class-rows.active { display:block; }
+        .per-class-toolbar { display:grid; grid-template-columns:140px 120px auto auto; gap:8px; align-items:end; margin-bottom:12px; }
         .per-class-row { display:grid; grid-template-columns:1fr 100px; gap:8px; align-items:center; margin-bottom:8px; }
         .per-class-row span { font-size:.88rem; }
+        .per-class-row small { color:#888; }
+        .per-class-table { border:1px solid #eee; border-radius:8px; padding:12px; background:#fafafa; max-height:320px; overflow-y:auto; }
         .student-checklist { max-height:280px; overflow-y:auto; border:1px solid #eee; border-radius:6px; padding:8px; }
         .student-check-item { display:flex; align-items:center; gap:8px; padding:5px 4px; border-radius:4px; font-size:.88rem; }
         .student-check-item:hover { background:#f5f5f5; }
@@ -44,6 +54,8 @@
         .class-filter-list { max-height:180px; overflow-y:auto; display:grid; gap:6px; }
         .class-filter-item { display:flex; align-items:center; gap:8px; font-size:.88rem; padding:4px 2px; }
         .helper-text { font-size:.82rem; color:#888; }
+        .scope-callout { margin-bottom:16px; padding:12px 14px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; color:#475569; font-size:.86rem; }
+        .empty-inline { padding:14px; border:1px dashed #d1d5db; border-radius:8px; color:#6b7280; background:#fafafa; font-size:.86rem; }
     </style>
 </head>
 <body>
@@ -115,12 +127,100 @@
         </div>
     </div>
 
-    <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('tabCourses', this)">课程管理</button>
-        <button class="tab-btn" onclick="switchTab('tabStudents', this)">参与学生</button>
+    <div class="summary-grid">
+        <div class="summary-card">
+            <strong th:text="${#lists.size(participatingStudents)}">0</strong>
+            <span>当前参与学生</span>
+        </div>
+        <div class="summary-card">
+            <strong th:text="${#lists.size(participatingClasses)}">0</strong>
+            <span>参与班级</span>
+        </div>
+        <div class="summary-card">
+            <strong th:text="${#lists.size(courses)}">0</strong>
+            <span>已配置课程</span>
+        </div>
     </div>
 
-    <div class="tab-pane active" id="tabCourses">
+    <div class="tab-bar">
+        <button type="button"
+                class="tab-btn"
+                th:classappend="${activeTab == 'students'} ? ' active'"
+                onclick="switchTab('tabStudents', this)">1. 参与学生</button>
+        <button type="button"
+                class="tab-btn"
+                th:classappend="${activeTab == 'courses'} ? ' active'"
+                onclick="switchTab('tabCourses', this)">2. 课程与名额</button>
+    </div>
+
+    <div class="tab-pane" id="tabStudents" th:classappend="${activeTab == 'students'} ? ' active'">
+        <div class="scope-callout">
+            <span class="badge badge-scope" th:text="${#lists.isEmpty(eventStudents)} ? '当前为全校学生参与' : '当前为指定学生参与'"></span>
+            <span style="margin-left:8px;">先确定参与范围，再配置课程名额。按班名额只会对当前参与范围内的班级生效。</span>
+        </div>
+        <p class="section-tip">
+            先圈定参加本次选课的学生。保存空名单时，系统默认全校学生均可参与。
+        </p>
+        <form th:action="@{/admin/courses/{id}/students/save(id=${event.id})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                <select id="gradeFilter" onchange="onGradeChange()" style="padding:.4rem .7rem;border:1px solid #ddd;border-radius:6px;font-size:.88rem;">
+                    <option value="">全部年级</option>
+                    <option th:each="g : ${allGrades}" th:value="${g.id}" th:text="${g.name}"></option>
+                </select>
+                <div class="class-filter-panel">
+                    <div class="select-all-bar" style="margin-bottom:6px;">
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="selectVisibleClasses()">当前年级全选班级</button>
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="clearClassSelection()">清空班级选择</button>
+                    </div>
+                    <div class="class-filter-list" id="classFilterList">
+                        <label th:each="c : ${allClasses}"
+                               class="class-filter-item"
+                               th:attr="data-gradeid=${c.grade != null ? c.grade.id : ''}">
+                            <input type="checkbox" th:value="${c.id}" onchange="filterStudents()">
+                            <span th:text="${(c.grade != null ? c.grade.name + ' / ' : '') + c.name}"></span>
+                        </label>
+                    </div>
+                </div>
+                <input type="text"
+                       id="studentSearch"
+                       oninput="filterStudents()"
+                       placeholder="搜索学生姓名/学号"
+                       style="padding:.4rem .7rem;border:1px solid #ddd;border-radius:6px;font-size:.88rem;width:180px;">
+            </div>
+            <div class="helper-text" style="margin:-4px 0 10px;">
+                现在可以一次勾选多个班级，再点击“全选（当前筛选）”把多个班级的学生一起加入名单。
+            </div>
+            <div class="select-all-bar">
+                <button type="button" class="btn btn-secondary btn-xs" onclick="selectAll()">全选（当前筛选）</button>
+                <button type="button" class="btn btn-secondary btn-xs" onclick="selectNone()">取消全选</button>
+            </div>
+            <div class="student-checklist" id="studentChecklist">
+                <div th:each="s : ${allStudents}"
+                     class="student-check-item"
+                     th:attr="data-sname=${s.name},
+                              data-sno=${s.studentNo},
+                              data-classid=${s.schoolClass != null ? s.schoolClass.id : ''},
+                              data-gradeid=${s.schoolClass != null and s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}">
+                    <input type="checkbox"
+                           name="studentIds"
+                           th:value="${s.id}"
+                           th:checked="${#lists.contains(eventStudents, s)}">
+                    <span th:text="${s.name + ' (' + s.studentNo + ') ' + (s.schoolClass != null ? s.schoolClass.name : '')}"></span>
+                </div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button type="submit" class="btn btn-primary">保存参与学生名单</button>
+                <a th:href="@{/admin/courses/{id}/detail(id=${event.id},tab='courses')}" class="btn btn-secondary">下一步：配置课程</a>
+                <span class="helper-text">如需处理学生账号或重置密码，请前往“学生账号管理”。</span>
+            </div>
+        </form>
+    </div>
+
+    <div class="tab-pane" id="tabCourses" th:classappend="${activeTab == 'courses'} ? ' active'">
+        <p class="section-tip">
+            先确认参与学生，再配置课程。按班名额仅显示参与范围内的班级，并支持先批量设置、再逐班微调。
+        </p>
         <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
             <button class="btn btn-primary btn-sm" type="button" onclick="openModal('addCourseModal')">+ 新增课程</button>
         </div>
@@ -180,67 +280,6 @@
             </tbody>
         </table>
     </div>
-
-    <div class="tab-pane" id="tabStudents">
-        <p style="font-size:.88rem;color:#666;margin-bottom:12px;">
-            当前参与学生 <strong th:text="${#lists.size(eventStudents)}">0</strong> 人。
-            <span style="color:#e67e22;">如果不设置名单，则默认全校学生均可参与。</span>
-            学生初始密码默认为学号。
-        </p>
-        <form th:action="@{/admin/courses/{id}/students/save(id=${event.id})}" method="post">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-                <select id="gradeFilter" onchange="onGradeChange()" style="padding:.4rem .7rem;border:1px solid #ddd;border-radius:6px;font-size:.88rem;">
-                    <option value="">全部年级</option>
-                    <option th:each="g : ${allGrades}" th:value="${g.id}" th:text="${g.name}"></option>
-                </select>
-                <div class="class-filter-panel">
-                    <div class="select-all-bar" style="margin-bottom:6px;">
-                        <button type="button" class="btn btn-secondary btn-xs" onclick="selectVisibleClasses()">当前年级全选班级</button>
-                        <button type="button" class="btn btn-secondary btn-xs" onclick="clearClassSelection()">清空班级选择</button>
-                    </div>
-                    <div class="class-filter-list" id="classFilterList">
-                        <label th:each="c : ${allClasses}"
-                               class="class-filter-item"
-                               th:attr="data-gradeid=${c.grade != null ? c.grade.id : ''}">
-                            <input type="checkbox" th:value="${c.id}" onchange="filterStudents()">
-                            <span th:text="${(c.grade != null ? c.grade.name + ' / ' : '') + c.name}"></span>
-                        </label>
-                    </div>
-                </div>
-                <input type="text"
-                       id="studentSearch"
-                       oninput="filterStudents()"
-                       placeholder="搜索学生姓名/学号"
-                       style="padding:.4rem .7rem;border:1px solid #ddd;border-radius:6px;font-size:.88rem;width:180px;">
-            </div>
-            <div class="helper-text" style="margin:-4px 0 10px;">
-                现在可以一次勾选多个班级，再点击“全选（当前筛选）”把多个班级的学生一起加入名单。
-            </div>
-            <div class="select-all-bar">
-                <button type="button" class="btn btn-secondary btn-xs" onclick="selectAll()">全选（当前筛选）</button>
-                <button type="button" class="btn btn-secondary btn-xs" onclick="selectNone()">取消全选</button>
-            </div>
-            <div class="student-checklist" id="studentChecklist">
-                <div th:each="s : ${allStudents}"
-                     class="student-check-item"
-                     th:attr="data-sname=${s.name},
-                              data-sno=${s.studentNo},
-                              data-classid=${s.schoolClass != null ? s.schoolClass.id : ''},
-                              data-gradeid=${s.schoolClass != null and s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}">
-                    <input type="checkbox"
-                           name="studentIds"
-                           th:value="${s.id}"
-                           th:checked="${#lists.contains(eventStudents, s)}">
-                    <span th:text="${s.name + ' (' + s.studentNo + ') ' + (s.schoolClass != null ? s.schoolClass.name : '')}"></span>
-                </div>
-            </div>
-            <div style="margin-top:12px;">
-                <button type="submit" class="btn btn-primary">保存参与学生名单</button>
-                <span class="helper-text" style="margin-left:8px;">保存空名单时，不限制参与学生。</span>
-            </div>
-        </form>
-    </div>
 </div>
 
 <div class="modal-overlay" id="addCourseModal">
@@ -287,11 +326,38 @@
                     </div>
                 </div>
                 <div id="addPerClass" class="per-class-rows">
-                    <p style="font-size:.83rem;color:#888;margin:0 0 8px;">为每个班级分别设置名额：</p>
-                    <div th:each="c : ${allClasses}" class="per-class-row">
-                        <input type="hidden" name="classIds" th:value="${c.id}">
-                        <span th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></span>
-                        <input type="number" name="classCapacities" min="0" value="0" style="width:80px;">
+                    <p style="font-size:.83rem;color:#888;margin:0 0 8px;">仅显示当前参与范围内的班级。可先批量设置，再对个别班级单独调整。</p>
+                    <div th:if="${#lists.isEmpty(participatingClasses)}" class="empty-inline">
+                        当前参与范围内没有可用班级。请先返回“参与学生”确认参与名单。
+                    </div>
+                    <div th:unless="${#lists.isEmpty(participatingClasses)}">
+                        <div class="per-class-toolbar">
+                            <div class="form-group" style="margin:0;">
+                                <label>按年级筛选</label>
+                                <select id="perClassGradeFilter" onchange="filterPerClassRows()">
+                                    <option value="">全部参与班级</option>
+                                    <option th:each="g : ${allGrades}" th:value="${g.id}" th:text="${g.name}"></option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label>批量名额</label>
+                                <input type="number" id="perClassBatchValue" min="0" value="8">
+                            </div>
+                            <button type="button" class="btn btn-secondary" onclick="applyPerClassBatch(false)">应用到当前筛选班级</button>
+                            <button type="button" class="btn btn-secondary" onclick="applyPerClassBatch(true)">仅填充当前为 0 的班级</button>
+                        </div>
+                        <div class="per-class-table" id="perClassTable">
+                            <div th:each="c : ${participatingClasses}"
+                                 class="per-class-row"
+                                 th:attr="data-gradeid=${c.grade != null ? c.grade.id : ''}">
+                                <input type="hidden" name="classIds" th:value="${c.id}">
+                                <span>
+                                    <span th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></span>
+                                    <small>可单独改写，保留班级差异</small>
+                                </span>
+                                <input type="number" name="classCapacities" min="0" value="0" style="width:80px;">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -317,12 +383,16 @@ function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-btn').forEach(tabBtn => tabBtn.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     btn.classList.add('active');
+    const nextTab = tabId === 'tabCourses' ? 'courses' : 'students';
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', nextTab);
+    window.history.replaceState({}, '', url);
 }
 
 function toggleCapacityMode(select, globalRowId, perClassId) {
     const isGlobal = select.value === 'GLOBAL';
     document.getElementById(globalRowId).style.display = isGlobal ? '' : 'none';
-    document.getElementById(perClassId).style.display = isGlobal ? 'none' : 'block';
+    document.getElementById(perClassId).classList.toggle('active', !isGlobal);
 }
 
 function onGradeChange() {
@@ -394,6 +464,48 @@ function selectNone() {
         input.checked = false;
     });
 }
+
+function filterPerClassRows() {
+    const gradeId = document.getElementById('perClassGradeFilter');
+    const selectedGradeId = gradeId ? gradeId.value : '';
+    document.querySelectorAll('#perClassTable .per-class-row').forEach(row => {
+        row.style.display = !selectedGradeId || row.dataset.gradeid === selectedGradeId ? '' : 'none';
+    });
+}
+
+function applyPerClassBatch(onlyFillZero) {
+    const valueInput = document.getElementById('perClassBatchValue');
+    if (!valueInput) {
+        return;
+    }
+    const value = Number(valueInput.value);
+    if (!Number.isFinite(value) || value < 0) {
+        window.alert('请输入有效的批量名额');
+        valueInput.focus();
+        return;
+    }
+    document.querySelectorAll('#perClassTable .per-class-row').forEach(row => {
+        if (row.style.display === 'none') {
+            return;
+        }
+        const input = row.querySelector('input[name="classCapacities"]');
+        if (!input) {
+            return;
+        }
+        if (onlyFillZero && Number(input.value || 0) > 0) {
+            return;
+        }
+        input.value = value;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const capacityMode = document.getElementById('capacityModeAdd');
+    if (capacityMode) {
+        toggleCapacityMode(capacityMode, 'addCapacityRows', 'addPerClass');
+    }
+    filterPerClassRows();
+});
 </script>
 </body>
 </html>

@@ -31,6 +31,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Controller
 @RequestMapping("/admin/courses")
@@ -52,19 +53,6 @@ public class AdminCourseController {
         return currentUserService.getCurrentSchool();
     }
 
-    @PostMapping("/init-passwords")
-    public String initPasswords(RedirectAttributes ra) {
-        try {
-            School school = currentUserService.getCurrentSchool();
-            int count = eventService.initStudentPasswords(school);
-            ra.addFlashAttribute("success",
-                    count > 0 ? "已为 " + count + " 名学生初始化密码（初始密码=学号）" : "所有学生密码均已设置，无需重新初始化");
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", "初始化失败：" + e.getMessage());
-        }
-        return "redirect:/admin/courses";
-    }
-
     @GetMapping
     public String eventList(Model model) {
         School school = currentUserService.getCurrentSchool();
@@ -81,6 +69,7 @@ public class AdminCourseController {
                             @RequestParam(required = false) String round2End,
                             RedirectAttributes ra) {
         try {
+            boolean created = (id == null);
             School school = currentUserService.getCurrentSchool();
             SelectionEvent event = (id != null) ? eventService.findById(id) : new SelectionEvent();
             event.setSchool(school);
@@ -97,8 +86,11 @@ public class AdminCourseController {
             if (round2End != null && !round2End.isBlank()) {
                 event.setRound2End(LocalDateTime.parse(round2End));
             }
-            eventService.save(event);
+            event = eventService.save(event);
             ra.addFlashAttribute("success", "活动保存成功");
+            if (created) {
+                return "redirect:/admin/courses/" + event.getId() + "/detail?tab=students";
+            }
         } catch (Exception e) {
             ra.addFlashAttribute("error", "保存失败：" + e.getMessage());
         }
@@ -124,7 +116,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + id + "/detail";
+        return "redirect:/admin/courses/" + id + "/detail?tab=courses";
     }
 
     @PostMapping("/events/{id}/process")
@@ -135,7 +127,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + id + "/detail";
+        return "redirect:/admin/courses/" + id + "/detail?tab=courses";
     }
 
     @GetMapping("/events/{id}/lottery-status")
@@ -152,16 +144,26 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + id + "/detail";
+        return "redirect:/admin/courses/" + id + "/detail?tab=courses";
     }
 
     @GetMapping("/{eventId}/detail")
-    public String eventDetail(@PathVariable Long eventId, Model model) {
+    public String eventDetail(@PathVariable Long eventId,
+                              @RequestParam(defaultValue = "students") String tab,
+                              Model model) {
         School school = currentUserService.getCurrentSchool();
         SelectionEvent event = eventService.findById(eventId);
+        List<Student> participatingStudents = eventService.findParticipatingStudents(event);
+        Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
         model.addAttribute("event", event);
         model.addAttribute("courses", courseService.findByEvent(event));
         model.addAttribute("eventStudents", eventService.findEventStudents(event));
+        model.addAttribute("participatingStudents", participatingStudents);
+        model.addAttribute("participatingClasses", classService.findAll(school).stream()
+                .filter(c -> participatingClassIds.contains(c.getId()))
+                .toList());
+        model.addAttribute("participatingClassIds", participatingClassIds);
+        model.addAttribute("activeTab", "courses".equals(tab) ? "courses" : "students");
         model.addAttribute("allStudents", studentService.findBySchool(school));
         model.addAttribute("allClasses", classService.findAll(school));
         model.addAttribute("allGrades", gradeService.findAll(school));
@@ -180,7 +182,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + eventId + "/detail";
+        return "redirect:/admin/courses/" + eventId + "/detail?tab=students";
     }
 
     @PostMapping("/{eventId}/courses/save")
@@ -197,15 +199,13 @@ public class AdminCourseController {
         try {
             SelectionEvent event = eventService.findById(eventId);
             School school = currentUserService.getCurrentSchool();
+            Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
             Course course = (courseId != null) ? courseService.findById(courseId) : new Course();
             course.setEvent(event);
             course.setSchool(school);
             course.setName(name);
             course.setDescription(description);
             course.setCapacityMode(capacityMode);
-            if ("GLOBAL".equals(capacityMode)) {
-                course.setTotalCapacity(totalCapacity);
-            }
             if (teacherId != null) {
                 Teacher teacher = new Teacher();
                 teacher.setId(teacherId);
@@ -216,12 +216,17 @@ public class AdminCourseController {
             if (course.getStatus() == null) {
                 course.setStatus("DRAFT");
             }
-            courseService.saveCourse(course, classIds, classCapacities);
+            if ("GLOBAL".equals(capacityMode)) {
+                course.setTotalCapacity(totalCapacity);
+                courseService.saveCourse(course, null, null);
+            } else {
+                courseService.savePerClassCourse(course, classIds, classCapacities, participatingClassIds);
+            }
             ra.addFlashAttribute("success", "课程保存成功");
         } catch (Exception e) {
             ra.addFlashAttribute("error", "保存失败：" + e.getMessage());
         }
-        return "redirect:/admin/courses/" + eventId + "/detail";
+        return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/activate")
@@ -234,7 +239,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + eventId + "/detail";
+        return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/close")
@@ -247,7 +252,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + eventId + "/detail";
+        return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
     }
 
     @PostMapping("/{eventId}/courses/{courseId}/delete")
@@ -258,7 +263,7 @@ public class AdminCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin/courses/" + eventId + "/detail";
+        return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
     }
 
     @GetMapping("/{eventId}/courses/{courseId}/enrollments")
@@ -269,7 +274,7 @@ public class AdminCourseController {
         model.addAttribute("course", course);
         model.addAttribute("enrollments", courseService.findEnrollments(course));
         model.addAttribute("capacities", courseService.findCapacities(course));
-        model.addAttribute("allStudents", eventService.findEventStudents(event));
+        model.addAttribute("allStudents", eventService.findParticipatingStudents(event));
         return "admin/course-enrollments";
     }
 
