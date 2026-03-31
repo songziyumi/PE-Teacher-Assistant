@@ -109,10 +109,10 @@ public class CourseService {
         Course course = findById(courseId);
         List<CourseSelection> selections = selectionRepo.findByEventAndStudent(event, student);
         if (!"ACTIVE".equals(course.getStatus())) {
-            throw new RuntimeException("璇ヨ绋嬪綋鍓嶄笉鍙€?");
+            throw new RuntimeException("该课程当前不可选");
         }
 
-        // 鍚屼竴蹇楁効浣嶅凡鏈夎褰曞垯瑕嗙洊锛堝厛鍒犲啀寤猴紝瀹炵幇淇敼蹇楁効鍔熻兘锛?
+        // 同一志愿位已有记录则覆盖，先转回草稿再保存，支持修改志愿。
         try {
             markRound1SelectionsAsDraft(selections);
             Optional<CourseSelection> existingPreference = selections.stream()
@@ -151,8 +151,8 @@ public class CourseService {
                         && courseId.equals(selection.getCourse().getId())
                         && !"CANCELLED".equals(selection.getStatus())) {
                     throw new RuntimeException(preference == 1
-                            ? "璇ヨ绋嬪凡缁忔槸鎮ㄧ殑绗竴蹇楁効锛岃鍕块噸澶嶆彁浜?"
-                            : "璇ヨ绋嬪凡缁忔槸鎮ㄧ殑绗簩蹇楁効锛岃鍕块噸澶嶆彁浜?");
+                            ? "该课程已经是您的第一志愿，请勿重复提交"
+                            : "该课程已经是您的第二志愿，请勿重复提交");
                 }
                 selection.setCourse(course);
                 selection.setRound(1);
@@ -294,6 +294,7 @@ public class CourseService {
         if (!"CONFIRMED".equals(cs.getStatus())) {
             throw new RuntimeException("只能退已确认的课程");
         }
+        validateStudentDropEligibility(cs);
         cs.setStatus("CANCELLED");
         selectionRepo.save(cs);
 
@@ -551,5 +552,25 @@ public class CourseService {
             return new RuntimeException("该课程名额已满，请选择其他课程");
         }
         return new RuntimeException("抢课失败，请刷新页面后重试");
+    }
+    public boolean canDropSelection(CourseSelection selection) {
+        if (selection == null
+                || !"CONFIRMED".equals(selection.getStatus())
+                || selection.getRound() != 1
+                || selection.getPreference() != 2) {
+            return false;
+        }
+
+        SelectionEvent event = selection.getEvent();
+        if (event == null || !"ROUND2".equals(event.getStatus())) {
+            return false;
+        }
+        return event.getRound2End() == null || !LocalDateTime.now().isAfter(event.getRound2End());
+    }
+
+    private void validateStudentDropEligibility(CourseSelection selection) {
+        if (!canDropSelection(selection)) {
+            throw new RuntimeException("Only second-choice winners from round 1 can drop the course");
+        }
     }
 }

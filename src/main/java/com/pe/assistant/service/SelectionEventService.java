@@ -1,10 +1,12 @@
 package com.pe.assistant.service;
 
+import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.EventStudent;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
 import com.pe.assistant.repository.CourseRepository;
 import com.pe.assistant.repository.CourseSelectionRepository;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,6 +85,42 @@ public class SelectionEventService {
             }
         }
         return classIds;
+    }
+
+    public Round1LotterySummary getRound1LotterySummary(SelectionEvent event) {
+        List<CourseSelection> selections = selectionRepo.findByEvent(event);
+
+        Set<Long> submittedStudentIds = new HashSet<>();
+        Set<Long> firstChoiceConfirmedStudentIds = new HashSet<>();
+        Set<Long> secondChoiceConfirmedStudentIds = new HashSet<>();
+
+        for (CourseSelection selection : selections) {
+            if (selection.getRound() != 1) {
+                continue;
+            }
+            if (!"DRAFT".equals(selection.getStatus())) {
+                submittedStudentIds.add(selection.getStudent().getId());
+            }
+            if (selection.getConfirmedAt() == null) {
+                continue;
+            }
+            if (selection.getPreference() == 1) {
+                firstChoiceConfirmedStudentIds.add(selection.getStudent().getId());
+            } else if (selection.getPreference() == 2) {
+                secondChoiceConfirmedStudentIds.add(selection.getStudent().getId());
+            }
+        }
+
+        Set<Long> unsuccessfulStudentIds = new HashSet<>(submittedStudentIds);
+        unsuccessfulStudentIds.removeAll(firstChoiceConfirmedStudentIds);
+        unsuccessfulStudentIds.removeAll(secondChoiceConfirmedStudentIds);
+
+        return new Round1LotterySummary(
+                firstChoiceConfirmedStudentIds.size(),
+                secondChoiceConfirmedStudentIds.size(),
+                unsuccessfulStudentIds.size(),
+                submittedStudentIds.size()
+        );
     }
 
     @Transactional

@@ -187,7 +187,7 @@ public class TeacherApiController {
         }
     }
 
-    // ===== 鍏ㄦ牎琛屾斂鐝紙鐢ㄤ簬瀛︾敓鐝骇淇敼锛?=====
+    // ===== 全校行政班（用于学生班级修改）=====
 
     @GetMapping("/school-classes")
     public ApiResponse<List<Map<String, Object>>> schoolClasses() {
@@ -206,7 +206,7 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 鍏ㄦ牎閫変慨鐝紙鐢ㄤ簬瀛︾敓閫変慨鐝慨鏀癸級 =====
+    // ===== 全校选修班（用于学生选修班修改） =====
 
     @GetMapping("/elective-classes")
     public ApiResponse<List<Map<String, Object>>> electiveClasses() {
@@ -245,7 +245,7 @@ public class TeacherApiController {
         return ApiResponse.ok(result);
     }
 
-    // ===== 閫夎瀹℃壒涓績 =====
+    // ===== 选课审批中心 =====
 
     @GetMapping("/course-requests")
     public ApiResponse<List<Map<String, Object>>> courseRequests(
@@ -518,7 +518,7 @@ public class TeacherApiController {
         return ApiResponse.ok(m);
     }
 
-    // ===== 瀛︾敓鐝骇淇敼锛堟暀甯堟潈闄愶級 =====
+    // ===== 学生班级修改（教师权限） =====
 
     @PutMapping("/students/{id}")
     public ResponseEntity<ApiResponse<String>> updateStudentClass(
@@ -548,7 +548,7 @@ public class TeacherApiController {
         }
     }
 
-    // ===== 鐝骇瀛︾敓鍒楄〃锛堝惈閫変慨鐝俊鎭級 =====
+    // ===== 班级学生列表（含选修班信息） =====
 
     @PostMapping("/students/batch-update-status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> batchUpdateStudentStatus(
@@ -765,11 +765,11 @@ public class TeacherApiController {
         @Data
         static class Record {
             private Long studentId;
-            private String status; // 鍑哄嫟/缂哄嫟/璇峰亣
+            private String status; // 出勤/缺勤/请假
         }
     }
 
-    // ===== 浣撴祴鏌ヨ =====
+    // ===== 体测查询 =====
 
     @GetMapping("/physical-tests")
     public ApiResponse<Map<Long, Object>> physicalTests(@RequestParam Long classId,
@@ -792,7 +792,7 @@ public class TeacherApiController {
         return ApiResponse.ok(map);
     }
 
-    // ===== 浣撴祴鎵归噺淇濆瓨 =====
+    // ===== 体测批量保存 =====
 
     @PostMapping("/physical-tests/save-batch")
     public ApiResponse<String> savePhysicalTests(@RequestBody List<PhysicalTestItem> items) {
@@ -993,15 +993,15 @@ public class TeacherApiController {
     private boolean isElectiveType(String type) {
         if (type == null) return false;
         String v = type.trim();
-        return "选修课".equals(v) || v.contains("閫変慨") || v.contains("选修");
+        return "选修课".equals(v) || v.contains("选修");
     }
 
     private String normalizeAttendanceStatus(String raw) {
         if (raw == null || raw.isBlank()) return "出勤";
         String status = raw.trim();
-        if ("鍑哄嫟".equals(status) || "出勤".equals(status)) return "出勤";
-        if ("缂哄嫟".equals(status) || "缺勤".equals(status)) return "缺勤";
-        if ("璇峰亣".equals(status) || "请假".equals(status)) return "请假";
+        if ("出勤".equals(status)) return "出勤";
+        if ("缺勤".equals(status)) return "缺勤";
+        if ("请假".equals(status)) return "请假";
         return status;
     }
 

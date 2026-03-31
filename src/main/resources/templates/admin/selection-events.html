@@ -36,7 +36,7 @@
     <div class="nav-brand">🏃 体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/admin}">管理后台</a>
-        <span class="nav-user" th:text="${currentSchool?.name}"></span>
+        <span class="nav-user" th:text="${currentSchool != null ? currentSchool.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
@@ -63,27 +63,26 @@
         <div class="event-info">
             <h3 th:text="${event.name}"></h3>
             <div class="event-meta">
-                第一轮：<span th:text="${event.round1Start} ? ${#temporals.format(event.round1Start,'MM-dd HH:mm')} : '未设置'"></span>
-                ～ <span th:text="${event.round1End} ? ${#temporals.format(event.round1End,'MM-dd HH:mm')} : '未设置'"></span>
+                第一轮：<span th:text="${event.round1Start != null ? #temporals.format(event.round1Start,'MM-dd HH:mm') : '未设置'}"></span>
+                ～ <span th:text="${event.round1End != null ? #temporals.format(event.round1End,'MM-dd HH:mm') : '未设置'}"></span>
                 &nbsp;|&nbsp;
-                第二轮：<span th:text="${event.round2Start} ? ${#temporals.format(event.round2Start,'MM-dd HH:mm')} : '未设置'"></span>
-                ～ <span th:text="${event.round2End} ? ${#temporals.format(event.round2End,'MM-dd HH:mm')} : '未设置'"></span>
+                第二轮：<span th:text="${event.round2Start != null ? #temporals.format(event.round2Start,'MM-dd HH:mm') : '未设置'}"></span>
+                ～ <span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span class="badge"
-                  th:classappend="${event.status == 'DRAFT'} ? 'badge-draft' :
-                                  (${event.status == 'ROUND1'} ? 'badge-round1' :
-                                  (${event.status == 'PROCESSING'} ? 'badge-processing' :
-                                  (${event.status == 'ROUND2'} ? 'badge-round2' : 'badge-closed')))"
-                  th:text="${event.status == 'DRAFT'} ? '草稿' :
-                            (${event.status == 'ROUND1'} ? '第一轮进行中' :
-                            (${event.status == 'PROCESSING'} ? '结算中' :
-                            (${event.status == 'ROUND2'} ? '第二轮进行中' : '已关闭')))">
+                  th:classappend="${event.status == 'DRAFT' ? 'badge-draft' :
+                                  (event.status == 'ROUND1' ? 'badge-round1' :
+                                  (event.status == 'PROCESSING' ? 'badge-processing' :
+                                  (event.status == 'ROUND2' ? 'badge-round2' : 'badge-closed')))}"
+                  th:text="${event.status == 'DRAFT' ? '草稿' :
+                            (event.status == 'ROUND1' ? '第一轮进行中' :
+                            (event.status == 'PROCESSING' ? '结算中' :
+                            (event.status == 'ROUND2' ? '第二轮进行中' : '已关闭')))}">
             </span>
-            <!-- 抽签进度显示 -->
             <span th:if="${event.status == 'PROCESSING' and event.lotteryNote != null}"
-                  th:id="'lottery-note-' + ${event.id}"
+                  th:id="|lottery-note-${event.id}|"
                   style="font-size:.78rem;color:#f39c12;font-weight:600;"
                   th:text="${event.lotteryNote}"></span>
             <span th:if="${event.status == 'PROCESSING'}"
@@ -113,7 +112,6 @@
     </div>
 </div>
 
-<!-- 新建活动弹窗 -->
 <div class="modal-overlay" id="addModal">
     <div class="modal">
         <div class="modal-header">
@@ -161,7 +159,6 @@
     </div>
 </div>
 
-<!-- 编辑活动弹窗 -->
 <div class="modal-overlay" id="editModal">
     <div class="modal">
         <div class="modal-header">
@@ -211,7 +208,6 @@
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-// 编辑按钮：从 data-* 属性读值
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -226,7 +222,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 轮询抽签进度（每10秒）
     const processingNotes = document.querySelectorAll('[id^="lottery-note-"]');
     if (processingNotes.length > 0) {
         processingNotes.forEach(function(noteEl) {
@@ -238,7 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         noteEl.textContent = data.note || '';
                         if (data.status !== 'PROCESSING') {
                             clearInterval(poll);
-                            // 自动刷新页面以更新状态徽章
                             setTimeout(() => location.reload(), 1500);
                         }
                     })

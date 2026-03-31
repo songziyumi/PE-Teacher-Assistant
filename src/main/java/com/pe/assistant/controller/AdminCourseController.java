@@ -1,5 +1,6 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
@@ -153,10 +154,14 @@ public class AdminCourseController {
                               Model model) {
         School school = currentUserService.getCurrentSchool();
         SelectionEvent event = eventService.findById(eventId);
+        Round1LotterySummary round1Summary = eventService.getRound1LotterySummary(event);
+        boolean round1ResultAvailable = "ROUND2".equals(event.getStatus()) || "CLOSED".equals(event.getStatus());
         List<Student> participatingStudents = eventService.findParticipatingStudents(event);
         Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
         model.addAttribute("event", event);
         model.addAttribute("courses", courseService.findByEvent(event));
+        model.addAttribute("round1Summary", round1Summary);
+        model.addAttribute("round1ResultAvailable", round1ResultAvailable);
         model.addAttribute("eventStudents", eventService.findEventStudents(event));
         model.addAttribute("participatingStudents", participatingStudents);
         model.addAttribute("participatingClasses", classService.findAll(school).stream()

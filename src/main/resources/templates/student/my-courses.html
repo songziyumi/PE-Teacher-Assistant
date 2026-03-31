@@ -63,7 +63,7 @@
                 <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
             </div>
 
-            <form th:if="${sel.status == 'CONFIRMED'}"
+            <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
                   th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
                   method="post"
                   onsubmit="return confirm('确认退课？')">

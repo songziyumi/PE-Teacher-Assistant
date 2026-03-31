@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -81,10 +81,10 @@
 
     <div class="status-bar">
         <span class="badge"
-              th:classappend="${event.status == 'DRAFT'} ? 'badge-draft' :
-                              (${event.status == 'ROUND1'} ? 'badge-round1' :
-                              (${event.status == 'PROCESSING'} ? 'badge-processing' :
-                              (${event.status == 'ROUND2'} ? 'badge-round2' : 'badge-closed')))"
+              th:classappend="${event.status == 'DRAFT' ? 'badge-draft' :
+                              (event.status == 'ROUND1' ? 'badge-round1' :
+                              (event.status == 'PROCESSING' ? 'badge-processing' :
+                              (event.status == 'ROUND2' ? 'badge-round2' : 'badge-closed')))}"
               th:text="${event.status == 'DRAFT' ? '草稿' :
                         (event.status == 'ROUND1' ? '第一轮进行中' :
                         (event.status == 'PROCESSING' ? '结算中' :
@@ -147,20 +147,39 @@
         </div>
     </div>
 
+    <div class="summary-grid" th:if="${round1ResultAvailable}">
+        <div class="summary-card">
+            <strong th:text="${round1Summary.firstChoiceConfirmedCount}">0</strong>
+            <span>第一志愿中签人数</span>
+        </div>
+        <div class="summary-card">
+            <strong th:text="${round1Summary.secondChoiceConfirmedCount}">0</strong>
+            <span>第二志愿中签人数</span>
+        </div>
+        <div class="summary-card">
+            <strong th:text="${round1Summary.unsuccessfulCount}">0</strong>
+            <span>第一、第二志愿都未中签人数</span>
+        </div>
+    </div>
+    <p class="section-tip" th:if="${round1ResultAvailable}">
+        统计口径：已确认参加第一轮抽签的学生，共
+        <strong th:text="${round1Summary.submittedStudentCount}">0</strong>
+        人。
+    </p>
     <div class="tab-bar">
         <button type="button"
                 class="tab-btn"
-                th:classappend="${activeTab == 'students'} ? ' active'"
+                th:classappend="${activeTab == 'students' ? ' active' : ''}"
                 onclick="switchTab('tabStudents', this)">1. 参与学生</button>
         <button type="button"
                 class="tab-btn"
-                th:classappend="${activeTab == 'courses'} ? ' active'"
+                th:classappend="${activeTab == 'courses' ? ' active' : ''}"
                 onclick="switchTab('tabCourses', this)">2. 课程与名额</button>
     </div>
 
-    <div class="tab-pane" id="tabStudents" th:classappend="${activeTab == 'students'} ? ' active'">
+    <div class="tab-pane" id="tabStudents" th:classappend="${activeTab == 'students' ? ' active' : ''}">
         <div class="scope-callout">
-            <span class="badge badge-scope" th:text="${#lists.isEmpty(eventStudents)} ? '当前为全校学生参与' : '当前为指定学生参与'"></span>
+            <span class="badge badge-scope" th:text="${#lists.isEmpty(eventStudents) ? '当前为全校学生参与' : '当前为指定学生参与'}"></span>
             <span style="margin-left:8px;">先确定参与范围，再配置课程名额。按班名额只会对当前参与范围内的班级生效。</span>
         </div>
         <p class="section-tip">
@@ -222,7 +241,7 @@
         </form>
     </div>
 
-    <div class="tab-pane" id="tabCourses" th:classappend="${activeTab == 'courses'} ? ' active'">
+    <div class="tab-pane" id="tabCourses" th:classappend="${activeTab == 'courses' ? ' active' : ''}">
         <p class="section-tip">
             先确认参与学生，再配置课程。按班名额仅显示参与范围内的班级，并支持先批量设置、再逐班微调。
         </p>
@@ -253,7 +272,7 @@
                 <td th:text="${c.currentCount}"></td>
                 <td>
                     <span class="badge"
-                          th:classappend="${c.status == 'ACTIVE'} ? 'badge-active' : 'badge-draft'"
+                          th:classappend="${c.status == 'ACTIVE' ? 'badge-active' : 'badge-draft'}"
                           th:text="${c.status == 'DRAFT' ? '草稿' : (c.status == 'ACTIVE' ? '已发布' : '已关闭')}"></span>
                 </td>
                 <td>
@@ -307,7 +326,7 @@
                             <option value="">- 不指定 -</option>
                             <option th:each="teacher : ${availableTeachers}"
                                     th:value="${teacher.id}"
-                                    th:text="${teacher.name + '（' + teacher.username + '）'}"></option>
+                                    th:text="${teacher.name + ' (' + teacher.username + ')'}"></option>
                         </select>
                     </div>
                 </div>

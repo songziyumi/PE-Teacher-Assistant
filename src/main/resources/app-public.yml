@@ -16,6 +16,8 @@ spring:
   thymeleaf:
     encoding: UTF-8
     cache: false
+  messages:
+    encoding: UTF-8
   servlet:
     multipart:
       max-file-size: 10MB
@@ -28,6 +30,7 @@ server:
     encoding:
       charset: UTF-8
       enabled: true
+      force: true
 
 logging:
   level:

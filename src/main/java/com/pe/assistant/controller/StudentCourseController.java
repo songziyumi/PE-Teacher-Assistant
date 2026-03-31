@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/student")
@@ -183,8 +184,13 @@ public class StudentCourseController {
         }
         model.addAttribute("student", student);
         if (event != null) {
+            List<CourseSelection> mySelections = courseService.findMySelections(student, event);
             model.addAttribute("event", event);
-            model.addAttribute("mySelections", courseService.findMySelections(student, event));
+            model.addAttribute("mySelections", mySelections);
+            model.addAttribute("droppableSelectionIds", mySelections.stream()
+                    .filter(courseService::canDropSelection)
+                    .map(CourseSelection::getId)
+                    .collect(Collectors.toList()));
         }
         return "student/my-courses";
     }

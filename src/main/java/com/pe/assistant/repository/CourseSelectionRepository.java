@@ -20,6 +20,8 @@ public interface CourseSelectionRepository extends JpaRepository<CourseSelection
     /** 某学生在某活动中的所有志愿/选课记录 */
     List<CourseSelection> findByEventAndStudent(SelectionEvent event, Student student);
 
+    List<CourseSelection> findByEvent(SelectionEvent event);
+
     /** 某学生在某活动中已确认的课程（最多1条） */
     Optional<CourseSelection> findByEventAndStudentAndStatus(
             SelectionEvent event, Student student, String status);

@@ -31,6 +31,10 @@ class StudentService {
         .toList();
   }
 
+  static Future<void> dropSelection(int selectionId) async {
+    await ApiService.delete('/student/selections/$selectionId');
+  }
+
   static Future<int> getUnreadMessageCount() async {
     final data = await ApiService.get('/student/messages/unread-count') as Map;
     final value = data['unreadCount'];

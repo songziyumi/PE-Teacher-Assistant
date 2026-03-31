@@ -199,6 +199,7 @@ public class StudentApiController {
             item.put("status", selection.getStatus());
             item.put("selectedAt", selection.getSelectedAt());
             item.put("confirmedAt", selection.getConfirmedAt());
+            item.put("canDrop", courseService.canDropSelection(selection));
             result.add(item);
         }
         return ApiResponse.ok(result);
