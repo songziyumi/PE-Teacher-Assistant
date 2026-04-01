@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +41,8 @@ class LotteryServiceRegressionTest {
     private CourseClassCapacityRepository capacityRepo;
     @Mock
     private CourseSelectionRepository selectionRepo;
+    @Mock
+    private StudentNotificationService studentNotificationService;
 
     @InjectMocks
     private LotteryService lotteryService;
@@ -155,6 +158,32 @@ class LotteryServiceRegressionTest {
         assertTrue(event.getLotteryNote().contains("第二轮"));
     }
 
+    @Test
+    void shouldNotifyStudentsWithRound1ResultAfterLottery() throws Exception {
+        SelectionEvent event = buildEvent(4L);
+
+        Course alpha = buildGlobalCourse(41L, event, "Alpha", 1);
+        Course beta = buildGlobalCourse(42L, event, "Beta", 0);
+
+        SchoolClass schoolClass = buildClass(4L, "Class 4");
+        Student winner = buildStudent(401L, schoolClass);
+        Student loser = buildStudent(402L, schoolClass);
+
+        CourseSelection winnerSelection = buildSelection(4001L, event, alpha, winner, 1, "PENDING");
+        CourseSelection loserSelection = buildSelection(4002L, event, beta, loser, 1, "PENDING");
+        List<CourseSelection> selections = new ArrayList<>(List.of(winnerSelection, loserSelection));
+
+        stubCommonEventAndCourseQueries(event, List.of(alpha, beta));
+        stubConfirmedSelections(event, selections);
+        stubGlobalSelectionQueries(selections);
+        stubSavePassthrough();
+
+        lotteryService.doRunLottery(event.getId());
+
+        verify(studentNotificationService).notifyRound1Result(event, winner, alpha);
+        verify(studentNotificationService).notifyRound1Result(event, loser, null);
+    }
+
     private void stubCommonEventAndCourseQueries(SelectionEvent event, List<Course> courses) {
         when(eventRepo.findById(event.getId())).thenReturn(Optional.of(event));
         when(courseRepo.findByEventOrderByNameAsc(event)).thenReturn(courses.stream()
@@ -163,6 +192,7 @@ class LotteryServiceRegressionTest {
     }
 
     private void stubConfirmedSelections(SelectionEvent event, List<CourseSelection> selections) {
+        when(selectionRepo.findByEvent(event)).thenReturn(selections);
         when(selectionRepo.findByEventAndStatus(event, "CONFIRMED")).thenAnswer(invocation -> selections.stream()
                 .filter(selection -> event.getId().equals(selection.getEvent().getId()))
                 .filter(selection -> "CONFIRMED".equals(selection.getStatus()))

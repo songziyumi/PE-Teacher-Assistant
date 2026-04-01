@@ -44,16 +44,18 @@ class CourseServiceDropCourseTest {
     private SelectionEventRepository eventRepo;
     @Mock
     private StudentRepository studentRepo;
+    @Mock
+    private StudentNotificationService studentNotificationService;
 
     @InjectMocks
     private CourseService courseService;
 
     @Test
-    void shouldAllowDroppingConfirmedSecondChoiceDuringRound2() {
+    void shouldAllowDroppingConfirmedFirstRoundSelectionDuringRound2() {
         Student student = buildStudent(1L);
         Course course = buildCourse(11L, 2);
         SelectionEvent event = buildRound2Event();
-        CourseSelection selection = buildSelection(101L, student, course, event, 2);
+        CourseSelection selection = buildSelection(101L, student, course, event, 1);
 
         when(selectionRepo.findById(selection.getId())).thenReturn(Optional.of(selection));
         doAnswer(invocation -> invocation.getArgument(0)).when(selectionRepo).save(any(CourseSelection.class));
@@ -63,23 +65,26 @@ class CourseServiceDropCourseTest {
 
         assertEquals("CANCELLED", selection.getStatus());
         assertEquals(1, course.getCurrentCount());
+        verify(studentNotificationService).notifyDropSuccess(student, course, event);
     }
 
     @Test
-    void shouldRejectDroppingConfirmedFirstChoice() {
+    void shouldRejectDroppingRound2Selection() {
         Student student = buildStudent(2L);
         Course course = buildCourse(12L, 1);
         SelectionEvent event = buildRound2Event();
-        CourseSelection selection = buildSelection(102L, student, course, event, 1);
+        CourseSelection selection = buildSelection(102L, student, course, event, 0);
+        selection.setRound(2);
 
         when(selectionRepo.findById(selection.getId())).thenReturn(Optional.of(selection));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> courseService.dropCourse(student, selection.getId()));
 
-        assertEquals("Only second-choice winners from round 1 can drop the course", exception.getMessage());
+        assertEquals("当前仅支持第一轮已确认课程在第二轮期间退课", exception.getMessage());
         verify(selectionRepo, never()).save(any(CourseSelection.class));
         verify(courseRepo, never()).save(any(Course.class));
+        verify(studentNotificationService, never()).notifyDropSuccess(any(Student.class), any(Course.class), any(SelectionEvent.class));
     }
 
     private Student buildStudent(Long id) {

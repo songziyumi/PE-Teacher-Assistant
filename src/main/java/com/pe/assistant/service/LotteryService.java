@@ -18,7 +18,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -39,6 +41,7 @@ public class LotteryService {
     private final CourseRepository courseRepo;
     private final CourseClassCapacityRepository capacityRepo;
     private final CourseSelectionRepository selectionRepo;
+    private final StudentNotificationService studentNotificationService;
 
     @Async
     public void runLottery(Long eventId) {
@@ -75,6 +78,7 @@ public class LotteryService {
         event.setStatus("ROUND2");
         event.setLotteryNote("抽签完成，已进入第二轮");
         eventRepo.save(event);
+        notifyRound1Results(event);
     }
 
     private void settlePreferencesByPhase(SelectionEvent event,
@@ -194,5 +198,32 @@ public class LotteryService {
             selectionRepo.save(cs);
         }
         return newlyConfirmedStudentIds;
+    }
+
+    private void notifyRound1Results(SelectionEvent event) {
+        List<CourseSelection> round1Selections = selectionRepo.findByEvent(event).stream()
+                .filter(selection -> selection.getRound() == 1)
+                .filter(selection -> !"DRAFT".equals(selection.getStatus()))
+                .toList();
+
+        Map<Long, List<CourseSelection>> selectionsByStudent = new LinkedHashMap<>();
+        for (CourseSelection selection : round1Selections) {
+            if (selection.getStudent() == null || selection.getStudent().getId() == null) {
+                continue;
+            }
+            selectionsByStudent
+                    .computeIfAbsent(selection.getStudent().getId(), key -> new ArrayList<>())
+                    .add(selection);
+        }
+
+        for (List<CourseSelection> studentSelections : selectionsByStudent.values()) {
+            CourseSelection sample = studentSelections.get(0);
+            Course confirmedCourse = studentSelections.stream()
+                    .filter(selection -> "CONFIRMED".equals(selection.getStatus()))
+                    .map(CourseSelection::getCourse)
+                    .findFirst()
+                    .orElse(null);
+            studentNotificationService.notifyRound1Result(event, sample.getStudent(), confirmedCourse);
+        }
     }
 }

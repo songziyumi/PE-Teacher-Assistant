@@ -25,6 +25,7 @@ public class CourseService {
     private final EventStudentRepository eventStudentRepo;
     private final SelectionEventRepository eventRepo;
     private final StudentRepository studentRepo;
+    private final StudentNotificationService studentNotificationService;
 
     // ===== 课程 CRUD =====
 
@@ -314,6 +315,7 @@ public class CourseService {
             course.setCurrentCount(Math.max(0, course.getCurrentCount() - 1));
             courseRepo.save(course);
         }
+        studentNotificationService.notifyDropSuccess(student, course, cs.getEvent());
     }
 
     // ===== 管理员手动调整 =====
@@ -556,8 +558,7 @@ public class CourseService {
     public boolean canDropSelection(CourseSelection selection) {
         if (selection == null
                 || !"CONFIRMED".equals(selection.getStatus())
-                || selection.getRound() != 1
-                || selection.getPreference() != 2) {
+                || selection.getRound() != 1) {
             return false;
         }
 
@@ -570,7 +571,7 @@ public class CourseService {
 
     private void validateStudentDropEligibility(CourseSelection selection) {
         if (!canDropSelection(selection)) {
-            throw new RuntimeException("Only second-choice winners from round 1 can drop the course");
+            throw new RuntimeException("当前仅支持第一轮已确认课程在第二轮期间退课");
         }
     }
 }

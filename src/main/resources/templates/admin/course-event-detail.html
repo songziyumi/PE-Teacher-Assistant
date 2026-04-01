@@ -81,14 +81,8 @@
 
     <div class="status-bar">
         <span class="badge"
-              th:classappend="${event.status == 'DRAFT' ? 'badge-draft' :
-                              (event.status == 'ROUND1' ? 'badge-round1' :
-                              (event.status == 'PROCESSING' ? 'badge-processing' :
-                              (event.status == 'ROUND2' ? 'badge-round2' : 'badge-closed')))}"
-              th:text="${event.status == 'DRAFT' ? '草稿' :
-                        (event.status == 'ROUND1' ? '第一轮进行中' :
-                        (event.status == 'PROCESSING' ? '结算中' :
-                        (event.status == 'ROUND2' ? '第二轮进行中' : '已关闭')))}">
+              th:classappend="${event.adminDisplayStatusBadgeClass}"
+              th:text="${event.adminDisplayStatusText}">
         </span>
         <span style="font-size:.85rem;color:#666;">
             第一轮：
