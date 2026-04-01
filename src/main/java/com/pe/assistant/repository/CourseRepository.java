@@ -17,6 +17,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     List<Course> findByEventAndStatusOrderByNameAsc(SelectionEvent event, String status);
 
+    List<Course> findBySchoolAndTeacherIsNotNullOrderByNameAsc(School school);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Course c WHERE c.id = :id")
     Optional<Course> findByIdForUpdate(@Param("id") Long id);

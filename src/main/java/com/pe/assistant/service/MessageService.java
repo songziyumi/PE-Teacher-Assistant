@@ -27,6 +27,7 @@ public class MessageService {
     private final InternalMessageRepository messageRepo;
     private final CourseRequestAuditRepository courseRequestAuditRepo;
     private final CourseService courseService;
+    private final CourseRepository courseRepository;
     private final TeacherRepository teacherRepository;
 
     // ===== 发送消息 =====
@@ -345,10 +346,37 @@ public class MessageService {
 
     // ===== 教师列表（供学生发消息选择） =====
 
-    public List<Teacher> findTeachersBySchool(School school) {
+    public List<TeacherMessageRecipient> findTeachersBySchool(School school) {
+        List<Course> assignedCourses = courseRepository.findBySchoolAndTeacherIsNotNullOrderByNameAsc(school);
+        java.util.Map<Long, java.util.LinkedHashSet<String>> courseNamesByTeacherId = new java.util.LinkedHashMap<>();
+        for (Course course : assignedCourses) {
+            if (course.getTeacher() == null || course.getTeacher().getId() == null) {
+                continue;
+            }
+            courseNamesByTeacherId
+                    .computeIfAbsent(course.getTeacher().getId(), key -> new java.util.LinkedHashSet<>())
+                    .add(course.getName());
+        }
+
         return teacherRepository.findBySchool(school).stream()
-                .filter(t -> !"ADMIN".equals(t.getRole()))
-                .collect(java.util.stream.Collectors.toList());
+                .filter(this::isStudentMessageRecipient)
+                .map(teacher -> new TeacherMessageRecipient(
+                        teacher.getId(),
+                        teacher.getName(),
+                        buildTeacherRecipientLabel(teacher, courseNamesByTeacherId.get(teacher.getId()))))
+                .toList();
+    }
+
+    public Teacher findTeacherMessageRecipient(School school, Long teacherId) {
+        Teacher teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("教师不存在"));
+        if (school == null || teacher.getSchool() == null || !school.getId().equals(teacher.getSchool().getId())) {
+            throw new RuntimeException("教师不存在");
+        }
+        if (!isStudentMessageRecipient(teacher)) {
+            throw new RuntimeException("该账号不能作为站内信收件教师");
+        }
+        return teacher;
     }
 
     private String normalizeTeacherMessageType(String type) {
@@ -396,5 +424,40 @@ public class MessageService {
         audit.setRemark(remark);
         audit.setHandledAt(handledAt != null ? handledAt : LocalDateTime.now());
         courseRequestAuditRepo.save(audit);
+    }
+
+    private boolean isStudentMessageRecipient(Teacher teacher) {
+        return teacher != null && teacher.resolveAccountType() == TeacherAccountType.TEACHER;
+    }
+
+    private String buildTeacherRecipientLabel(Teacher teacher, java.util.Set<String> courseNames) {
+        if (courseNames == null || courseNames.isEmpty()) {
+            return teacher.getName();
+        }
+        return teacher.getName() + "（" + String.join("、", courseNames) + "）";
+    }
+
+    public static final class TeacherMessageRecipient {
+        private final Long id;
+        private final String name;
+        private final String displayName;
+
+        public TeacherMessageRecipient(Long id, String name, String displayName) {
+            this.id = id;
+            this.name = name;
+            this.displayName = displayName;
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 }
