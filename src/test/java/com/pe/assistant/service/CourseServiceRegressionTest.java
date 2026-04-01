@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,7 +49,7 @@ class CourseServiceRegressionTest {
     private CourseService courseService;
 
     @Test
-    void submitPreferenceShouldRejectSameCourseInOtherPreference() {
+    void submitPreferenceShouldMoveCourseFromSecondToFirstAndClearSecond() {
         SelectionEvent event = new SelectionEvent();
         event.setId(1L);
         event.setStatus("ROUND1");
@@ -56,27 +57,177 @@ class CourseServiceRegressionTest {
         Student student = new Student();
         student.setId(2L);
 
-        Course course = new Course();
-        course.setId(3L);
-        course.setStatus("ACTIVE");
+        Course firstCourse = new Course();
+        firstCourse.setId(3L);
+        firstCourse.setStatus("ACTIVE");
+
+        Course secondCourse = new Course();
+        secondCourse.setId(4L);
+        secondCourse.setStatus("ACTIVE");
+
+        CourseSelection firstPreference = new CourseSelection();
+        firstPreference.setId(11L);
+        firstPreference.setEvent(event);
+        firstPreference.setStudent(student);
+        firstPreference.setCourse(firstCourse);
+        firstPreference.setPreference(1);
+        firstPreference.setStatus("PENDING");
+
+        CourseSelection secondPreference = new CourseSelection();
+        secondPreference.setId(12L);
+        secondPreference.setEvent(event);
+        secondPreference.setStudent(student);
+        secondPreference.setCourse(secondCourse);
+        secondPreference.setPreference(2);
+        secondPreference.setStatus("PENDING");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(courseRepo.findById(4L)).thenReturn(Optional.of(secondCourse));
+        when(selectionRepo.findByEventAndStudent(event, student)).thenReturn(List.of(firstPreference, secondPreference));
+        when(selectionRepo.saveAndFlush(firstPreference)).thenReturn(firstPreference);
+
+        CourseSelection result = courseService.submitPreference(student, 1L, 4L, 1);
+
+        assertSame(firstPreference, result);
+        assertSame(secondCourse, result.getCourse());
+        assertEquals(1, result.getPreference());
+        assertEquals("DRAFT", result.getStatus());
+        verify(selectionRepo).delete(secondPreference);
+        verify(selectionRepo).saveAndFlush(firstPreference);
+        verify(selectionRepo, never()).save(any());
+    }
+
+    @Test
+    void submitPreferenceShouldUpdateExistingPreferenceInsteadOfInsert() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND1");
+
+        Student student = new Student();
+        student.setId(2L);
+
+        Course oldCourse = new Course();
+        oldCourse.setId(3L);
+        oldCourse.setStatus("ACTIVE");
+
+        Course newCourse = new Course();
+        newCourse.setId(4L);
+        newCourse.setStatus("ACTIVE");
 
         CourseSelection existing = new CourseSelection();
+        existing.setId(10L);
         existing.setEvent(event);
         existing.setStudent(student);
-        existing.setCourse(course);
+        existing.setCourse(oldCourse);
         existing.setPreference(1);
+        existing.setRound(1);
         existing.setStatus("PENDING");
 
         when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
         when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
-        when(courseRepo.findById(3L)).thenReturn(Optional.of(course));
+        when(courseRepo.findById(4L)).thenReturn(Optional.of(newCourse));
         when(selectionRepo.findByEventAndStudent(event, student)).thenReturn(List.of(existing));
+        when(selectionRepo.saveAndFlush(existing)).thenReturn(existing);
+
+        CourseSelection result = courseService.submitPreference(student, 1L, 4L, 1);
+
+        assertSame(existing, result);
+        assertSame(newCourse, result.getCourse());
+        assertEquals(1, result.getPreference());
+        assertEquals("DRAFT", result.getStatus());
+        assertTrue(result.getSelectedAt() != null);
+        verify(selectionRepo).saveAndFlush(existing);
+        verify(selectionRepo, never()).save(any());
+    }
+
+    @Test
+    void confirmRound1SelectionsShouldRequireFirstPreference() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND1");
+
+        Student student = new Student();
+        student.setId(2L);
+
+        CourseSelection pref2 = new CourseSelection();
+        pref2.setEvent(event);
+        pref2.setStudent(student);
+        pref2.setPreference(2);
+        pref2.setRound(1);
+        pref2.setStatus("DRAFT");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.findByEventAndStudent(event, student)).thenReturn(List.of(pref2));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> courseService.submitPreference(student, 1L, 3L, 2));
+                () -> courseService.confirmRound1Selections(student, 1L));
 
         assertNotNull(ex.getMessage());
-        verify(selectionRepo, never()).save(any());
+        verify(selectionRepo, never()).saveAllAndFlush(any());
+    }
+
+    @Test
+    void confirmRound1SelectionsShouldAllowOnlyFirstPreference() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND1");
+
+        Student student = new Student();
+        student.setId(2L);
+
+        CourseSelection pref1 = new CourseSelection();
+        pref1.setEvent(event);
+        pref1.setStudent(student);
+        pref1.setPreference(1);
+        pref1.setRound(1);
+        pref1.setStatus("DRAFT");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.findByEventAndStudent(event, student)).thenReturn(List.of(pref1));
+
+        int updated = courseService.confirmRound1Selections(student, 1L);
+
+        assertEquals(1, updated);
+        assertEquals("PENDING", pref1.getStatus());
+        verify(selectionRepo).saveAllAndFlush(List.of(pref1));
+    }
+
+    @Test
+    void confirmRound1SelectionsShouldPromoteDraftsToPending() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND1");
+
+        Student student = new Student();
+        student.setId(2L);
+
+        CourseSelection pref1 = new CourseSelection();
+        pref1.setEvent(event);
+        pref1.setStudent(student);
+        pref1.setPreference(1);
+        pref1.setRound(1);
+        pref1.setStatus("DRAFT");
+
+        CourseSelection pref2 = new CourseSelection();
+        pref2.setEvent(event);
+        pref2.setStudent(student);
+        pref2.setPreference(2);
+        pref2.setRound(1);
+        pref2.setStatus("DRAFT");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.findByEventAndStudent(event, student)).thenReturn(List.of(pref1, pref2));
+
+        int updated = courseService.confirmRound1Selections(student, 1L);
+
+        assertEquals(2, updated);
+        assertEquals("PENDING", pref1.getStatus());
+        assertEquals("PENDING", pref2.getStatus());
+        verify(selectionRepo).saveAllAndFlush(List.of(pref1, pref2));
     }
 
     @Test

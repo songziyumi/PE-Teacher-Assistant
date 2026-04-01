@@ -6,6 +6,8 @@ import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.entity.TeacherAccountType;
+import com.pe.assistant.repository.CourseRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
 import com.pe.assistant.repository.InternalMessageRepository;
 import com.pe.assistant.repository.TeacherRepository;
@@ -40,6 +42,8 @@ class MessageServiceRegressionTest {
     private CourseRequestAuditRepository courseRequestAuditRepo;
     @Mock
     private CourseService courseService;
+    @Mock
+    private CourseRepository courseRepository;
     @Mock
     private TeacherRepository teacherRepository;
 
@@ -178,6 +182,46 @@ class MessageServiceRegressionTest {
         assertSame(unreadGeneral, result.get(0));
     }
 
+    @Test
+    void findTeachersBySchoolShouldExcludeAdminsAndAppendCourseNames() {
+        School school = new School();
+        school.setId(1L);
+
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        teacher.setAccountType(TeacherAccountType.TEACHER);
+        teacher.setSchool(school);
+
+        Teacher schoolAdmin = buildTeacher(20L, "Admin");
+        schoolAdmin.setRole("ADMIN");
+        schoolAdmin.setAccountType(TeacherAccountType.SCHOOL_ADMIN);
+        schoolAdmin.setSchool(school);
+
+        Teacher orgAdmin = buildTeacher(30L, "Org Admin");
+        orgAdmin.setRole("TEACHER");
+        orgAdmin.setAccountType(TeacherAccountType.ORG_ADMIN);
+        orgAdmin.setSchool(school);
+
+        Course football = new Course();
+        football.setId(1L);
+        football.setName("Football");
+        football.setTeacher(teacher);
+
+        Course basketball = new Course();
+        basketball.setId(2L);
+        basketball.setName("Basketball");
+        basketball.setTeacher(teacher);
+
+        when(teacherRepository.findBySchool(school)).thenReturn(List.of(teacher, schoolAdmin, orgAdmin));
+        when(courseRepository.findBySchoolAndTeacherIsNotNullOrderByNameAsc(school))
+                .thenReturn(List.of(basketball, football));
+
+        List<MessageService.TeacherMessageRecipient> recipients = messageService.findTeachersBySchool(school);
+
+        assertEquals(1, recipients.size());
+        assertEquals(teacher.getId(), recipients.get(0).getId());
+        assertEquals("Teacher-A（Basketball、Football）", recipients.get(0).getDisplayName());
+    }
+
     private InternalMessage buildCourseRequestMessage(String status, Long recipientTeacherId) {
         InternalMessage msg = new InternalMessage();
         msg.setId(1L);
@@ -211,6 +255,7 @@ class MessageServiceRegressionTest {
         Teacher teacher = new Teacher();
         teacher.setId(id);
         teacher.setName(name);
+        teacher.setRole("TEACHER");
         return teacher;
     }
 }

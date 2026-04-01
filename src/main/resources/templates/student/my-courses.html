@@ -44,6 +44,10 @@
     </div>
 
     <div th:if="${mySelections != null and !#lists.isEmpty(mySelections)}" class="card">
+        <div th:if="${droppableSelectionIds != null and !#lists.isEmpty(droppableSelectionIds)}"
+             style="margin-bottom:12px;padding:10px 12px;border-radius:8px;background:#eef7ff;color:#2c3e50;font-size:.86rem;line-height:1.6;">
+            第一轮已确认课程可在第二轮期间主动退课。退课后名额将回流第二轮，您需要按第二轮规则重新抢课，系统不会回到第一轮重新分配。
+        </div>
         <div th:each="sel : ${mySelections}" class="sel-row">
             <div style="flex:1;">
                 <div class="sel-course" th:text="${sel.course.name}"></div>
@@ -55,12 +59,18 @@
                 </div>
             </div>
 
-            <div class="status" th:text="${sel.status}"></div>
+            <div class="status">
+                <span th:if="${sel.status == 'DRAFT'}">草稿</span>
+                <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
+                <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
+                <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
+                <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
+            </div>
 
-            <form th:if="${sel.status == 'CONFIRMED'}"
+            <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
                   th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
                   method="post"
-                  onsubmit="return confirm('确认退课？')">
+                  onsubmit="return confirm('确认退课？退课后将失去当前录取结果，并按第二轮规则重新抢课。')">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <button type="submit" class="btn btn-danger btn-xs">退课</button>
             </form>

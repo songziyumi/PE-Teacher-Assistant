@@ -3,13 +3,17 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +25,7 @@ public class CourseService {
     private final EventStudentRepository eventStudentRepo;
     private final SelectionEventRepository eventRepo;
     private final StudentRepository studentRepo;
+    private final StudentNotificationService studentNotificationService;
 
     // ===== 课程 CRUD =====
 
@@ -36,6 +41,12 @@ public class CourseService {
     public Course saveCourse(Course course, List<Long> classIds, List<Integer> classCapacities) {
         Course saved = courseRepo.save(course);
         if ("PER_CLASS".equals(course.getCapacityMode()) && classIds != null) {
+            Map<Long, Integer> existingCounts = new HashMap<>();
+            for (CourseClassCapacity existing : capacityRepo.findByCourse(saved)) {
+                if (existing.getSchoolClass() != null && existing.getSchoolClass().getId() != null) {
+                    existingCounts.put(existing.getSchoolClass().getId(), existing.getCurrentCount());
+                }
+            }
             capacityRepo.deleteByCourse(saved);
             int total = 0;
             for (int i = 0; i < classIds.size(); i++) {
@@ -47,6 +58,7 @@ public class CourseService {
                 int max = (classCapacities != null && i < classCapacities.size())
                         ? classCapacities.get(i) : 0;
                 cap.setMaxCapacity(max);
+                cap.setCurrentCount(existingCounts.getOrDefault(classIds.get(i), 0));
                 capacityRepo.save(cap);
                 total += max;
             }
@@ -59,6 +71,9 @@ public class CourseService {
     @Transactional
     public void deleteCourse(Long id) {
         Course course = findById(id);
+        if (!selectionRepo.findByCourseOrderBySelectedAtAsc(course).isEmpty()) {
+            throw new RuntimeException("课程已有报名记录，不能直接删除");
+        }
         capacityRepo.deleteByCourse(course);
         courseRepo.delete(course);
     }
@@ -93,34 +108,109 @@ public class CourseService {
         }
 
         Course course = findById(courseId);
-        boolean duplicatedInOtherPreference = selectionRepo.findByEventAndStudent(event, student).stream()
-                .filter(existing -> existing.getPreference() != preference)
-                .anyMatch(existing -> existing.getCourse() != null
-                        && courseId.equals(existing.getCourse().getId())
-                        && !"CANCELLED".equals(existing.getStatus()));
-        if (duplicatedInOtherPreference) {
-            throw new RuntimeException("同一课程不能同时填报为第一志愿和第二志愿");
-        }
+        List<CourseSelection> selections = selectionRepo.findByEventAndStudent(event, student);
         if (!"ACTIVE".equals(course.getStatus())) {
             throw new RuntimeException("该课程当前不可选");
         }
 
-        // 同一志愿位已有记录则覆盖（先删再建，实现修改志愿功能）
-        selectionRepo.findByEventAndStudentAndPreference(event, student, preference)
-                .ifPresent(old -> selectionRepo.delete(old));
+        // 同一志愿位已有记录则覆盖，先转回草稿再保存，支持修改志愿。
+        try {
+            markRound1SelectionsAsDraft(selections);
+            Optional<CourseSelection> existingPreference = selections.stream()
+                    .filter(existing -> existing.getRound() == 1)
+                    .filter(existing -> existing.getPreference() == preference)
+                    .findFirst();
+            Optional<CourseSelection> sameCourseInOtherPreference = selections.stream()
+                    .filter(existing -> existing.getRound() == 1)
+                    .filter(existing -> existing.getPreference() != preference)
+                    .filter(existing -> existing.getCourse() != null
+                            && courseId.equals(existing.getCourse().getId()))
+                    .filter(existing -> !"CANCELLED".equals(existing.getStatus()))
+                    .findFirst();
+            if (sameCourseInOtherPreference.isPresent()) {
+                CourseSelection source = sameCourseInOtherPreference.get();
+                if (existingPreference.isPresent()) {
+                    CourseSelection target = existingPreference.get();
+                    target.setCourse(course);
+                    target.setRound(1);
+                    target.setStatus("DRAFT");
+                    target.setSelectedAt(now);
+                    target.setConfirmedAt(null);
+                    selectionRepo.delete(source);
+                    return selectionRepo.saveAndFlush(target);
+                }
+                source.setPreference(preference);
+                source.setRound(1);
+                source.setStatus("DRAFT");
+                source.setSelectedAt(now);
+                source.setConfirmedAt(null);
+                return selectionRepo.saveAndFlush(source);
+            }
+            if (existingPreference.isPresent()) {
+                CourseSelection selection = existingPreference.get();
+                if (selection.getCourse() != null
+                        && courseId.equals(selection.getCourse().getId())
+                        && !"CANCELLED".equals(selection.getStatus())) {
+                    throw new RuntimeException(preference == 1
+                            ? "该课程已经是您的第一志愿，请勿重复提交"
+                            : "该课程已经是您的第二志愿，请勿重复提交");
+                }
+                selection.setCourse(course);
+                selection.setRound(1);
+                selection.setStatus("DRAFT");
+                selection.setSelectedAt(now);
+                selection.setConfirmedAt(null);
+                return selectionRepo.saveAndFlush(selection);
+            }
 
-        CourseSelection cs = new CourseSelection();
-        cs.setEvent(event);
-        cs.setCourse(course);
-        cs.setStudent(student);
-        cs.setPreference(preference);
-        cs.setRound(1);
-        cs.setStatus("PENDING");
-        cs.setSelectedAt(LocalDateTime.now());
-        return selectionRepo.save(cs);
+            CourseSelection created = new CourseSelection();
+            created.setEvent(event);
+            created.setCourse(course);
+            created.setStudent(student);
+            created.setPreference(preference);
+            created.setRound(1);
+            created.setStatus("DRAFT");
+            created.setSelectedAt(now);
+            return selectionRepo.saveAndFlush(created);
+        } catch (DataIntegrityViolationException ex) {
+            throw resolveSubmitPreferenceConflict(student, event, courseId, preference);
+        }
     }
 
     // ===== 第二轮：先到先得抢课 =====
+
+    @Transactional
+    public int saveRound1Draft(Student student, Long eventId) {
+        SelectionEvent event = loadRound1EventForEdit(student, eventId);
+        List<CourseSelection> activeSelections = findActiveRound1Selections(event, student);
+        if (activeSelections.isEmpty()) {
+            throw new RuntimeException("请至少选择一个志愿后再保存草稿");
+        }
+        markRound1SelectionsAsDraft(activeSelections);
+        selectionRepo.saveAllAndFlush(activeSelections);
+        return activeSelections.size();
+    }
+
+    @Transactional
+    public int confirmRound1Selections(Student student, Long eventId) {
+        SelectionEvent event = loadRound1EventForEdit(student, eventId);
+        List<CourseSelection> activeSelections = findActiveRound1Selections(event, student);
+        Optional<CourseSelection> pref1 = activeSelections.stream()
+                .filter(selection -> selection.getPreference() == 1)
+                .findFirst();
+        if (pref1.isEmpty()) {
+            throw new RuntimeException("请先选择第一志愿");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        activeSelections.forEach(selection -> {
+            selection.setStatus("PENDING");
+            selection.setSelectedAt(now);
+            selection.setConfirmedAt(null);
+        });
+        selectionRepo.saveAllAndFlush(activeSelections);
+        return activeSelections.size();
+    }
 
     @Transactional
     public CourseSelection selectRound2(Student student, Long eventId, Long courseId) {
@@ -186,7 +276,11 @@ public class CourseService {
         cs.setStatus("CONFIRMED");
         cs.setSelectedAt(LocalDateTime.now());
         cs.setConfirmedAt(LocalDateTime.now());
-        return selectionRepo.save(cs);
+        try {
+            return selectionRepo.saveAndFlush(cs);
+        } catch (DataIntegrityViolationException ex) {
+            throw resolveRound2Conflict(student, event, course);
+        }
     }
 
     // ===== 退课 =====
@@ -201,6 +295,7 @@ public class CourseService {
         if (!"CONFIRMED".equals(cs.getStatus())) {
             throw new RuntimeException("只能退已确认的课程");
         }
+        validateStudentDropEligibility(cs);
         cs.setStatus("CANCELLED");
         selectionRepo.save(cs);
 
@@ -220,6 +315,7 @@ public class CourseService {
             course.setCurrentCount(Math.max(0, course.getCurrentCount() - 1));
             courseRepo.save(course);
         }
+        studentNotificationService.notifyDropSuccess(student, course, cs.getEvent());
     }
 
     // ===== 管理员手动调整 =====
@@ -318,6 +414,42 @@ public class CourseService {
         return selectionRepo.findByEventAndStudent(event, student);
     }
 
+    @Transactional
+    public Course savePerClassCourse(Course course,
+                                     List<Long> classIds,
+                                     List<Integer> classCapacities,
+                                     Set<Long> allowedClassIds) {
+        if (allowedClassIds == null || allowedClassIds.isEmpty()) {
+            throw new RuntimeException("当前参与学生没有可用班级，无法保存按班名额课程");
+        }
+        if (classIds == null || classIds.isEmpty()) {
+            throw new RuntimeException("请至少为一个参与班级设置名额");
+        }
+
+        LinkedHashMap<Long, Integer> capacityMap = new LinkedHashMap<>();
+        for (int i = 0; i < classIds.size(); i++) {
+            Long classId = classIds.get(i);
+            if (classId == null || !allowedClassIds.contains(classId)) {
+                continue;
+            }
+            int capacity = (classCapacities != null && i < classCapacities.size() && classCapacities.get(i) != null)
+                    ? classCapacities.get(i) : 0;
+            if (capacity < 0) {
+                throw new RuntimeException("班级名额不能小于 0");
+            }
+            capacityMap.put(classId, capacity);
+        }
+
+        if (capacityMap.isEmpty()) {
+            throw new RuntimeException("请为参与班级设置有效名额");
+        }
+        if (capacityMap.values().stream().noneMatch(capacity -> capacity != null && capacity > 0)) {
+            throw new RuntimeException("按班名额至少需要一个班级名额大于 0");
+        }
+
+        return saveCourse(course, List.copyOf(capacityMap.keySet()), List.copyOf(capacityMap.values()));
+    }
+
     // ===== 学生可见的课程列表（第二轮仅看有余量的） =====
 
     public List<Course> findActiveCoursesForStudent(SelectionEvent event, Student student) {
@@ -339,5 +471,107 @@ public class CourseService {
         Optional<CourseClassCapacity> cap = capacityRepo
                 .findByCourseAndSchoolClass(course, student.getSchoolClass());
         return cap.map(c -> Math.max(0, c.getMaxCapacity() - c.getCurrentCount())).orElse(0);
+    }
+
+    private SelectionEvent loadRound1EventForEdit(Student student, Long eventId) {
+        SelectionEvent event = eventRepo.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("当前没有进行中的选课活动"));
+        if (!"ROUND1".equals(event.getStatus())) {
+            throw new RuntimeException("当前不在第一轮选课阶段");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (event.getRound1Start() != null && now.isBefore(event.getRound1Start())) {
+            throw new RuntimeException("第一轮选课尚未开始");
+        }
+        if (event.getRound1End() != null && now.isAfter(event.getRound1End())) {
+            throw new RuntimeException("第一轮选课已结束");
+        }
+        if (eventStudentRepo.existsByEvent(event)
+                && !eventStudentRepo.existsByEventAndStudent(event, student)) {
+            throw new RuntimeException("您不在本次选课活动的参与名单中");
+        }
+        return event;
+    }
+
+    private List<CourseSelection> findActiveRound1Selections(SelectionEvent event, Student student) {
+        return selectionRepo.findByEventAndStudent(event, student).stream()
+                .filter(selection -> selection.getRound() == 1)
+                .filter(selection -> selection.getPreference() == 1 || selection.getPreference() == 2)
+                .filter(selection -> !"CANCELLED".equals(selection.getStatus()))
+                .toList();
+    }
+
+    private void markRound1SelectionsAsDraft(List<CourseSelection> selections) {
+        selections.stream()
+                .filter(selection -> selection.getRound() == 1)
+                .filter(selection -> selection.getPreference() == 1 || selection.getPreference() == 2)
+                .filter(selection -> !"CANCELLED".equals(selection.getStatus()))
+                .forEach(selection -> {
+                    selection.setStatus("DRAFT");
+                    selection.setConfirmedAt(null);
+                });
+    }
+
+    private RuntimeException resolveSubmitPreferenceConflict(Student student,
+                                                            SelectionEvent event,
+                                                            Long courseId,
+                                                            int preference) {
+        boolean sameCourseInOtherPreference = selectionRepo.findByEventAndStudent(event, student).stream()
+                .filter(existing -> existing.getPreference() != preference)
+                .anyMatch(existing -> existing.getCourse() != null
+                        && courseId.equals(existing.getCourse().getId())
+                        && !"CANCELLED".equals(existing.getStatus()));
+        if (sameCourseInOtherPreference) {
+            return new RuntimeException("同一课程不能同时填报为第一志愿和第二志愿");
+        }
+
+        Optional<CourseSelection> existingPreference = selectionRepo.findByEventAndStudentAndPreference(event, student, preference);
+        if (existingPreference.isPresent()) {
+            CourseSelection selection = existingPreference.get();
+            if (selection.getCourse() != null
+                    && courseId.equals(selection.getCourse().getId())
+                    && !"CANCELLED".equals(selection.getStatus())) {
+                return new RuntimeException(preference == 1
+                        ? "该课程已经是您的第一志愿，请勿重复提交"
+                        : "该课程已经是您的第二志愿，请勿重复提交");
+            }
+            return new RuntimeException(preference == 1
+                    ? "您已选择过一个第一志愿，请刷新页面后重试"
+                    : "您已选择过一个第二志愿，请刷新页面后重试");
+        }
+
+        return new RuntimeException("志愿提交失败，请刷新页面后重试");
+    }
+
+    private RuntimeException resolveRound2Conflict(Student student, SelectionEvent event, Course course) {
+        if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
+            return new RuntimeException("您已成功选课，无需再次抢课");
+        }
+        if (getRemainingCapacity(course, student) <= 0) {
+            if ("PER_CLASS".equals(course.getCapacityMode())) {
+                return new RuntimeException("您班级的该课程名额已满，请选择其他课程");
+            }
+            return new RuntimeException("该课程名额已满，请选择其他课程");
+        }
+        return new RuntimeException("抢课失败，请刷新页面后重试");
+    }
+    public boolean canDropSelection(CourseSelection selection) {
+        if (selection == null
+                || !"CONFIRMED".equals(selection.getStatus())
+                || selection.getRound() != 1) {
+            return false;
+        }
+
+        SelectionEvent event = selection.getEvent();
+        if (event == null || !"ROUND2".equals(event.getStatus())) {
+            return false;
+        }
+        return event.getRound2End() == null || !LocalDateTime.now().isAfter(event.getRound2End());
+    }
+
+    private void validateStudentDropEligibility(CourseSelection selection) {
+        if (!canDropSelection(selection)) {
+            throw new RuntimeException("当前仅支持第一轮已确认课程在第二轮期间退课");
+        }
     }
 }

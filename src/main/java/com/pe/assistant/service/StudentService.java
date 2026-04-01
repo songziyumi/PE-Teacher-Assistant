@@ -48,6 +48,7 @@ public class StudentService {
     private final CourseRepository courseRepository;
     private final CourseClassCapacityRepository courseClassCapacityRepository;
     private final StudentAccountRepository studentAccountRepository;
+    private final StudentReferenceCleanupService studentReferenceCleanupService;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassIdOrderByStudentNo(classId);
@@ -382,6 +383,7 @@ public class StudentService {
         physicalTestRepository.deleteByStudent(s);
         healthTestRecordRepository.deleteByStudent(s);
         examRecordRepository.deleteByStudent(s);
+        studentReferenceCleanupService.deleteByStudentId(s.getId());
 
         SchoolClass studentClass = s.getSchoolClass();
         confirmedSelectionsPerCourse.forEach((courseId, count) ->
@@ -410,6 +412,7 @@ public class StudentService {
         physicalTestRepository.deleteAllBySchool(school);
         healthTestRecordRepository.deleteAllBySchool(school);
         examRecordRepository.deleteAllBySchool(school);
+        studentReferenceCleanupService.deleteAllBySchoolId(school.getId());
 
         courseClassCapacityRepository.resetCountsBySchool(school);
         courseRepository.resetCountsBySchool(school);

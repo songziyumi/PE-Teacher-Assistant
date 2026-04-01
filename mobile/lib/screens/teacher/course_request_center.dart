@@ -112,7 +112,7 @@ class _CourseRequestCenterScreenState extends State<CourseRequestCenterScreen> {
     if (_selectedRequestIds.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('璇峰厛閫夋嫨鑷冲皯涓€鏉″緟瀹℃壒璁板綍')));
+      ).showSnackBar(const SnackBar(content: Text('请先选择至少一条待审批记录')));
       return;
     }
 

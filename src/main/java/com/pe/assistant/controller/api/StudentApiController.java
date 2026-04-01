@@ -92,7 +92,7 @@ public class StudentApiController {
                 .map(s -> s.getCourse().getId())
                 .collect(Collectors.toSet());
         Map<Long, Integer> myPreferenceMap = mySelections.stream()
-                .filter(s -> "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
+                .filter(s -> "DRAFT".equals(s.getStatus()) || "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
                 .collect(Collectors.toMap(s -> s.getCourse().getId(), CourseSelection::getPreference, (a, b) -> a));
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
@@ -199,6 +199,7 @@ public class StudentApiController {
             item.put("status", selection.getStatus());
             item.put("selectedAt", selection.getSelectedAt());
             item.put("confirmedAt", selection.getConfirmedAt());
+            item.put("canDrop", courseService.canDropSelection(selection));
             result.add(item);
         }
         return ApiResponse.ok(result);

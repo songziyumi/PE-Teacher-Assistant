@@ -7,6 +7,8 @@ class StudentRequestCourse {
   final int currentCount;
   final int remaining;
   final String? capacityMode;
+  final bool confirmed;
+  final int myPreference;
 
   const StudentRequestCourse({
     required this.id,
@@ -17,6 +19,8 @@ class StudentRequestCourse {
     required this.currentCount,
     required this.remaining,
     this.capacityMode,
+    required this.confirmed,
+    required this.myPreference,
   });
 
   factory StudentRequestCourse.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,8 @@ class StudentRequestCourse {
       currentCount: toInt(json['currentCount']),
       remaining: toInt(json['remaining']),
       capacityMode: json['capacityMode']?.toString(),
+      confirmed: json['confirmed'] == true,
+      myPreference: toInt(json['myPreference']),
     );
   }
 }

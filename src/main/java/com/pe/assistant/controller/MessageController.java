@@ -1,12 +1,16 @@
 package com.pe.assistant.controller;
 
-import com.pe.assistant.entity.*;
-import com.pe.assistant.repository.TeacherRepository;
-import com.pe.assistant.service.*;
+import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.service.CurrentUserService;
+import com.pe.assistant.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -15,9 +19,6 @@ public class MessageController {
 
     private final MessageService messageService;
     private final CurrentUserService currentUserService;
-    private final TeacherRepository teacherRepository;
-
-    // ===== 教师收件箱 =====
 
     @GetMapping("/teacher/messages")
     public String teacherInbox(Model model) {
@@ -58,15 +59,12 @@ public class MessageController {
         return "redirect:/teacher/messages";
     }
 
-    // ===== 学生收件箱 =====
-
     @GetMapping("/student/messages")
     public String studentInbox(Model model) {
         Student student = currentUserService.getCurrentStudent();
         model.addAttribute("student", student);
         model.addAttribute("messages", messageService.getStudentInbox(student));
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
-        // 教师列表供发消息使用
         model.addAttribute("teachers", messageService.findTeachersBySchool(student.getSchool()));
         return "student/messages";
     }
@@ -78,8 +76,7 @@ public class MessageController {
                               RedirectAttributes ra) {
         try {
             Student student = currentUserService.getCurrentStudent();
-            Teacher teacher = teacherRepository.findById(teacherId)
-                    .orElseThrow(() -> new RuntimeException("教师不存在"));
+            Teacher teacher = messageService.findTeacherMessageRecipient(student.getSchool(), teacherId);
             messageService.sendMessage(
                     "STUDENT", student.getId(), student.getName(),
                     "TEACHER", teacher.getId(), teacher.getName(),
