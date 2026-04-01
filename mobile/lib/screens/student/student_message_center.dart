@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../models/student_message.dart';
-import '../../models/student_message_recipient.dart';
 import '../../services/student_service.dart';
 import '../../widgets/student_bottom_nav.dart';
+import 'student_message_compose.dart';
+import 'student_message_detail.dart';
 
 class StudentMessageCenterScreen extends StatefulWidget {
   const StudentMessageCenterScreen({super.key});
@@ -20,32 +21,15 @@ class _StudentMessageCenterScreenState
   static const _unreadOnlyLabel = '仅未读';
   static const _emptyListText = '暂无消息';
   static const _untitledText = '（无主题）';
-  static const _detailTitle = '消息详情';
   static const _emptyContentText = '暂无内容';
-  static const _closeLabel = '关闭';
   static const _composeLabel = '发消息';
-  static const _recipientLabel = '收件教师';
-  static const _recipientHint = '请选择教师';
-  static const _subjectLabel = '主题';
-  static const _subjectHint = '请输入消息主题';
-  static const _contentLabel = '内容';
-  static const _contentHint = '请输入消息内容';
-  static const _cancelLabel = '取消';
-  static const _sendLabel = '发送';
-  static const _sendingLabel = '发送中...';
-  static const _loadFailedPrefix = '加载失败: ';
-  static const _sendFailedPrefix = '发送失败: ';
-  static const _markReadFailedPrefix = '标记已读失败: ';
+  static const _loadFailedPrefix = '加载失败：';
+  static const _markReadFailedPrefix = '标记已读失败：';
   static const _sendSuccessText = '消息已发送';
-  static const _noRecipientsText = '暂无可联系教师';
-  static const _recipientRequiredText = '请选择收件教师';
-  static const _subjectRequiredText = '消息主题不能为空';
-  static const _contentRequiredText = '消息内容不能为空';
 
   bool _loading = true;
   bool _unreadOnly = false;
   List<StudentMessage> _messages = [];
-  List<StudentMessageRecipient> _recipients = [];
 
   @override
   void initState() {
@@ -59,12 +43,8 @@ class _StudentMessageCenterScreenState
       final messages = await StudentService.getStudentMessages(
         unreadOnly: _unreadOnly,
       );
-      final recipients = await StudentService.getMessageRecipients();
       if (!mounted) return;
-      setState(() {
-        _messages = messages;
-        _recipients = recipients;
-      });
+      setState(() => _messages = messages);
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('$_loadFailedPrefix$e');
@@ -112,149 +92,30 @@ class _StudentMessageCenterScreenState
     }
 
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(msg.subject?.isNotEmpty == true ? msg.subject! : _detailTitle),
-        content: Text(
-          (msg.content == null || msg.content!.trim().isEmpty)
-              ? _emptyContentText
-              : msg.content!,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(_closeLabel),
-          ),
-        ],
+    final replied = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => StudentMessageDetailScreen(message: msg),
       ),
     );
 
     if (mounted) {
+      if (replied == true) {
+        _showSnackBar(_sendSuccessText);
+      }
       _load();
     }
   }
 
-  Future<void> _openComposeDialog() async {
-    if (_recipients.isEmpty) {
-      _showSnackBar(_noRecipientsText);
-      return;
-    }
-
-    int? selectedTeacherId = _recipients.first.id;
-    final subjectController = TextEditingController();
-    final contentController = TextEditingController();
-    bool sending = false;
-
-    final sent = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text(_composeLabel),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<int>(
-                  value: selectedTeacherId,
-                  decoration: const InputDecoration(
-                    labelText: _recipientLabel,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _recipients
-                      .map(
-                        (recipient) => DropdownMenuItem<int>(
-                          value: recipient.id,
-                          child: Text(recipient.displayName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: sending
-                      ? null
-                      : (value) {
-                          setDialogState(() => selectedTeacherId = value);
-                        },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: subjectController,
-                  enabled: !sending,
-                  decoration: const InputDecoration(
-                    labelText: _subjectLabel,
-                    hintText: _subjectHint,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: contentController,
-                  enabled: !sending,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: _contentLabel,
-                    hintText: _contentHint,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: sending
-                  ? null
-                  : () => Navigator.of(dialogContext).pop(false),
-              child: const Text(_cancelLabel),
-            ),
-            FilledButton(
-              onPressed: sending
-                  ? null
-                  : () async {
-                      final subject = subjectController.text.trim();
-                      final content = contentController.text.trim();
-                      if (selectedTeacherId == null) {
-                        _showSnackBar(_recipientRequiredText);
-                        return;
-                      }
-                      if (subject.isEmpty) {
-                        _showSnackBar(_subjectRequiredText);
-                        return;
-                      }
-                      if (content.isEmpty) {
-                        _showSnackBar(_contentRequiredText);
-                        return;
-                      }
-
-                      setDialogState(() => sending = true);
-                      try {
-                        await StudentService.sendStudentMessage(
-                          teacherId: selectedTeacherId!,
-                          subject: subject,
-                          content: content,
-                        );
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop(true);
-                        }
-                      } catch (e) {
-                        if (dialogContext.mounted) {
-                          setDialogState(() => sending = false);
-                        }
-                        _showSnackBar('$_sendFailedPrefix$e');
-                      }
-                    },
-              child: Text(sending ? _sendingLabel : _sendLabel),
-            ),
-          ],
-        ),
+  Future<void> _openComposePage() async {
+    final sent = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const StudentMessageComposeScreen(),
       ),
     );
 
-    subjectController.dispose();
-    contentController.dispose();
-
     if (sent == true) {
       _showSnackBar(_sendSuccessText);
+      _load();
     }
   }
 
@@ -359,7 +220,7 @@ class _StudentMessageCenterScreenState
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _loading ? null : _openComposeDialog,
+        onPressed: _loading ? null : _openComposePage,
         icon: const Icon(Icons.edit_outlined),
         label: const Text(_composeLabel),
       ),
