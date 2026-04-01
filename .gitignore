@@ -6,3 +6,10 @@ target/
 *.iml
 .DS_Store
 src/main/resources/application.yml
+src/main/resources/application-local.yml
+.codex_tmp_patch.txt
+latest-backend.err
+tmp_apply_patch_probe.txt
+tmp_apply_patch_probe2.txt
+scripts/testdata/course-selection-600-competitive/
+scripts/testdata/course-selection-600/course-selection-600.sql
