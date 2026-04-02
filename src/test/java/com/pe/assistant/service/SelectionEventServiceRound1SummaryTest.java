@@ -43,6 +43,8 @@ class SelectionEventServiceRound1SummaryTest {
     private StudentAccountService studentAccountService;
     @Mock
     private LotteryService lotteryService;
+    @Mock
+    private StudentService studentService;
 
     @InjectMocks
     private SelectionEventService selectionEventService;

@@ -1,5 +1,7 @@
 package com.pe.assistant.service;
 
+import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.repository.AttendanceRepository;
@@ -186,5 +188,42 @@ class StudentServiceRegressionTest {
         assertEquals(1, result.size());
         assertSame(student, result.get(0));
         verify(studentRepository, never()).findByElectiveClassOrderByStudentNo("高三/飞盘班");
+    }
+    @Test
+    void syncElectiveClassesForStudentsShouldBackfillFromLatestConfirmedCourse() {
+        Student student = new Student();
+        student.setId(1L);
+        student.setName("Tom");
+
+        Course oldCourse = new Course();
+        oldCourse.setId(10L);
+        oldCourse.setName("旧课程");
+
+        Course latestCourse = new Course();
+        latestCourse.setId(11L);
+        latestCourse.setName("高二/篮球");
+
+        CourseSelection oldConfirmed = new CourseSelection();
+        oldConfirmed.setId(101L);
+        oldConfirmed.setStudent(student);
+        oldConfirmed.setCourse(oldCourse);
+        oldConfirmed.setStatus("CONFIRMED");
+        oldConfirmed.setConfirmedAt(java.time.LocalDateTime.now().minusDays(2));
+
+        CourseSelection latestConfirmed = new CourseSelection();
+        latestConfirmed.setId(102L);
+        latestConfirmed.setStudent(student);
+        latestConfirmed.setCourse(latestCourse);
+        latestConfirmed.setStatus("CONFIRMED");
+        latestConfirmed.setConfirmedAt(java.time.LocalDateTime.now().minusHours(1));
+
+        when(courseSelectionRepository.findByStudent(student))
+                .thenReturn(List.of(oldConfirmed, latestConfirmed));
+
+        int updated = studentService.syncElectiveClassesForStudents(List.of(student));
+
+        assertEquals(1, updated);
+        assertEquals("高二/篮球", student.getElectiveClass());
+        verify(studentRepository).save(student);
     }
 }

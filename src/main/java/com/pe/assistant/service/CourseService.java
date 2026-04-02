@@ -8,7 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,7 @@ public class CourseService {
     private final SelectionEventRepository eventRepo;
     private final StudentRepository studentRepo;
     private final StudentNotificationService studentNotificationService;
+    private final StudentService studentService;
 
     // ===== 课程 CRUD =====
 
@@ -277,13 +281,166 @@ public class CourseService {
         cs.setSelectedAt(LocalDateTime.now());
         cs.setConfirmedAt(LocalDateTime.now());
         try {
-            return selectionRepo.saveAndFlush(cs);
+            CourseSelection saved = selectionRepo.saveAndFlush(cs);
+            studentService.assignElectiveClassFromCourse(student, course);
+            return saved;
         } catch (DataIntegrityViolationException ex) {
             throw resolveRound2Conflict(student, event, course);
         }
     }
 
     // ===== 退课 =====
+
+    @Transactional
+    public int finalizeEndedRound2Event(Long eventId) {
+        SelectionEvent event = eventRepo.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Selection event not found"));
+        if (!"ROUND2".equals(event.getStatus())) {
+            return 0;
+        }
+        if (event.getRound2End() == null || LocalDateTime.now().isBefore(event.getRound2End())) {
+            return 0;
+        }
+
+        int assignedCount = autoAssignRound2Fallback(event);
+        event.setStatus("CLOSED");
+        event.setLotteryNote(assignedCount > 0
+                ? "Round2 closed, auto-assigned " + assignedCount + " students"
+                : "Round2 closed");
+        eventRepo.save(event);
+        studentService.syncElectiveClassesForEvent(event);
+        return assignedCount;
+    }
+
+    private int autoAssignRound2Fallback(SelectionEvent event) {
+        List<Student> candidates = findRound2AutoAssignCandidates(event);
+        if (candidates.isEmpty()) {
+            return 0;
+        }
+
+        List<Course> activeCourses = courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE");
+        if (activeCourses.isEmpty()) {
+            for (Student student : candidates) {
+                studentNotificationService.notifyRound2ClosedWithoutCourse(event, student);
+            }
+            return 0;
+        }
+
+        Collections.shuffle(candidates);
+        int assignedCount = 0;
+        for (Student student : candidates) {
+            if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
+                continue;
+            }
+            CourseSelection selection = tryAutoAssignStudent(event, student, activeCourses);
+            if (selection != null) {
+                assignedCount++;
+                studentNotificationService.notifyRound2AutoAssignment(event, student, selection.getCourse());
+            } else {
+                studentNotificationService.notifyRound2ClosedWithoutCourse(event, student);
+            }
+        }
+        return assignedCount;
+    }
+
+    private List<Student> findRound2AutoAssignCandidates(SelectionEvent event) {
+        List<Student> participatingStudents = eventStudentRepo.existsByEvent(event)
+                ? eventStudentRepo.findStudentsByEvent(event)
+                : studentRepo.findBySchoolOrderByStudentNo(event.getSchool());
+        if (participatingStudents.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> failedStudentIds = selectionRepo.findByEvent(event).stream()
+                .filter(selection -> selection.getRound() == 1)
+                .filter(selection -> "LOTTERY_FAIL".equals(selection.getStatus()))
+                .map(CourseSelection::getStudent)
+                .filter(student -> student != null && student.getId() != null)
+                .map(Student::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (failedStudentIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Student> candidates = new ArrayList<>();
+        Set<Long> seenStudentIds = new HashSet<>();
+        for (Student student : participatingStudents) {
+            if (student == null || student.getId() == null) {
+                continue;
+            }
+            if (!failedStudentIds.contains(student.getId())) {
+                continue;
+            }
+            if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
+                continue;
+            }
+            if (seenStudentIds.add(student.getId())) {
+                candidates.add(student);
+            }
+        }
+        return candidates;
+    }
+
+    private CourseSelection tryAutoAssignStudent(SelectionEvent event, Student student, List<Course> activeCourses) {
+        List<Course> shuffledCourses = new ArrayList<>(activeCourses);
+        Collections.shuffle(shuffledCourses);
+        for (Course course : shuffledCourses) {
+            if (!tryReserveRound2Capacity(course, student)) {
+                continue;
+            }
+
+            CourseSelection selection = new CourseSelection();
+            selection.setEvent(event);
+            selection.setCourse(course);
+            selection.setStudent(student);
+            selection.setPreference(0);
+            selection.setRound(2);
+            selection.setStatus("CONFIRMED");
+            selection.setSelectedAt(LocalDateTime.now());
+            selection.setConfirmedAt(LocalDateTime.now());
+            CourseSelection saved = selectionRepo.saveAndFlush(selection);
+            studentService.assignElectiveClassFromCourse(student, course);
+            return saved;
+        }
+        return null;
+    }
+
+    private boolean tryReserveRound2Capacity(Course course, Student student) {
+        if ("GLOBAL".equals(course.getCapacityMode())) {
+            Course locked = courseRepo.findByIdForUpdate(course.getId()).orElse(null);
+            if (locked == null || locked.getCurrentCount() >= locked.getTotalCapacity()) {
+                return false;
+            }
+            locked.setCurrentCount(locked.getCurrentCount() + 1);
+            courseRepo.save(locked);
+            course.setCurrentCount(locked.getCurrentCount());
+            return true;
+        }
+
+        SchoolClass schoolClass = student.getSchoolClass();
+        if (schoolClass == null || schoolClass.getId() == null) {
+            return false;
+        }
+
+        CourseClassCapacity cap = capacityRepo.findByCourseIdAndClassIdForUpdate(course.getId(), schoolClass.getId())
+                .orElse(null);
+        if (cap == null || cap.getCurrentCount() >= cap.getMaxCapacity()) {
+            return false;
+        }
+
+        Course locked = courseRepo.findByIdForUpdate(course.getId()).orElse(null);
+        if (locked == null || locked.getCurrentCount() >= locked.getTotalCapacity()) {
+            return false;
+        }
+
+        cap.setCurrentCount(cap.getCurrentCount() + 1);
+        capacityRepo.save(cap);
+        locked.setCurrentCount(locked.getCurrentCount() + 1);
+        courseRepo.save(locked);
+        course.setCurrentCount(locked.getCurrentCount());
+        return true;
+    }
 
     @Transactional
     public void dropCourse(Student student, Long selectionId) {
@@ -316,6 +473,7 @@ public class CourseService {
             courseRepo.save(course);
         }
         studentNotificationService.notifyDropSuccess(student, course, cs.getEvent());
+        studentService.refreshElectiveClassFromConfirmedSelections(student);
     }
 
     // ===== 管理员手动调整 =====
@@ -350,6 +508,7 @@ public class CourseService {
         cs.setConfirmedAt(LocalDateTime.now());
         reserveCapacityForAdminEnroll(course, student, forceOverflow);
         selectionRepo.save(cs);
+        studentService.assignElectiveClassFromCourse(student, course);
     }
 
     private void reserveCapacityForAdminEnroll(Course course, Student student, boolean forceOverflow) {
@@ -394,6 +553,7 @@ public class CourseService {
         Course course = cs.getCourse();
         course.setCurrentCount(Math.max(0, course.getCurrentCount() - 1));
         courseRepo.save(course);
+        studentService.refreshElectiveClassFromConfirmedSelections(cs.getStudent());
     }
 
     // ===== 报名名单 =====

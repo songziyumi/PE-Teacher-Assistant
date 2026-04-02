@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -44,6 +45,10 @@ class CourseServiceRegressionTest {
     private SelectionEventRepository eventRepo;
     @Mock
     private StudentRepository studentRepo;
+    @Mock
+    private StudentNotificationService studentNotificationService;
+    @Mock
+    private StudentService studentService;
 
     @InjectMocks
     private CourseService courseService;
@@ -271,6 +276,83 @@ class CourseServiceRegressionTest {
         assertEquals(2, result.size());
         assertSame(firstConfirmed, result.get(0));
         assertSame(anotherConfirmed, result.get(1));
+    }
+
+    @Test
+    void finalizeEndedRound2EventShouldAutoAssignLotteryFailStudent() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+        event.setRound2End(java.time.LocalDateTime.now().minusMinutes(1));
+
+        Student student = buildStudent(100L);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("GLOBAL");
+        course.setCurrentCount(0);
+        course.setTotalCapacity(2);
+
+        CourseSelection failSelection = new CourseSelection();
+        failSelection.setEvent(event);
+        failSelection.setStudent(student);
+        failSelection.setCourse(course);
+        failSelection.setRound(1);
+        failSelection.setStatus("LOTTERY_FAIL");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
+        when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
+        when(selectionRepo.findByEvent(event)).thenReturn(List.of(failSelection));
+        when(courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE")).thenReturn(List.of(course));
+        when(courseRepo.findByIdForUpdate(10L)).thenReturn(Optional.of(course));
+        when(selectionRepo.saveAndFlush(any(CourseSelection.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        int assigned = courseService.finalizeEndedRound2Event(1L);
+
+        assertEquals(1, assigned);
+        assertEquals("CLOSED", event.getStatus());
+        assertTrue(event.getLotteryNote().contains("auto-assigned 1"));
+        assertEquals(1, course.getCurrentCount());
+        verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(studentService).syncElectiveClassesForEvent(event);
+        verify(selectionRepo).saveAndFlush(argThat(selection ->
+                selection.getEvent() == event
+                        && selection.getStudent() == student
+                        && selection.getCourse() == course
+                        && selection.getRound() == 2
+                        && "CONFIRMED".equals(selection.getStatus())));
+        verify(studentNotificationService).notifyRound2AutoAssignment(event, student, course);
+    }
+
+    @Test
+    void finalizeEndedRound2EventShouldNotifyWhenNoCourseCanBeAssigned() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+        event.setRound2End(java.time.LocalDateTime.now().minusMinutes(1));
+
+        Student student = buildStudent(100L);
+
+        CourseSelection failSelection = new CourseSelection();
+        failSelection.setEvent(event);
+        failSelection.setStudent(student);
+        failSelection.setRound(1);
+        failSelection.setStatus("LOTTERY_FAIL");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
+        when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
+        when(selectionRepo.findByEvent(event)).thenReturn(List.of(failSelection));
+        when(courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE")).thenReturn(List.of());
+
+        int assigned = courseService.finalizeEndedRound2Event(1L);
+
+        assertEquals(0, assigned);
+        assertEquals("CLOSED", event.getStatus());
+        verify(studentService).syncElectiveClassesForEvent(event);
+        verify(studentNotificationService).notifyRound2ClosedWithoutCourse(event, student);
     }
 
     private Student buildStudent(Long id) {

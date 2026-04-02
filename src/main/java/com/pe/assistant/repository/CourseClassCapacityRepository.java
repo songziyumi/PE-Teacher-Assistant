@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface CourseClassCapacityRepository extends JpaRepository<CourseClassCapacity, Long> {
     List<CourseClassCapacity> findByCourse(Course course);
 
+    List<CourseClassCapacity> findBySchoolClass(SchoolClass schoolClass);
+
     Optional<CourseClassCapacity> findByCourseAndSchoolClass(Course course, SchoolClass schoolClass);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

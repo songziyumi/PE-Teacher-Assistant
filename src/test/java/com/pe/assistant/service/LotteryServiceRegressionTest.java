@@ -43,6 +43,8 @@ class LotteryServiceRegressionTest {
     private CourseSelectionRepository selectionRepo;
     @Mock
     private StudentNotificationService studentNotificationService;
+    @Mock
+    private StudentService studentService;
 
     @InjectMocks
     private LotteryService lotteryService;
@@ -182,6 +184,7 @@ class LotteryServiceRegressionTest {
 
         verify(studentNotificationService).notifyRound1Result(event, winner, alpha);
         verify(studentNotificationService).notifyRound1Result(event, loser, null);
+        verify(studentService).assignElectiveClassFromCourse(winner, alpha);
     }
 
     private void stubCommonEventAndCourseQueries(SelectionEvent event, List<Course> courses) {
