@@ -13,3 +13,6 @@ tmp_apply_patch_probe.txt
 tmp_apply_patch_probe2.txt
 scripts/testdata/course-selection-600-competitive/
 scripts/testdata/course-selection-600/course-selection-600.sql
+scripts/jmeter/data/student_accounts.csv
+scripts/jmeter/results/
+mobile/.gradle-user/
