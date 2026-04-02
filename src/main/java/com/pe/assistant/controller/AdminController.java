@@ -176,8 +176,10 @@ public class AdminController {
                            @RequestParam(defaultValue = "0") int page,
                            Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
+        Teacher currentTeacher = currentUserService.getCurrentTeacher();
         int pageSize = 15;
-        Page<Teacher> teacherPage = teacherService.findByFilters(school, name, username, phone, page, pageSize);
+        Page<Teacher> teacherPage = teacherService.findManageableByFilters(
+                currentTeacher, school, name, username, phone, page, pageSize);
         List<com.pe.assistant.entity.SchoolClass> allClasses = classService.findAll(school);
         model.addAttribute("teacherPage", teacherPage);
         model.addAttribute("teachers", teacherPage.getContent());
@@ -197,6 +199,8 @@ public class AdminController {
         }
         model.addAttribute("teacherClassIds", teacherClassIds);
         model.addAttribute("teacherClassNames", teacherClassNames);
+        model.addAttribute("restrictOrgAdminTypesToSchool",
+                currentTeacher.resolveAccountType() == TeacherAccountType.SCHOOL_ADMIN);
         return "admin/teachers";
     }
 
@@ -204,12 +208,17 @@ public class AdminController {
     public String addTeacher(@RequestParam String name,
                              @RequestParam String password,
                              @RequestParam String phone,
+                             @RequestParam(defaultValue = "TEACHER") TeacherAccountType accountType,
+                             @RequestParam(required = false) OrganizationAdminType orgAdminType,
                              @RequestParam(required = false) List<Long> classIds,
                              RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
+        Teacher currentTeacher = currentUserService.getCurrentTeacher();
         try {
-            Teacher newTeacher = teacherService.create(phone, name, password, "TEACHER", phone, school);
-            if (classIds != null) {
+            teacherService.validateCreatableAccount(currentTeacher, accountType, orgAdminType);
+            Teacher newTeacher = teacherService.create(phone, name, password, "TEACHER", phone, school,
+                    accountType, orgAdminType);
+            if (newTeacher.isCourseAssignableTeacher() && classIds != null) {
                 for (Long classId : classIds) {
                     classService.assignTeacher(classId, newTeacher.getId());
                 }
@@ -223,7 +232,7 @@ public class AdminController {
     public String resetPassword(@PathVariable Long id, @RequestParam String newPassword, RedirectAttributes ra) {
         try {
             validatePassword(newPassword);
-            teacherService.resetPassword(id, newPassword);
+            teacherService.resetPassword(currentUserService.getCurrentTeacher(), id, newPassword);
             ra.addFlashAttribute("success", "密码重置成功");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
@@ -233,8 +242,12 @@ public class AdminController {
 
     @PostMapping("/teachers/delete/{id}")
     public String deleteTeacher(@PathVariable Long id, RedirectAttributes ra) {
-        teacherService.delete(id);
-        ra.addFlashAttribute("success", "删除成功");
+        try {
+            teacherService.delete(currentUserService.getCurrentTeacher(), id);
+            ra.addFlashAttribute("success", "删除成功");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/admin/teachers";
     }
 
@@ -242,16 +255,24 @@ public class AdminController {
     public String assignClasses(@PathVariable Long id,
                                 @RequestParam(required = false) List<Long> classIds,
                                 RedirectAttributes ra) {
-        teacherService.assignClasses(id, classIds);
-        ra.addFlashAttribute("success", "班级分配成功");
+        try {
+            teacherService.assignClasses(currentUserService.getCurrentTeacher(), id, classIds);
+            ra.addFlashAttribute("success", "班级分配成功");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/admin/teachers";
     }
 
     @PostMapping("/teachers/delete-all")
     public String deleteAllTeachers(RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
-        teacherService.deleteAll(school);
-        ra.addFlashAttribute("success", "已删除全部教师数据");
+        try {
+            teacherService.deleteAll(currentUserService.getCurrentTeacher(), school);
+            ra.addFlashAttribute("success", "已删除可管理的教师数据");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/admin/teachers";
     }
 
@@ -566,6 +587,7 @@ public class AdminController {
             return "redirect:/admin/import";
         }
         School school = currentUserService.getCurrentSchool();
+        Teacher currentTeacher = currentUserService.getCurrentTeacher();
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -650,12 +672,15 @@ public class AdminController {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("教师");
             Row header = sheet.createRow(0);
-            String[] cols = {"姓名", "手机号", "密码", "行政班", "选修课"};
+            String[] cols = {"姓名", "手机号", "密码", "行政班", "选修课", "账号类型", "组织管理员类型"};
             for (int i = 0; i < cols.length; i++) header.createCell(i).setCellValue(cols[i]);
             // 示例行
-            Row example = sheet.createRow(1);
-            String[] sample = {"李老师", "13800138001", "123456", "高一/1班,高一/2班", "高二/篮球,高三/足球"};
-            for (int i = 0; i < sample.length; i++) example.createCell(i).setCellValue(sample[i]);
+            Row exampleTeacher = sheet.createRow(1);
+            String[] teacherSample = {"李老师", "13800138001", "123456", "高一/1班,高一/2班", "高二/篮球,高三/足球", "教师", ""};
+            for (int i = 0; i < teacherSample.length; i++) exampleTeacher.createCell(i).setCellValue(teacherSample[i]);
+            Row exampleOrgAdmin = sheet.createRow(2);
+            String[] orgAdminSample = {"张管理员", "13800138002", "123456", "", "", "组织管理员", "市级"};
+            for (int i = 0; i < orgAdminSample.length; i++) exampleOrgAdmin.createCell(i).setCellValue(orgAdminSample[i]);
             wb.write(response.getOutputStream());
         }
     }
@@ -669,6 +694,7 @@ public class AdminController {
             return "redirect:/admin/import";
         }
         School school = currentUserService.getCurrentSchool();
+        Teacher currentTeacher = currentUserService.getCurrentTeacher();
         try (Workbook wb = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = wb.getSheetAt(0);
             Row header = sheet.getRow(0);
@@ -685,11 +711,17 @@ public class AdminController {
                 String password    = cellStr(row, col.getOrDefault("密码", -1));
                 String adminClass  = cellStr(row, col.getOrDefault("行政班", -1));
                 String electiveClass = cellStr(row, col.getOrDefault("选修课", -1));
+                String accountTypeRaw = cellStr(row, col.getOrDefault("账号类型", -1));
+                String orgAdminTypeRaw = cellStr(row, col.getOrDefault("组织管理员类型", -1));
                 if (phone.isBlank()) { skip++; continue; }
                 if (password.isBlank()) password = "123456";
                 try {
-                    Teacher t = teacherService.create(phone, name, password, "TEACHER", phone, school);
-                    if (!adminClass.isBlank()) {
+                    TeacherAccountType accountType = parseTeacherAccountType(accountTypeRaw);
+                    OrganizationAdminType orgAdminType = parseOrganizationAdminType(orgAdminTypeRaw);
+                    teacherService.validateCreatableAccount(currentTeacher, accountType, orgAdminType);
+                    Teacher t = teacherService.create(phone, name, password, "TEACHER", phone, school,
+                            accountType, orgAdminType);
+                    if (t.isCourseAssignableTeacher() && !adminClass.isBlank()) {
                         for (String ac : adminClass.split("[,，]")) {
                             String acTrim = ac.trim();
                             allClasses.stream()
@@ -698,7 +730,7 @@ public class AdminController {
                                 .ifPresent(c -> classService.assignTeacher(c.getId(), t.getId()));
                         }
                     }
-                    if (!electiveClass.isBlank()) {
+                    if (t.isCourseAssignableTeacher() && !electiveClass.isBlank()) {
                         for (String ec : electiveClass.split("[,，]")) {
                             String ecTrim = ec.trim();
                             allClasses.stream()
@@ -939,6 +971,34 @@ public class AdminController {
                 default      -> "";
             };
             default -> "";
+        };
+    }
+
+    private TeacherAccountType parseTeacherAccountType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return TeacherAccountType.TEACHER;
+        }
+        String normalized = raw.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "TEACHER", "教师" -> TeacherAccountType.TEACHER;
+            case "SCHOOL_ADMIN", "学校管理员" -> TeacherAccountType.SCHOOL_ADMIN;
+            case "ORG_ADMIN", "组织管理员", "市级组织管理员", "县区组织管理员", "区县组织管理员", "学校组织管理员" ->
+                    TeacherAccountType.ORG_ADMIN;
+            case "SUPER_ADMIN", "超级管理员" -> throw new IllegalArgumentException("教师导入不支持超级管理员账号");
+            default -> throw new IllegalArgumentException("账号类型仅支持：教师、学校管理员、组织管理员");
+        };
+    }
+
+    private OrganizationAdminType parseOrganizationAdminType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String normalized = raw.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "CITY", "市级", "市级组织管理员" -> OrganizationAdminType.CITY;
+            case "DISTRICT", "县区", "区县", "县区组织管理员", "区县组织管理员" -> OrganizationAdminType.DISTRICT;
+            case "SCHOOL", "学校", "学校组织管理员" -> OrganizationAdminType.SCHOOL;
+            default -> throw new IllegalArgumentException("组织管理员类型仅支持：市级、县区、学校");
         };
     }
 

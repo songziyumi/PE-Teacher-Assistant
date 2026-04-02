@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,6 +49,7 @@ public class StudentService {
     private final CourseRepository courseRepository;
     private final CourseClassCapacityRepository courseClassCapacityRepository;
     private final StudentAccountRepository studentAccountRepository;
+    private final StudentReferenceCleanupService studentReferenceCleanupService;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassIdOrderByStudentNo(classId);
@@ -353,6 +355,127 @@ public class StudentService {
         studentRepository.save(s);
     }
 
+    @Transactional
+    public void assignElectiveClassFromCourse(Student student, Course course) {
+        if (student == null || student.getId() == null) {
+            return;
+        }
+        applyElectiveClass(student, buildElectiveClassName(course));
+    }
+
+    @Transactional
+    public void refreshElectiveClassFromConfirmedSelections(Student student) {
+        if (student == null || student.getId() == null) {
+            return;
+        }
+        applyElectiveClass(student, resolveLatestConfirmedElectiveClass(student));
+    }
+
+    @Transactional
+    public int syncElectiveClassesForEvent(SelectionEvent event) {
+        if (event == null) {
+            return 0;
+        }
+
+        Map<Long, Student> targetStudents = new HashMap<>();
+        if (eventStudentRepository.existsByEvent(event)) {
+            for (Student student : eventStudentRepository.findStudentsByEvent(event)) {
+                if (student != null && student.getId() != null) {
+                    targetStudents.put(student.getId(), student);
+                }
+            }
+        }
+        for (CourseSelection selection : courseSelectionRepository.findByEvent(event)) {
+            Student student = selection.getStudent();
+            if (student != null && student.getId() != null) {
+                targetStudents.put(student.getId(), student);
+            }
+        }
+
+        int updated = 0;
+        for (Student student : targetStudents.values()) {
+            String electiveClass = courseSelectionRepository.findByEventAndStudentAndStatus(event, student, "CONFIRMED")
+                    .map(CourseSelection::getCourse)
+                    .map(this::buildElectiveClassName)
+                    .orElseGet(() -> resolveLatestConfirmedElectiveClass(student));
+            if (applyElectiveClass(student, electiveClass)) {
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    @Transactional
+    public int syncElectiveClassesForStudents(List<Student> students) {
+        if (students == null || students.isEmpty()) {
+            return 0;
+        }
+
+        int updated = 0;
+        for (Student student : students) {
+            if (student == null || student.getId() == null) {
+                continue;
+            }
+            String electiveClass = resolveLatestConfirmedElectiveClass(student);
+            if (electiveClass == null || electiveClass.isBlank()) {
+                continue;
+            }
+            if (applyElectiveClass(student, electiveClass)) {
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    private boolean applyElectiveClass(Student student, String electiveClass) {
+        if (Objects.equals(student.getElectiveClass(), electiveClass)) {
+            return false;
+        }
+        student.setElectiveClass(electiveClass);
+        studentRepository.save(student);
+        return true;
+    }
+
+    private String resolveLatestConfirmedElectiveClass(Student student) {
+        CourseSelection latestConfirmed = null;
+        for (CourseSelection selection : courseSelectionRepository.findByStudent(student)) {
+            if (!"CONFIRMED".equals(selection.getStatus()) || selection.getCourse() == null) {
+                continue;
+            }
+            if (latestConfirmed == null || isMoreRecentConfirmed(selection, latestConfirmed)) {
+                latestConfirmed = selection;
+            }
+        }
+        return latestConfirmed == null ? null : buildElectiveClassName(latestConfirmed.getCourse());
+    }
+
+    private boolean isMoreRecentConfirmed(CourseSelection candidate, CourseSelection current) {
+        LocalDateTime candidateTime = candidate.getConfirmedAt() != null ? candidate.getConfirmedAt() : candidate.getSelectedAt();
+        LocalDateTime currentTime = current.getConfirmedAt() != null ? current.getConfirmedAt() : current.getSelectedAt();
+        if (candidateTime == null && currentTime == null) {
+            return Objects.requireNonNullElse(candidate.getId(), Long.MIN_VALUE)
+                    > Objects.requireNonNullElse(current.getId(), Long.MIN_VALUE);
+        }
+        if (candidateTime == null) {
+            return false;
+        }
+        if (currentTime == null) {
+            return true;
+        }
+        if (!candidateTime.equals(currentTime)) {
+            return candidateTime.isAfter(currentTime);
+        }
+        return Objects.requireNonNullElse(candidate.getId(), Long.MIN_VALUE)
+                > Objects.requireNonNullElse(current.getId(), Long.MIN_VALUE);
+    }
+
+    private String buildElectiveClassName(Course course) {
+        if (course == null || course.getName() == null || course.getName().isBlank()) {
+            return null;
+        }
+        return course.getName().trim();
+    }
+
     private boolean hasEnabledAccount(StudentAccount account) {
         return account != null && Boolean.TRUE.equals(account.getEnabled());
     }
@@ -382,6 +505,7 @@ public class StudentService {
         physicalTestRepository.deleteByStudent(s);
         healthTestRecordRepository.deleteByStudent(s);
         examRecordRepository.deleteByStudent(s);
+        studentReferenceCleanupService.deleteByStudentId(s.getId());
 
         SchoolClass studentClass = s.getSchoolClass();
         confirmedSelectionsPerCourse.forEach((courseId, count) ->
@@ -410,6 +534,7 @@ public class StudentService {
         physicalTestRepository.deleteAllBySchool(school);
         healthTestRecordRepository.deleteAllBySchool(school);
         examRecordRepository.deleteAllBySchool(school);
+        studentReferenceCleanupService.deleteAllBySchoolId(school.getId());
 
         courseClassCapacityRepository.resetCountsBySchool(school);
         courseRepository.resetCountsBySchool(school);

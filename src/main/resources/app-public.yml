@@ -1,5 +1,5 @@
-app:
-  version: 2.0
+﻿app:
+  version: 3.0
   jwt:
     secret: pe-teacher-assistant-jwt-secret-key-2026-change-in-production
     expiration: 86400000
@@ -16,6 +16,8 @@ spring:
   thymeleaf:
     encoding: UTF-8
     cache: false
+  messages:
+    encoding: UTF-8
   servlet:
     multipart:
       max-file-size: 10MB
@@ -28,7 +30,9 @@ server:
     encoding:
       charset: UTF-8
       enabled: true
+      force: true
 
 logging:
   level:
     com.pe: INFO
+

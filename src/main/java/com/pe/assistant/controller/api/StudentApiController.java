@@ -16,6 +16,7 @@ import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +40,13 @@ public class StudentApiController {
         if (student.getSchool() == null) {
             return null;
         }
+        List<SelectionEvent> events = eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool());
+        SelectionEvent activeEvent = events
+                .stream()
+                .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .findFirst()
+                .orElse(null);
+        finalizeRound2IfEnded(activeEvent);
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> !"CLOSED".equals(e.getStatus()))
@@ -50,11 +58,26 @@ public class StudentApiController {
         if (student.getSchool() == null) {
             return null;
         }
+        SelectionEvent activeEvent = eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
+                .stream()
+                .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .findFirst()
+                .orElse(null);
+        finalizeRound2IfEnded(activeEvent);
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> "CLOSED".equals(e.getStatus()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private void finalizeRound2IfEnded(SelectionEvent event) {
+        if (event == null || !"ROUND2".equals(event.getStatus()) || event.getRound2End() == null) {
+            return;
+        }
+        if (!LocalDateTime.now().isBefore(event.getRound2End())) {
+            courseService.finalizeEndedRound2Event(event.getId());
+        }
     }
 
     @GetMapping("/events/current")
@@ -92,7 +115,7 @@ public class StudentApiController {
                 .map(s -> s.getCourse().getId())
                 .collect(Collectors.toSet());
         Map<Long, Integer> myPreferenceMap = mySelections.stream()
-                .filter(s -> "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
+                .filter(s -> "DRAFT".equals(s.getStatus()) || "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
                 .collect(Collectors.toMap(s -> s.getCourse().getId(), CourseSelection::getPreference, (a, b) -> a));
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
@@ -199,6 +222,7 @@ public class StudentApiController {
             item.put("status", selection.getStatus());
             item.put("selectedAt", selection.getSelectedAt());
             item.put("confirmedAt", selection.getConfirmedAt());
+            item.put("canDrop", courseService.canDropSelection(selection));
             result.add(item);
         }
         return ApiResponse.ok(result);

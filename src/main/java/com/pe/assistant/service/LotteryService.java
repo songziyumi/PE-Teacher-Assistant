@@ -1,7 +1,13 @@
 package com.pe.assistant.service;
 
-import com.pe.assistant.entity.*;
-import com.pe.assistant.repository.*;
+import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.CourseClassCapacity;
+import com.pe.assistant.entity.CourseSelection;
+import com.pe.assistant.entity.SelectionEvent;
+import com.pe.assistant.repository.CourseClassCapacityRepository;
+import com.pe.assistant.repository.CourseRepository;
+import com.pe.assistant.repository.CourseSelectionRepository;
+import com.pe.assistant.repository.SelectionEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -9,14 +15,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * 异步抽签执行器。
  * 独立 Bean 是为了避免 @Async 自调用导致代理失效（Spring AOP 限制）。
- * 逻辑：按课程顺序逐项抽签，每项间隔60秒；
- *       处理每门课的 2志愿前，先排除已在本次活动中中签的学生。
+ *
+ * 第一轮抽签按两个阶段结算：
+ * 1. 先统一结算全部第一志愿
+ * 2. 再用剩余名额结算第一志愿未录取学生的第二志愿
  */
 @Slf4j
 @Service
@@ -27,6 +41,8 @@ public class LotteryService {
     private final CourseRepository courseRepo;
     private final CourseClassCapacityRepository capacityRepo;
     private final CourseSelectionRepository selectionRepo;
+    private final StudentNotificationService studentNotificationService;
+    private final StudentService studentService;
 
     @Async
     public void runLottery(Long eventId) {
@@ -34,14 +50,15 @@ public class LotteryService {
             doRunLottery(eventId);
         } catch (Exception e) {
             log.error("抽签过程异常，eventId={}", eventId, e);
-            // 即使出错也尝试将状态推进，防止卡在 PROCESSING
             try {
                 SelectionEvent event = eventRepo.findById(eventId).orElse(null);
                 if (event != null && "PROCESSING".equals(event.getStatus())) {
                     event.setLotteryNote("抽签异常，请检查日志");
                     eventRepo.save(event);
                 }
-            } catch (Exception ex) { /* ignore */ }
+            } catch (Exception ex) {
+                // ignore
+            }
         }
     }
 
@@ -51,173 +68,166 @@ public class LotteryService {
                 .orElseThrow(() -> new RuntimeException("活动不存在"));
 
         List<Course> courses = courseRepo.findByEventOrderByNameAsc(event);
-        int total = courses.size();
+        Set<Long> confirmedStudentIds = selectionRepo.findByEventAndStatus(event, "CONFIRMED")
+                .stream()
+                .map(cs -> cs.getStudent().getId())
+                .collect(Collectors.toCollection(HashSet::new));
 
-        for (int i = 0; i < total; i++) {
-            Course course = courses.get(i);
+        settlePreferencesByPhase(event, courses, 1, confirmedStudentIds);
+        settlePreferencesByPhase(event, courses, 2, confirmedStudentIds);
 
-            // 更新进度
-            event.setLotteryNote("正在处理：" + course.getName() + " (" + (i + 1) + "/" + total + ")");
-            eventRepo.save(event);
-
-            // 查询本活动中已确认的学生 ID 集合（用于排除 2志愿）
-            Set<Long> confirmedStudentIds = selectionRepo.findByEventAndStatus(event, "CONFIRMED")
-                    .stream()
-                    .map(cs -> cs.getStudent().getId())
-                    .collect(Collectors.toSet());
-
-            if ("GLOBAL".equals(course.getCapacityMode())) {
-                lotteryGlobal(course, confirmedStudentIds);
-            } else {
-                lotteryPerClass(course, confirmedStudentIds);
-            }
-
-            // 每门课之间等待60秒（最后一门不等）
-            if (i < total - 1) {
-                Thread.sleep(60_000L);
-            }
-        }
-
-        // 全部处理完毕，推进到第二轮
         event.setStatus("ROUND2");
         event.setLotteryNote("抽签完成，已进入第二轮");
         eventRepo.save(event);
+        notifyRound1Results(event);
     }
 
-    /**
-     * GLOBAL 模式抽签：
-     * 1st pref 全量参与；
-     * 2nd pref 中排除已确认学生（他们的 1志愿已在前面的课程中中签）。
-     */
-    private void lotteryGlobal(Course course, Set<Long> confirmedStudentIds) {
-        List<CourseSelection> allPending = selectionRepo
-                .findByCourseAndStatusOrderBySelectedAtAsc(course, "PENDING");
-        if (allPending.isEmpty()) return;
+    private void settlePreferencesByPhase(SelectionEvent event,
+                                          List<Course> courses,
+                                          int preference,
+                                          Set<Long> confirmedStudentIds) {
+        int total = courses.size();
+        String phaseLabel = preference == 1 ? "第一志愿" : "第二志愿";
 
-        // 分离 1志愿 和 2志愿
-        List<CourseSelection> pref1 = allPending.stream()
-                .filter(cs -> cs.getPreference() == 1).collect(Collectors.toList());
-        Set<Long> pref1StudentIds = pref1.stream()
-                .map(cs -> cs.getStudent().getId())
-                .collect(Collectors.toSet());
-        List<CourseSelection> pref2 = allPending.stream()
-                .filter(cs -> cs.getPreference() == 2
-                        && !confirmedStudentIds.contains(cs.getStudent().getId())
-                        && !pref1StudentIds.contains(cs.getStudent().getId()))
-                .collect(Collectors.toList());
+        for (int i = 0; i < total; i++) {
+            Course course = courses.get(i);
+            event.setLotteryNote("正在结算" + phaseLabel + "：" + course.getName() + " (" + (i + 1) + "/" + total + ")");
+            eventRepo.save(event);
 
-        int capacity = course.getTotalCapacity();
-        Collections.shuffle(pref1);
-        int confirmed = 0;
+            Set<Long> newlyConfirmedStudentIds = "GLOBAL".equals(course.getCapacityMode())
+                    ? settleGlobalPreference(course, preference, confirmedStudentIds)
+                    : settlePerClassPreference(course, preference, confirmedStudentIds);
+            confirmedStudentIds.addAll(newlyConfirmedStudentIds);
+        }
+    }
 
-        // 先从 1志愿中抽
-        for (CourseSelection cs : pref1) {
-            if (confirmed < capacity) {
-                cs.setStatus("CONFIRMED");
-                cs.setConfirmedAt(LocalDateTime.now());
-                confirmed++;
-            } else {
-                cs.setStatus("LOTTERY_FAIL");
-            }
-            selectionRepo.save(cs);
+    private Set<Long> settleGlobalPreference(Course course,
+                                             int preference,
+                                             Set<Long> excludedStudentIds) {
+        List<CourseSelection> allPending = selectionRepo.findByCourseAndStatusOrderBySelectedAtAsc(course, "PENDING");
+        if (allPending.isEmpty()) {
+            return Set.of();
         }
 
-        // 剩余名额从 2志愿中补
-        Collections.shuffle(pref2);
-        for (CourseSelection cs : pref2) {
-            if (confirmed < capacity) {
-                cs.setStatus("CONFIRMED");
-                cs.setConfirmedAt(LocalDateTime.now());
-                confirmed++;
-            } else {
-                cs.setStatus("LOTTERY_FAIL");
-            }
-            selectionRepo.save(cs);
+        List<CourseSelection> targetSelections = allPending.stream()
+                .filter(cs -> cs.getRound() == 1)
+                .filter(cs -> cs.getPreference() == preference)
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (targetSelections.isEmpty()) {
+            return Set.of();
         }
 
-        // 被排除的已确认学生的 2志愿直接标 CANCELLED（他们已有 1志愿）
-        allPending.stream()
-                .filter(cs -> cs.getPreference() == 2
-                        && (confirmedStudentIds.contains(cs.getStudent().getId())
-                        || pref1StudentIds.contains(cs.getStudent().getId()))
-                        && "PENDING".equals(cs.getStatus()))
-                .forEach(cs -> {
-                    cs.setStatus("CANCELLED");
-                    selectionRepo.save(cs);
-                });
+        cancelExcludedSelections(targetSelections, excludedStudentIds);
 
-        course.setCurrentCount(confirmed);
+        List<CourseSelection> eligibleSelections = targetSelections.stream()
+                .filter(cs -> !excludedStudentIds.contains(cs.getStudent().getId()))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        int confirmed = course.getCurrentCount();
+        Set<Long> newlyConfirmedStudentIds = confirmSelections(eligibleSelections, confirmed, course.getTotalCapacity());
+        course.setCurrentCount(confirmed + newlyConfirmedStudentIds.size());
         courseRepo.save(course);
+        return newlyConfirmedStudentIds;
     }
 
-    /**
-     * PER_CLASS 模式抽签：按班分组，每班内单独抽；
-     * 2志愿同样排除已确认学生。
-     */
-    private void lotteryPerClass(Course course, Set<Long> confirmedStudentIds) {
+    private Set<Long> settlePerClassPreference(Course course,
+                                               int preference,
+                                               Set<Long> excludedStudentIds) {
         List<CourseClassCapacity> capacities = capacityRepo.findByCourse(course);
         int totalConfirmed = 0;
+        Set<Long> newlyConfirmedStudentIds = new HashSet<>();
 
         for (CourseClassCapacity cap : capacities) {
             Long classId = cap.getSchoolClass().getId();
             List<CourseSelection> allPending = selectionRepo.findPendingByClassId(course, classId);
-            if (allPending.isEmpty()) continue;
-
-            List<CourseSelection> pref1 = allPending.stream()
-                    .filter(cs -> cs.getPreference() == 1).collect(Collectors.toList());
-            Set<Long> pref1StudentIds = pref1.stream()
-                    .map(cs -> cs.getStudent().getId())
-                    .collect(Collectors.toSet());
-            List<CourseSelection> pref2 = allPending.stream()
-                    .filter(cs -> cs.getPreference() == 2
-                            && !confirmedStudentIds.contains(cs.getStudent().getId())
-                            && !pref1StudentIds.contains(cs.getStudent().getId()))
-                    .collect(Collectors.toList());
-
-            Collections.shuffle(pref1);
-            int confirmed = 0;
-            int max = cap.getMaxCapacity();
-
-            for (CourseSelection cs : pref1) {
-                if (confirmed < max) {
-                    cs.setStatus("CONFIRMED");
-                    cs.setConfirmedAt(LocalDateTime.now());
-                    confirmed++;
-                } else {
-                    cs.setStatus("LOTTERY_FAIL");
-                }
-                selectionRepo.save(cs);
+            if (allPending.isEmpty()) {
+                totalConfirmed += cap.getCurrentCount();
+                continue;
             }
 
-            Collections.shuffle(pref2);
-            for (CourseSelection cs : pref2) {
-                if (confirmed < max) {
-                    cs.setStatus("CONFIRMED");
-                    cs.setConfirmedAt(LocalDateTime.now());
-                    confirmed++;
-                } else {
-                    cs.setStatus("LOTTERY_FAIL");
-                }
-                selectionRepo.save(cs);
+            List<CourseSelection> targetSelections = allPending.stream()
+                    .filter(cs -> cs.getPreference() == preference)
+                    .collect(Collectors.toCollection(ArrayList::new));
+            if (targetSelections.isEmpty()) {
+                totalConfirmed += cap.getCurrentCount();
+                continue;
             }
 
-            // 标记被排除的 2志愿
-            allPending.stream()
-                    .filter(cs -> cs.getPreference() == 2
-                            && (confirmedStudentIds.contains(cs.getStudent().getId())
-                            || pref1StudentIds.contains(cs.getStudent().getId()))
-                            && "PENDING".equals(cs.getStatus()))
-                    .forEach(cs -> {
-                        cs.setStatus("CANCELLED");
-                        selectionRepo.save(cs);
-                    });
+            cancelExcludedSelections(targetSelections, excludedStudentIds);
 
-            cap.setCurrentCount(confirmed);
+            List<CourseSelection> eligibleSelections = targetSelections.stream()
+                    .filter(cs -> !excludedStudentIds.contains(cs.getStudent().getId()))
+                    .collect(Collectors.toCollection(ArrayList::new));
+
+            int beforeConfirmed = cap.getCurrentCount();
+            Set<Long> classConfirmedStudentIds = confirmSelections(eligibleSelections, beforeConfirmed, cap.getMaxCapacity());
+            cap.setCurrentCount(beforeConfirmed + classConfirmedStudentIds.size());
             capacityRepo.save(cap);
-            totalConfirmed += confirmed;
+
+            totalConfirmed += cap.getCurrentCount();
+            newlyConfirmedStudentIds.addAll(classConfirmedStudentIds);
         }
 
         course.setCurrentCount(totalConfirmed);
         courseRepo.save(course);
+        return newlyConfirmedStudentIds;
+    }
+
+    private void cancelExcludedSelections(List<CourseSelection> selections, Set<Long> excludedStudentIds) {
+        selections.stream()
+                .filter(cs -> excludedStudentIds.contains(cs.getStudent().getId()))
+                .forEach(cs -> {
+                    cs.setStatus("CANCELLED");
+                    selectionRepo.save(cs);
+                });
+    }
+
+    private Set<Long> confirmSelections(List<CourseSelection> selections, int confirmedBefore, int maxCapacity) {
+        Collections.shuffle(selections);
+
+        int confirmed = confirmedBefore;
+        Set<Long> newlyConfirmedStudentIds = new HashSet<>();
+        for (CourseSelection cs : selections) {
+            if (confirmed < maxCapacity) {
+                cs.setStatus("CONFIRMED");
+                cs.setConfirmedAt(LocalDateTime.now());
+                confirmed++;
+                newlyConfirmedStudentIds.add(cs.getStudent().getId());
+            } else {
+                cs.setStatus("LOTTERY_FAIL");
+            }
+            selectionRepo.save(cs);
+            if ("CONFIRMED".equals(cs.getStatus())) {
+                studentService.assignElectiveClassFromCourse(cs.getStudent(), cs.getCourse());
+            }
+        }
+        return newlyConfirmedStudentIds;
+    }
+
+    private void notifyRound1Results(SelectionEvent event) {
+        List<CourseSelection> round1Selections = selectionRepo.findByEvent(event).stream()
+                .filter(selection -> selection.getRound() == 1)
+                .filter(selection -> !"DRAFT".equals(selection.getStatus()))
+                .toList();
+
+        Map<Long, List<CourseSelection>> selectionsByStudent = new LinkedHashMap<>();
+        for (CourseSelection selection : round1Selections) {
+            if (selection.getStudent() == null || selection.getStudent().getId() == null) {
+                continue;
+            }
+            selectionsByStudent
+                    .computeIfAbsent(selection.getStudent().getId(), key -> new ArrayList<>())
+                    .add(selection);
+        }
+
+        for (List<CourseSelection> studentSelections : selectionsByStudent.values()) {
+            CourseSelection sample = studentSelections.get(0);
+            Course confirmedCourse = studentSelections.stream()
+                    .filter(selection -> "CONFIRMED".equals(selection.getStatus()))
+                    .map(CourseSelection::getCourse)
+                    .findFirst()
+                    .orElse(null);
+            studentNotificationService.notifyRound1Result(event, sample.getStudent(), confirmedCourse);
+        }
     }
 }

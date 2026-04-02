@@ -4,6 +4,19 @@ import '../models/student_selection.dart';
 import 'api_service.dart';
 
 class StudentService {
+  static Future<Map<String, dynamic>?> getCurrentEvent() async {
+    final data = await ApiService.get('/student/events/current');
+    if (data == null) return null;
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  static Future<List<StudentRequestCourse>> getCurrentCourses() async {
+    final data = await ApiService.get('/student/courses') as List;
+    return data
+        .map((e) => StudentRequestCourse.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
   static Future<Map<String, dynamic>> getRequestableCourses() async {
     final data = await ApiService.get('/student/courses/requestable') as Map;
     final list = (data['courses'] as List? ?? const [])
@@ -24,11 +37,19 @@ class StudentService {
     });
   }
 
+  static Future<void> selectCourse(int courseId) async {
+    await ApiService.post('/student/courses/$courseId/select', {});
+  }
+
   static Future<List<StudentSelection>> getMySelections() async {
     final data = await ApiService.get('/student/my-selections') as List;
     return data
         .map((e) => StudentSelection.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  static Future<void> dropSelection(int selectionId) async {
+    await ApiService.delete('/student/selections/$selectionId');
   }
 
   static Future<int> getUnreadMessageCount() async {

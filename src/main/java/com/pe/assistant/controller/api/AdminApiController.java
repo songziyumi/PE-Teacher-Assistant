@@ -8,6 +8,7 @@ import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -114,8 +115,9 @@ public class AdminApiController {
             @RequestParam(defaultValue = "20") int size) {
         School school = currentUserService.getCurrentSchool();
         String kw = keyword.isBlank() ? null : keyword;
-        return ApiResponse.ok(PageDto.of(
-                studentService.findWithFilters(school, classId, gradeId, kw, kw, null, null, page, size)));
+        Page<Student> studentPage = studentService.findWithFilters(school, classId, gradeId, kw, kw, null, null, page, size);
+        studentService.syncElectiveClassesForStudents(studentPage.getContent());
+        return ApiResponse.ok(PageDto.of(studentPage));
     }
 
     @PostMapping("/students/save")
