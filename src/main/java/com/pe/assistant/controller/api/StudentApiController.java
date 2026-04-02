@@ -7,6 +7,7 @@ import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.StudentAccount;
+import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.CourseService;
 import com.pe.assistant.service.CurrentUserService;
@@ -88,6 +89,16 @@ public class StudentApiController {
             return ApiResponse.ok(null);
         }
 
+        List<CourseSelection> mySelections = courseService.findMySelections(student, event);
+        boolean hasPref1 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 1 && !"CANCELLED".equals(s.getStatus()));
+        boolean hasPref2 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 2 && !"CANCELLED".equals(s.getStatus()));
+        boolean round1SubmissionConfirmed = hasPref1 && mySelections.stream()
+                .filter(s -> s.getRound() == 1 && (s.getPreference() == 1 || s.getPreference() == 2))
+                .filter(s -> !"CANCELLED".equals(s.getStatus()))
+                .allMatch(s -> "PENDING".equals(s.getStatus()));
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", event.getId());
         result.put("name", event.getName());
@@ -98,6 +109,9 @@ public class StudentApiController {
         result.put("round2End", event.getRound2End());
         result.put("inRound1", eventService.isInRound1(event));
         result.put("inRound2", eventService.isInRound2(event));
+        result.put("hasPref1", hasPref1);
+        result.put("hasPref2", hasPref2);
+        result.put("round1SubmissionConfirmed", round1SubmissionConfirmed);
         return ApiResponse.ok(result);
     }
 
@@ -172,6 +186,36 @@ public class StudentApiController {
             }
             courseService.submitPreference(student, event.getId(), courseId, preference);
             return ApiResponse.ok("志愿提交成功");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/courses/save-draft")
+    public ApiResponse<String> saveDraft() {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.saveRound1Draft(student, event.getId());
+            return ApiResponse.ok("草稿已保存");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/courses/confirm")
+    public ApiResponse<String> confirmRound1() {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.confirmRound1Selections(student, event.getId());
+            return ApiResponse.ok("志愿已确认提交");
         } catch (Exception e) {
             return ApiResponse.error(400, e.getMessage());
         }
@@ -280,6 +324,54 @@ public class StudentApiController {
         return ApiResponse.ok(list.stream().map(this::toMessageMap).collect(Collectors.toList()));
     }
 
+    @GetMapping("/messages/recipients")
+    public ApiResponse<List<Map<String, Object>>> messageRecipients() {
+        Student student = currentUserService.getCurrentStudent();
+        List<Map<String, Object>> result = messageService.findTeachersBySchool(student.getSchool()).stream()
+                .map(recipient -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", recipient.getId());
+                    item.put("name", recipient.getName());
+                    item.put("displayName", recipient.getDisplayName());
+                    return item;
+                })
+                .collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
+
+    @PostMapping("/messages/send")
+    public ApiResponse<String> sendMessage(@RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            Long teacherId = parseLong(body != null ? body.get("teacherId") : null);
+            String subject = body != null && body.get("subject") != null
+                    ? String.valueOf(body.get("subject")).trim()
+                    : "";
+            String content = body != null && body.get("content") != null
+                    ? String.valueOf(body.get("content")).trim()
+                    : "";
+
+            if (teacherId == null) {
+                return ApiResponse.error(400, "请选择收件教师");
+            }
+            if (subject.isBlank()) {
+                return ApiResponse.error(400, "消息主题不能为空");
+            }
+            if (content.isBlank()) {
+                return ApiResponse.error(400, "消息内容不能为空");
+            }
+
+            Teacher teacher = messageService.findTeacherMessageRecipient(student.getSchool(), teacherId);
+            messageService.sendMessage(
+                    "STUDENT", student.getId(), student.getName(),
+                    "TEACHER", teacher.getId(), teacher.getName(),
+                    subject, content, student.getSchool());
+            return ApiResponse.ok("消息已发送");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/messages/{id}/read")
     public ApiResponse<String> markMessageRead(@PathVariable Long id) {
         try {
@@ -337,5 +429,19 @@ public class StudentApiController {
         result.put("relatedCourseId", msg.getRelatedCourseId());
         result.put("relatedCourseName", msg.getRelatedCourseName());
         return result;
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 }

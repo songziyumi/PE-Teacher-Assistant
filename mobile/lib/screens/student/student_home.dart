@@ -26,12 +26,41 @@ class _StudentHomeState extends State<StudentHome> {
   List<StudentSelection> _mySelections = [];
   final Set<int> _submittingCourseIds = <int>{};
   bool _forceChangeDialogShowing = false;
+  String? _round1Action;
 
   bool get _hasActiveEvent => _currentEvent != null;
 
   bool get _inRound1 => _currentEvent?['inRound1'] == true;
 
   bool get _inRound2 => _currentEvent?['inRound2'] == true;
+
+  Iterable<StudentSelection> get _activeRound1Selections => _mySelections.where(
+        (item) =>
+            item.round == 1 &&
+            item.preference > 0 &&
+            item.status != 'CANCELLED',
+      );
+
+  bool get _hasPref1 =>
+      _activeRound1Selections.any((item) => item.preference == 1) ||
+      _activeCourses.any((item) => item.myPreference == 1);
+
+  bool get _hasPref2 =>
+      _activeRound1Selections.any((item) => item.preference == 2) ||
+      _activeCourses.any((item) => item.myPreference == 2);
+
+  bool get _round1SubmissionConfirmed {
+    final selections = _activeRound1Selections.toList();
+    if (!_hasPref1 || selections.isEmpty) {
+      return false;
+    }
+    return selections.every((item) => item.status == 'PENDING');
+  }
+
+  bool get _round1ActionSubmitting => _round1Action != null;
+
+  bool get _shouldGuardRound1Leave =>
+      _inRound1 && !_round1SubmissionConfirmed;
 
   bool get _hasConfirmedSelection =>
       _mySelections.any((item) => item.status == 'CONFIRMED');
@@ -203,6 +232,131 @@ class _StudentHomeState extends State<StudentHome> {
     }
   }
 
+  Future<void> _setPreference(StudentRequestCourse course, int preference) async {
+    setState(() => _submittingCourseIds.add(course.id));
+    try {
+      await StudentService.submitPreference(
+        courseId: course.id,
+        preference: preference,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            preference == 1
+                ? '\u5df2\u5c06\u300a${course.name}\u300b\u8bbe\u4e3a\u7b2c\u4e00\u5fd7\u613f'
+                : '\u5df2\u5c06\u300a${course.name}\u300b\u8bbe\u4e3a\u7b2c\u4e8c\u5fd7\u613f',
+          ),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('\u8bbe\u7f6e\u5fd7\u613f\u5931\u8d25: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submittingCourseIds.remove(course.id));
+      }
+    }
+  }
+
+  Future<void> _saveRound1Draft() async {
+    setState(() => _round1Action = 'draft');
+    try {
+      await StudentService.saveRound1Draft();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('\u7b2c\u4e00\u8f6e\u5fd7\u613f\u5df2\u4fdd\u5b58\u4e3a\u8349\u7a3f')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('\u4fdd\u5b58\u8349\u7a3f\u5931\u8d25: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _round1Action = null);
+      }
+    }
+  }
+
+  Future<void> _confirmRound1() async {
+    setState(() => _round1Action = 'confirm');
+    try {
+      await StudentService.confirmRound1Selections();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('\u7b2c\u4e00\u8f6e\u5fd7\u613f\u5df2\u786e\u8ba4\u63d0\u4ea4')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('\u786e\u8ba4\u586b\u62a5\u5931\u8d25: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _round1Action = null);
+      }
+    }
+  }
+
+  String _round1LeaveMessage() {
+    if (!_hasPref1) {
+      if (!_hasPref2) {
+        return '\u7b2c\u4e00\u5fd7\u613f\u548c\u7b2c\u4e8c\u5fd7\u613f\u90fd\u8fd8\u672a\u586b\u62a5\uff0c\u786e\u8ba4\u540e\u518d\u79bb\u5f00\u5f53\u524d\u9875\u9762\u3002';
+      }
+      return '\u7b2c\u4e00\u5fd7\u613f\u8fd8\u672a\u586b\u62a5\uff0c\u786e\u8ba4\u540e\u518d\u79bb\u5f00\u5f53\u524d\u9875\u9762\u3002';
+    }
+    return '\u5f53\u524d\u5fd7\u613f\u8fd8\u672a\u786e\u8ba4\u586b\u62a5\uff0c\u786e\u8ba4\u540e\u518d\u79bb\u5f00\u5f53\u524d\u9875\u9762\u3002';
+  }
+
+  Future<bool> _confirmLeaveRound1() async {
+    if (!_shouldGuardRound1Leave) {
+      return true;
+    }
+    if (_round1ActionSubmitting) {
+      return false;
+    }
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('\u79bb\u5f00\u63d0\u9192'),
+        content: Text(_round1LeaveMessage()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('\u7559\u5728\u672c\u9875'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('\u7ee7\u7eed\u79bb\u5f00'),
+          ),
+        ],
+      ),
+    );
+    return leave == true;
+  }
+
+  Future<void> _guardedPush(String route) async {
+    if (!await _confirmLeaveRound1()) {
+      return;
+    }
+    if (!mounted) return;
+    context.push(route);
+  }
+
+  Future<void> _guardedLogout() async {
+    if (!await _confirmLeaveRound1()) {
+      return;
+    }
+    if (!mounted) return;
+    await context.read<AuthProvider>().logout();
+  }
+
   String _formatEventTime(dynamic value) {
     if (value == null) return '-';
     final parsed = DateTime.tryParse(value.toString());
@@ -293,6 +447,125 @@ class _StudentHomeState extends State<StudentHome> {
     );
   }
 
+  Widget _buildRound1ActionCard() {
+    final bool canSaveDraft =
+        (_hasPref1 || _hasPref2) &&
+        !_round1SubmissionConfirmed &&
+        !_round1ActionSubmitting;
+    final bool canConfirm =
+        _hasPref1 && !_round1SubmissionConfirmed && !_round1ActionSubmitting;
+    final String tipText;
+    if (!_hasPref1) {
+      tipText =
+          '\u8bf7\u5148\u9009\u62e9\u7b2c\u4e00\u5fd7\u613f\uff0c\u7b2c\u4e8c\u5fd7\u613f\u53ef\u9009\uff0c\u518d\u786e\u8ba4\u586b\u62a5\u3002';
+    } else if (_round1SubmissionConfirmed) {
+      tipText =
+          '\u5f53\u524d\u5fd7\u613f\u5df2\u786e\u8ba4\u63d0\u4ea4\u3002\u82e5\u7ee7\u7eed\u4fee\u6539\uff0c\u7cfb\u7edf\u4f1a\u81ea\u52a8\u9000\u56de\u8349\u7a3f\uff0c\u9700\u91cd\u65b0\u786e\u8ba4\u586b\u62a5\u3002';
+    } else {
+      tipText =
+          '\u5f53\u524d\u5fd7\u613f\u5df2\u4fdd\u5b58\u4e3a\u8349\u7a3f\uff0c\u786e\u8ba4\u586b\u62a5\u540e\u624d\u4f1a\u53c2\u4e0e\u7b2c\u4e00\u8f6e\u62bd\u7b7e\u3002';
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(top: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '\u7b2c\u4e00\u8f6e\u5fd7\u613f\u586b\u62a5',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildRound1StatusChip(
+                  label: '\u7b2c\u4e00\u5fd7\u613f',
+                  active: _hasPref1,
+                ),
+                _buildRound1StatusChip(
+                  label: '\u7b2c\u4e8c\u5fd7\u613f',
+                  active: _hasPref2,
+                ),
+                _buildRound1StatusChip(
+                  label: '\u786e\u8ba4\u63d0\u4ea4',
+                  active: _round1SubmissionConfirmed,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(tipText, style: const TextStyle(color: Colors.black87)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: canSaveDraft ? _saveRound1Draft : null,
+                    icon: _round1Action == 'draft'
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('\u4fdd\u5b58\u8349\u7a3f'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: canConfirm ? _confirmRound1 : null,
+                    icon: _round1Action == 'confirm'
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.verified_outlined),
+                    label: Text(
+                      _round1SubmissionConfirmed
+                          ? '\u5df2\u786e\u8ba4\u63d0\u4ea4'
+                          : '\u786e\u8ba4\u586b\u62a5',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRound1StatusChip({
+    required String label,
+    required bool active,
+  }) {
+    final Color background = active ? Colors.blue.shade50 : Colors.grey.shade200;
+    final Color foreground = active ? Colors.blue.shade800 : Colors.grey.shade700;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        active ? '$label\u5df2\u5b8c\u6210' : '$label\u672a\u8bbe\u7f6e',
+        style: TextStyle(
+          color: foreground,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildRequestStatusCard() {
     return Card(
       color: _canRequest ? Colors.blue.shade50 : Colors.orange.shade50,
@@ -319,6 +592,16 @@ class _StudentHomeState extends State<StudentHome> {
 
   Widget _buildCurrentCourseCard(StudentRequestCourse course) {
     final bool submitting = _submittingCourseIds.contains(course.id);
+    final bool canSetPref1 =
+        _inRound1 &&
+        !_round1ActionSubmitting &&
+        !submitting &&
+        course.myPreference != 1;
+    final bool canSetPref2 =
+        _inRound1 &&
+        !_round1ActionSubmitting &&
+        !submitting &&
+        course.myPreference != 2;
     final bool canSelect = _inRound2 &&
         !_hasConfirmedSelection &&
         !course.confirmed &&
@@ -419,6 +702,35 @@ class _StudentHomeState extends State<StudentHome> {
                   label: Text(buttonText),
                 ),
               ),
+            ] else if (_inRound1) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed:
+                          canSetPref1 ? () => _setPreference(course, 1) : null,
+                      child: Text(
+                        course.myPreference == 1
+                            ? '\u5df2\u662f\u7b2c\u4e00\u5fd7\u613f'
+                            : '\u8bbe\u4e3a\u7b2c\u4e00\u5fd7\u613f',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed:
+                          canSetPref2 ? () => _setPreference(course, 2) : null,
+                      child: Text(
+                        course.myPreference == 2
+                            ? '\u5df2\u662f\u7b2c\u4e8c\u5fd7\u613f'
+                            : '\u8bbe\u4e3a\u7b2c\u4e8c\u5fd7\u613f',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -480,13 +792,15 @@ class _StudentHomeState extends State<StudentHome> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _confirmLeaveRound1,
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('学生选课'),
         actions: [
           IconButton(
             tooltip: '消息中心',
-            onPressed: () => context.push('/student/messages'),
+            onPressed: () => _guardedPush('/student/messages'),
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -524,7 +838,7 @@ class _StudentHomeState extends State<StudentHome> {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthProvider>().logout(),
+            onPressed: _guardedLogout,
           ),
         ],
       ),
@@ -563,13 +877,14 @@ class _StudentHomeState extends State<StudentHome> {
                     _buildCurrentEventCard()
                   else
                     _buildRequestStatusCard(),
+                  if (_inRound1) _buildRound1ActionCard(),
                   const SizedBox(height: 10),
                   Card(
                     child: ListTile(
                       leading: const Icon(Icons.book_outlined),
                       title: const Text('我的选课'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/student/my-courses'),
+                      onTap: () => _guardedPush('/student/my-courses'),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -579,7 +894,7 @@ class _StudentHomeState extends State<StudentHome> {
                       title: const Text('消息中心'),
                       subtitle: Text('未读消息：$_unreadMessageCount'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/student/messages'),
+                      onTap: () => _guardedPush('/student/messages'),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -608,7 +923,11 @@ class _StudentHomeState extends State<StudentHome> {
                 ],
               ),
             ),
-      bottomNavigationBar: const StudentBottomNav(currentIndex: 0),
+      bottomNavigationBar: StudentBottomNav(
+        currentIndex: 0,
+        onWillNavigate: (_) => _confirmLeaveRound1(),
+      ),
+    ),
     );
   }
 }
