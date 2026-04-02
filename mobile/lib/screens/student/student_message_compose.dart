@@ -61,7 +61,9 @@ class _StudentMessageComposeScreenState
 
   final _subjectController = TextEditingController();
   final _contentController = TextEditingController();
+  final _subjectFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
+  final _subjectFieldKey = GlobalKey();
   final _contentFieldKey = GlobalKey();
 
   Timer? _draftSaveTimer;
@@ -84,6 +86,7 @@ class _StudentMessageComposeScreenState
     _contentController.text = widget.initialContent;
     _subjectController.addListener(_onDraftChanged);
     _contentController.addListener(_onDraftChanged);
+    _subjectFocusNode.addListener(_handleSubjectFocusChange);
     _contentFocusNode.addListener(_handleContentFocusChange);
     _loadRecipients();
   }
@@ -94,9 +97,11 @@ class _StudentMessageComposeScreenState
     _persistDraft();
     _subjectController.removeListener(_onDraftChanged);
     _contentController.removeListener(_onDraftChanged);
+    _subjectFocusNode.removeListener(_handleSubjectFocusChange);
     _contentFocusNode.removeListener(_handleContentFocusChange);
     _subjectController.dispose();
     _contentController.dispose();
+    _subjectFocusNode.dispose();
     _contentFocusNode.dispose();
     super.dispose();
   }
@@ -198,8 +203,24 @@ class _StudentMessageComposeScreenState
 
   void _handleContentFocusChange() {
     if (!_contentFocusNode.hasFocus) return;
+    if (mounted) setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentContext = _contentFieldKey.currentContext;
+      if (currentContext == null || !mounted) return;
+      Scrollable.ensureVisible(
+        currentContext,
+        alignment: 1,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _handleSubjectFocusChange() {
+    if (mounted) setState(() {});
+    if (!_subjectFocusNode.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentContext = _subjectFieldKey.currentContext;
       if (currentContext == null || !mounted) return;
       Scrollable.ensureVisible(
         currentContext,
@@ -443,6 +464,7 @@ class _StudentMessageComposeScreenState
 
     final recentIdSet = _recentTeacherIds.toSet();
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final editingSubject = _subjectFocusNode.hasFocus;
     return Column(
       children: [
         Expanded(
@@ -490,6 +512,7 @@ class _StudentMessageComposeScreenState
                 ),
               DropdownButtonFormField<int>(
                 initialValue: _selectedTeacherId,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: _recipientLabel,
                   border: OutlineInputBorder(),
@@ -502,6 +525,8 @@ class _StudentMessageComposeScreenState
                           recentIdSet.contains(recipient.id)
                               ? '${recipient.displayName}$_recentSuffix'
                               : recipient.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     )
@@ -515,10 +540,12 @@ class _StudentMessageComposeScreenState
               ),
               const SizedBox(height: 12),
               TextField(
+                key: _subjectFieldKey,
                 controller: _subjectController,
+                focusNode: _subjectFocusNode,
                 enabled: !_sending,
                 textInputAction: TextInputAction.next,
-                scrollPadding: EdgeInsets.only(bottom: keyboardInset + 120),
+                scrollPadding: EdgeInsets.only(bottom: keyboardInset + 24),
                 maxLength: _subjectMaxLength,
                 decoration: const InputDecoration(
                   labelText: _subjectLabel,
@@ -530,57 +557,67 @@ class _StudentMessageComposeScreenState
             ],
           ),
         ),
-        AnimatedPadding(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.fromLTRB(12, 8, 12, keyboardInset > 0 ? keyboardInset : 12),
-          child: SafeArea(
-            top: false,
-            child: Material(
-              elevation: 6,
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          _contentLabel,
-                          style: Theme.of(context).textTheme.titleSmall,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: editingSubject
+               ? const SizedBox.shrink()
+               : AnimatedPadding(
+                   key: const ValueKey('content-panel'),
+                   duration: const Duration(milliseconds: 220),
+                   curve: Curves.easeOut,
+                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                   child: SafeArea(
+                     top: false,
+                     child: Material(
+                      elevation: 6,
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  _contentLabel,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '${_contentController.text.length} / $_contentCounterHint',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              key: _contentFieldKey,
+                              controller: _contentController,
+                              focusNode: _contentFocusNode,
+                              enabled: !_sending,
+                              keyboardType: TextInputType.multiline,
+                              textInputAction: TextInputAction.newline,
+                              minLines: 4,
+                              maxLines: 8,
+                              textAlignVertical: TextAlignVertical.top,
+                              scrollPadding: EdgeInsets.only(
+                                bottom: keyboardInset + 24,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: _contentHint,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        Text(
-                          '${_contentController.text.length} / $_contentCounterHint',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      key: _contentFieldKey,
-                      controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      enabled: !_sending,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      minLines: 4,
-                      maxLines: 8,
-                      textAlignVertical: TextAlignVertical.top,
-                      scrollPadding: EdgeInsets.only(bottom: keyboardInset + 24),
-                      decoration: const InputDecoration(
-                        hintText: _contentHint,
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ),
         ),
       ],
     );
