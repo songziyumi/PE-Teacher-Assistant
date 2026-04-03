@@ -246,29 +246,22 @@ public class CourseService {
             throw new RuntimeException("该课程当前不可选");
         }
 
-        // 按名额模式加锁检查
+        // 按名额模式执行原子占位
         if ("GLOBAL".equals(course.getCapacityMode())) {
-            Course locked = courseRepo.findByIdForUpdate(courseId)
-                    .orElseThrow(() -> new RuntimeException("课程不存在"));
-            if (locked.getCurrentCount() >= locked.getTotalCapacity()) {
+            if (courseRepo.incrementCurrentCountIfAvailable(courseId) == 0) {
                 throw new RuntimeException("该课程名额已满，请选择其他课程");
             }
-            locked.setCurrentCount(locked.getCurrentCount() + 1);
-            courseRepo.save(locked);
         } else {
             // PER_CLASS：按学生所在班级找对应名额
             SchoolClass sc = student.getSchoolClass();
             if (sc == null) throw new RuntimeException("您未分配行政班，无法参与按班名额的课程");
-            CourseClassCapacity cap = capacityRepo
-                    .findByCourseIdAndClassIdForUpdate(courseId, sc.getId())
-                    .orElseThrow(() -> new RuntimeException("您的班级没有该课程的名额配置"));
-            if (cap.getCurrentCount() >= cap.getMaxCapacity()) {
+            if (capacityRepo.findByCourseAndSchoolClass(course, sc).isEmpty()) {
+                throw new RuntimeException("您的班级没有该课程的名额配置");
+            }
+            if (capacityRepo.incrementCurrentCountIfAvailable(courseId, sc.getId()) == 0) {
                 throw new RuntimeException("您班级的该课程名额已满，请选择其他课程");
             }
-            cap.setCurrentCount(cap.getCurrentCount() + 1);
-            capacityRepo.save(cap);
-            course.setCurrentCount(course.getCurrentCount() + 1);
-            courseRepo.save(course);
+            courseRepo.incrementCurrentCount(courseId);
         }
 
         CourseSelection cs = new CourseSelection();
@@ -408,13 +401,9 @@ public class CourseService {
 
     private boolean tryReserveRound2Capacity(Course course, Student student) {
         if ("GLOBAL".equals(course.getCapacityMode())) {
-            Course locked = courseRepo.findByIdForUpdate(course.getId()).orElse(null);
-            if (locked == null || locked.getCurrentCount() >= locked.getTotalCapacity()) {
+            if (courseRepo.incrementCurrentCountIfAvailable(course.getId()) == 0) {
                 return false;
             }
-            locked.setCurrentCount(locked.getCurrentCount() + 1);
-            courseRepo.save(locked);
-            course.setCurrentCount(locked.getCurrentCount());
             return true;
         }
 
@@ -423,22 +412,14 @@ public class CourseService {
             return false;
         }
 
-        CourseClassCapacity cap = capacityRepo.findByCourseIdAndClassIdForUpdate(course.getId(), schoolClass.getId())
-                .orElse(null);
-        if (cap == null || cap.getCurrentCount() >= cap.getMaxCapacity()) {
+        if (capacityRepo.findByCourseAndSchoolClass(course, schoolClass).isEmpty()) {
+            return false;
+        }
+        if (capacityRepo.incrementCurrentCountIfAvailable(course.getId(), schoolClass.getId()) == 0) {
             return false;
         }
 
-        Course locked = courseRepo.findByIdForUpdate(course.getId()).orElse(null);
-        if (locked == null || locked.getCurrentCount() >= locked.getTotalCapacity()) {
-            return false;
-        }
-
-        cap.setCurrentCount(cap.getCurrentCount() + 1);
-        capacityRepo.save(cap);
-        locked.setCurrentCount(locked.getCurrentCount() + 1);
-        courseRepo.save(locked);
-        course.setCurrentCount(locked.getCurrentCount());
+        courseRepo.incrementCurrentCount(course.getId());
         return true;
     }
 
@@ -568,6 +549,10 @@ public class CourseService {
             uniqueSelections.putIfAbsent(selection.getStudent().getId(), selection);
         }
         return List.copyOf(uniqueSelections.values());
+    }
+
+    public int countConfirmedUniqueEnrollments(Course course) {
+        return findConfirmedUniqueEnrollments(course).size();
     }
 
     public List<CourseSelection> findMySelections(Student student, SelectionEvent event) {
@@ -707,8 +692,9 @@ public class CourseService {
         if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
             return new RuntimeException("您已成功选课，无需再次抢课");
         }
-        if (getRemainingCapacity(course, student) <= 0) {
-            if ("PER_CLASS".equals(course.getCapacityMode())) {
+        Course refreshedCourse = courseRepo.findById(course.getId()).orElse(course);
+        if (getRemainingCapacity(refreshedCourse, student) <= 0) {
+            if ("PER_CLASS".equals(refreshedCourse.getCapacityMode())) {
                 return new RuntimeException("您班级的该课程名额已满，请选择其他课程");
             }
             return new RuntimeException("该课程名额已满，请选择其他课程");

@@ -55,8 +55,9 @@
     <!-- 统计 -->
     <div class="stat-row">
         <div class="stat-chip">总名额 <strong th:text="${course.totalCapacity}"></strong></div>
-        <div class="stat-chip">已确认 <strong th:text="${course.currentCount}"></strong></div>
-        <div class="stat-chip">剩余 <strong th:text="${course.totalCapacity - course.currentCount}"></strong></div>
+        <div class="stat-chip">已确认 <strong th:text="${confirmedEnrollmentCount}"></strong></div>
+        <div class="stat-chip">剩余 <strong th:text="${remainingEnrollmentCapacity}"></strong></div>
+        <div class="stat-chip" th:if="${overflowEnrollmentCount > 0}">超编 <strong th:text="${overflowEnrollmentCount}"></strong></div>
         <div class="stat-chip">名额模式 <strong th:text="${course.capacityMode == 'GLOBAL'} ? '全局' : '按班'"></strong></div>
     </div>
 

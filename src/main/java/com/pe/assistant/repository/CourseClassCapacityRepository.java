@@ -26,6 +26,18 @@ public interface CourseClassCapacityRepository extends JpaRepository<CourseClass
             @Param("courseId") Long courseId,
             @Param("classId") Long classId);
 
+    @Modifying
+    @Query("""
+            UPDATE CourseClassCapacity cc
+               SET cc.currentCount = cc.currentCount + 1
+             WHERE cc.course.id = :courseId
+               AND cc.schoolClass.id = :classId
+               AND cc.currentCount < cc.maxCapacity
+            """)
+    int incrementCurrentCountIfAvailable(
+            @Param("courseId") Long courseId,
+            @Param("classId") Long classId);
+
     void deleteByCourse(Course course);
 
     @Modifying

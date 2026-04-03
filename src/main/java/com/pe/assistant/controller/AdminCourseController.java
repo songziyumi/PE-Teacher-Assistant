@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,8 +159,14 @@ public class AdminCourseController {
         boolean round1ResultAvailable = "ROUND2".equals(event.getStatus()) || "CLOSED".equals(event.getStatus());
         List<Student> participatingStudents = eventService.findParticipatingStudents(event);
         Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
+        List<Course> courses = courseService.findByEvent(event);
+        Map<Long, Integer> confirmedCountByCourse = new LinkedHashMap<>();
+        for (Course course : courses) {
+            confirmedCountByCourse.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
+        }
         model.addAttribute("event", event);
-        model.addAttribute("courses", courseService.findByEvent(event));
+        model.addAttribute("courses", courses);
+        model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
         model.addAttribute("round1Summary", round1Summary);
         model.addAttribute("round1ResultAvailable", round1ResultAvailable);
         model.addAttribute("eventStudents", eventService.findEventStudents(event));
@@ -275,9 +282,13 @@ public class AdminCourseController {
     public String enrollments(@PathVariable Long eventId, @PathVariable Long courseId, Model model) {
         SelectionEvent event = eventService.findById(eventId);
         Course course = courseService.findById(courseId);
+        int confirmedEnrollmentCount = courseService.countConfirmedUniqueEnrollments(course);
         model.addAttribute("event", event);
         model.addAttribute("course", course);
         model.addAttribute("enrollments", courseService.findEnrollments(course));
+        model.addAttribute("confirmedEnrollmentCount", confirmedEnrollmentCount);
+        model.addAttribute("remainingEnrollmentCapacity", Math.max(0, course.getTotalCapacity() - confirmedEnrollmentCount));
+        model.addAttribute("overflowEnrollmentCount", Math.max(0, confirmedEnrollmentCount - course.getTotalCapacity()));
         model.addAttribute("capacities", courseService.findCapacities(course));
         model.addAttribute("allStudents", eventService.findParticipatingStudents(event));
         return "admin/course-enrollments";
