@@ -25,6 +25,7 @@ class _StudentHomeState extends State<StudentHome> {
   List<StudentRequestCourse> _requestableCourses = [];
   List<StudentSelection> _mySelections = [];
   final Set<int> _submittingCourseIds = <int>{};
+  int? _round2SubmittingCourseId;
   bool _forceChangeDialogShowing = false;
   String? _round1Action;
 
@@ -67,6 +68,8 @@ class _StudentHomeState extends State<StudentHome> {
 
   bool get _hasLotteryFail =>
       _mySelections.any((item) => item.status == 'LOTTERY_FAIL');
+
+  bool get _round2Submitting => _round2SubmittingCourseId != null;
 
   @override
   void initState() {
@@ -213,21 +216,27 @@ class _StudentHomeState extends State<StudentHome> {
   }
 
   Future<void> _selectCourse(StudentRequestCourse course) async {
-    setState(() => _submittingCourseIds.add(course.id));
+    if (_round2Submitting) {
+      return;
+    }
+    setState(() => _round2SubmittingCourseId = course.id);
     try {
       await StudentService.selectCourse(course.id);
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已选中《${course.name}》')),
       );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('抢课失败: $e')));
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('抢课失败：$e')),
+      );
     } finally {
       if (mounted) {
-        setState(() => _submittingCourseIds.remove(course.id));
+        setState(() => _round2SubmittingCourseId = null);
       }
     }
   }
@@ -606,10 +615,14 @@ class _StudentHomeState extends State<StudentHome> {
         !_hasConfirmedSelection &&
         !course.confirmed &&
         course.remaining > 0 &&
+        !_round2Submitting &&
         !submitting;
 
     String buttonText;
-    if (submitting) {
+    if (_round2Submitting) {
+      buttonText =
+          _round2SubmittingCourseId == course.id ? '抢课提交中...' : '处理中...';
+    } else if (submitting) {
       buttonText = '提交中...';
     } else if (course.confirmed) {
       buttonText = '已选中';
@@ -692,12 +705,14 @@ class _StudentHomeState extends State<StudentHome> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: canSelect ? () => _selectCourse(course) : null,
-                  icon: submitting
+                  icon: _round2SubmittingCourseId == course.id
                       ? const SizedBox(
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
+                      : _round2Submitting
+                      ? const Icon(Icons.hourglass_top)
                       : const Icon(Icons.flash_on),
                   label: Text(buttonText),
                 ),
