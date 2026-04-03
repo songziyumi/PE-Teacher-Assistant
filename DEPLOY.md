@@ -24,7 +24,7 @@ scp target/pe-teacher-assistant-1.0.0.jar root@175.24.131.74:/opt/pe-assistant/a
 ```
 
 ### 3. 服务器配置文件
-配置文件路径：`/opt/pe-assistant/application.yml`，内容如下：
+配置文件路径：`/opt/pe-assistant/application.yml`，内容如下（作为服务器覆盖配置，保留 JAR 内默认配置）：
 ```yaml
 spring:
   datasource:
@@ -37,6 +37,8 @@ spring:
 server:
   port: 8080
 ```
+
+注意：`systemd` 启动参数必须使用 `--spring.config.additional-location=/opt/pe-assistant/application.yml`，不要使用 `--spring.config.location=...`。否则会覆盖掉 JAR 内的默认配置，导致 `app.jwt.secret` 等内置配置丢失，应用无法启动。
 
 ### 4. 配置 systemd 系统服务
 
