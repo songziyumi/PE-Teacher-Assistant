@@ -1,8 +1,14 @@
-app:
-  version: 2.0
+﻿app:
+  version: 3.0
   jwt:
     secret: pe-teacher-assistant-jwt-secret-key-2026-change-in-production
     expiration: 86400000
+
+# 服务器档位切换说明：
+# 1. 默认启用 server-low
+# 2. 低配服务器：--spring.profiles.active=server-low
+# 3. 高配服务器：--spring.profiles.active=server-high
+# 4. 如需与本地配置叠加：--spring.profiles.active=local,server-high
 
 spring:
   jpa:
@@ -16,6 +22,8 @@ spring:
   thymeleaf:
     encoding: UTF-8
     cache: false
+  messages:
+    encoding: UTF-8
   servlet:
     multipart:
       max-file-size: 10MB
@@ -28,7 +36,75 @@ server:
     encoding:
       charset: UTF-8
       enabled: true
+      force: true
 
 logging:
   level:
     com.pe: INFO
+---
+spring:
+  config:
+    activate:
+      on-profile: server-low
+  datasource:
+    hikari:
+      pool-name: PeAssistantHikariLow
+      maximum-pool-size: 12
+      minimum-idle: 3
+      connection-timeout: 1500
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  task:
+    execution:
+      thread-name-prefix: async-low-
+      pool:
+        core-size: 4
+        max-size: 8
+        queue-capacity: 120
+        keep-alive: 60s
+
+server:
+  tomcat:
+    threads:
+      max: 100
+      min-spare: 10
+    accept-count: 300
+    max-connections: 1000
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 2KB
+
+---
+spring:
+  config:
+    activate:
+      on-profile: server-high
+  datasource:
+    hikari:
+      pool-name: PeAssistantHikariHigh
+      maximum-pool-size: 24
+      minimum-idle: 6
+      connection-timeout: 1200
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  task:
+    execution:
+      thread-name-prefix: async-high-
+      pool:
+        core-size: 8
+        max-size: 16
+        queue-capacity: 300
+        keep-alive: 60s
+
+server:
+  tomcat:
+    threads:
+      max: 180
+      min-spare: 20
+    accept-count: 800
+    max-connections: 2000
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 2KB

@@ -54,7 +54,7 @@
                     <option value="">请选择教师</option>
                     <option th:each="t : ${teachers}"
                             th:value="${t.id}"
-                            th:text="${t.specialty != null and !t.specialty.isBlank() ? t.name + ' (' + t.specialty + ')' : t.name}"></option>
+                            th:text="${t.displayName}"></option>
                 </select>
             </div>
             <div class="form-group">

@@ -16,11 +16,25 @@ import java.util.Optional;
 public interface CourseClassCapacityRepository extends JpaRepository<CourseClassCapacity, Long> {
     List<CourseClassCapacity> findByCourse(Course course);
 
+    List<CourseClassCapacity> findBySchoolClass(SchoolClass schoolClass);
+
     Optional<CourseClassCapacity> findByCourseAndSchoolClass(Course course, SchoolClass schoolClass);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM CourseClassCapacity c WHERE c.course.id = :courseId AND c.schoolClass.id = :classId")
     Optional<CourseClassCapacity> findByCourseIdAndClassIdForUpdate(
+            @Param("courseId") Long courseId,
+            @Param("classId") Long classId);
+
+    @Modifying
+    @Query("""
+            UPDATE CourseClassCapacity cc
+               SET cc.currentCount = cc.currentCount + 1
+             WHERE cc.course.id = :courseId
+               AND cc.schoolClass.id = :classId
+               AND cc.currentCount < cc.maxCapacity
+            """)
+    int incrementCurrentCountIfAvailable(
             @Param("courseId") Long courseId,
             @Param("classId") Long classId);
 

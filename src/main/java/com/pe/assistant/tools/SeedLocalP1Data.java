@@ -38,15 +38,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SeedLocalP1Data implements CommandLineRunner {
 
-    private static final String ADMIN_CLASS_TYPE = "\u884c\u653f\u73ed"; // 琛屾斂鐝?
-    private static final String ELECTIVE_CLASS_TYPE = "\u9009\u4fee\u8bfe"; // 閫変慨璇?
+    private static final String ADMIN_CLASS_TYPE = "\u884c\u653f\u73ed"; // 行政班
+    private static final String ELECTIVE_CLASS_TYPE = "\u9009\u4fee\u8bfe"; // 选修课
 
     private static final List<String> STUDENT_STATUSES = List.of(
-            "\u5728\u7c4d", // 鍦ㄧ睄
-            "\u4f11\u5b66", // 浼戝
-            "\u6bd5\u4e1a", // 姣曚笟
-            "\u5728\u5916\u501f\u8bfb", // 鍦ㄥ鍊熻
-            "\u501f\u8bfb" // 鍊熻
+            "\u5728\u7c4d", // 在籍
+            "\u4f11\u5b66", // 休学
+            "\u6bd5\u4e1a", // 毕业
+            "\u5728\u5916\u501f\u8bfb", // 在外借读
+            "\u501f\u8bfb" // 借读
     );
 
     private final SchoolRepository schoolRepository;

@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface SelectionEventRepository extends JpaRepository<SelectionEvent, Long> {
     List<SelectionEvent> findBySchoolOrderByCreatedAtDesc(School school);
+
+    List<SelectionEvent> findByStatusOrderByCreatedAtAsc(String status);
 }

@@ -3,8 +3,13 @@ import 'package:go_router/go_router.dart';
 
 class StudentBottomNav extends StatelessWidget {
   final int currentIndex;
+  final Future<bool> Function(int index)? onWillNavigate;
 
-  const StudentBottomNav({super.key, required this.currentIndex});
+  const StudentBottomNav({
+    super.key,
+    required this.currentIndex,
+    this.onWillNavigate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +21,16 @@ class StudentBottomNav extends StatelessWidget {
         NavigationDestination(icon: Icon(Icons.mail_outline), label: '消息'),
         NavigationDestination(icon: Icon(Icons.lock_outline), label: '密码'),
       ],
-      onDestinationSelected: (index) {
+      onDestinationSelected: (index) async {
+        if (index == currentIndex) {
+          return;
+        }
+        if (onWillNavigate != null) {
+          final allowed = await onWillNavigate!(index);
+          if (!allowed) {
+            return;
+          }
+        }
         switch (index) {
           case 0:
             context.go('/student');

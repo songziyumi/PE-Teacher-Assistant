@@ -18,6 +18,8 @@ public class ClassService {
     private final TeacherRepository teacherRepository;
     private final StudentRepository studentRepository;
     private final AttendanceRepository attendanceRepository;
+    private final CourseClassCapacityRepository courseClassCapacityRepository;
+    private final CourseRepository courseRepository;
     private final StudentService studentService;
 
     public List<SchoolClass> findAll(School school) {
@@ -87,6 +89,8 @@ public class ClassService {
 
     @Transactional
     public void delete(Long id) {
+        SchoolClass schoolClass = classRepository.findById(id).orElseThrow();
+        cleanupClassCapacityReferences(schoolClass);
         attendanceRepository.deleteAll(attendanceRepository.findByClassId(id));
         studentRepository.deleteAll(studentRepository.findBySchoolClassIdOrderByStudentNo(id));
         classRepository.deleteById(id);
@@ -94,7 +98,21 @@ public class ClassService {
 
     @Transactional
     public void deleteAll(School school) {
+        List<SchoolClass> classes = classRepository.findBySchool(school);
+        classes.forEach(this::cleanupClassCapacityReferences);
         studentService.deleteAll(school);
-        classRepository.deleteAll(classRepository.findBySchool(school));
+        classRepository.deleteAll(classes);
+    }
+
+    private void cleanupClassCapacityReferences(SchoolClass schoolClass) {
+        for (CourseClassCapacity capacity : courseClassCapacityRepository.findBySchoolClass(schoolClass)) {
+            Course course = capacity.getCourse();
+            if (course != null) {
+                course.setTotalCapacity(Math.max(0, course.getTotalCapacity() - capacity.getMaxCapacity()));
+                course.setCurrentCount(Math.max(0, course.getCurrentCount() - capacity.getCurrentCount()));
+                courseRepository.save(course);
+            }
+            courseClassCapacityRepository.delete(capacity);
+        }
     }
 }

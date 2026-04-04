@@ -7,6 +7,7 @@ import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.StudentAccount;
+import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.CourseService;
 import com.pe.assistant.service.CurrentUserService;
@@ -16,6 +17,7 @@ import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +41,13 @@ public class StudentApiController {
         if (student.getSchool() == null) {
             return null;
         }
+        List<SelectionEvent> events = eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool());
+        SelectionEvent activeEvent = events
+                .stream()
+                .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .findFirst()
+                .orElse(null);
+        finalizeRound2IfEnded(activeEvent);
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> !"CLOSED".equals(e.getStatus()))
@@ -50,11 +59,26 @@ public class StudentApiController {
         if (student.getSchool() == null) {
             return null;
         }
+        SelectionEvent activeEvent = eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
+                .stream()
+                .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .findFirst()
+                .orElse(null);
+        finalizeRound2IfEnded(activeEvent);
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> "CLOSED".equals(e.getStatus()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private void finalizeRound2IfEnded(SelectionEvent event) {
+        if (event == null || !"ROUND2".equals(event.getStatus()) || event.getRound2End() == null) {
+            return;
+        }
+        if (!LocalDateTime.now().isBefore(event.getRound2End())) {
+            courseService.finalizeEndedRound2Event(event.getId());
+        }
     }
 
     @GetMapping("/events/current")
@@ -64,6 +88,16 @@ public class StudentApiController {
         if (event == null) {
             return ApiResponse.ok(null);
         }
+
+        List<CourseSelection> mySelections = courseService.findMySelections(student, event);
+        boolean hasPref1 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 1 && !"CANCELLED".equals(s.getStatus()));
+        boolean hasPref2 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 2 && !"CANCELLED".equals(s.getStatus()));
+        boolean round1SubmissionConfirmed = hasPref1 && mySelections.stream()
+                .filter(s -> s.getRound() == 1 && (s.getPreference() == 1 || s.getPreference() == 2))
+                .filter(s -> !"CANCELLED".equals(s.getStatus()))
+                .allMatch(s -> "PENDING".equals(s.getStatus()));
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", event.getId());
@@ -75,6 +109,9 @@ public class StudentApiController {
         result.put("round2End", event.getRound2End());
         result.put("inRound1", eventService.isInRound1(event));
         result.put("inRound2", eventService.isInRound2(event));
+        result.put("hasPref1", hasPref1);
+        result.put("hasPref2", hasPref2);
+        result.put("round1SubmissionConfirmed", round1SubmissionConfirmed);
         return ApiResponse.ok(result);
     }
 
@@ -92,7 +129,7 @@ public class StudentApiController {
                 .map(s -> s.getCourse().getId())
                 .collect(Collectors.toSet());
         Map<Long, Integer> myPreferenceMap = mySelections.stream()
-                .filter(s -> "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
+                .filter(s -> "DRAFT".equals(s.getStatus()) || "PENDING".equals(s.getStatus()) || "CONFIRMED".equals(s.getStatus()))
                 .collect(Collectors.toMap(s -> s.getCourse().getId(), CourseSelection::getPreference, (a, b) -> a));
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
@@ -154,6 +191,36 @@ public class StudentApiController {
         }
     }
 
+    @PostMapping("/courses/save-draft")
+    public ApiResponse<String> saveDraft() {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.saveRound1Draft(student, event.getId());
+            return ApiResponse.ok("草稿已保存");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/courses/confirm")
+    public ApiResponse<String> confirmRound1() {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.confirmRound1Selections(student, event.getId());
+            return ApiResponse.ok("志愿已确认提交");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/courses/{courseId}/select")
     public ApiResponse<String> select(@PathVariable Long courseId) {
         try {
@@ -199,6 +266,7 @@ public class StudentApiController {
             item.put("status", selection.getStatus());
             item.put("selectedAt", selection.getSelectedAt());
             item.put("confirmedAt", selection.getConfirmedAt());
+            item.put("canDrop", courseService.canDropSelection(selection));
             result.add(item);
         }
         return ApiResponse.ok(result);
@@ -254,6 +322,54 @@ public class StudentApiController {
                     .collect(Collectors.toList());
         }
         return ApiResponse.ok(list.stream().map(this::toMessageMap).collect(Collectors.toList()));
+    }
+
+    @GetMapping("/messages/recipients")
+    public ApiResponse<List<Map<String, Object>>> messageRecipients() {
+        Student student = currentUserService.getCurrentStudent();
+        List<Map<String, Object>> result = messageService.findTeachersBySchool(student.getSchool()).stream()
+                .map(recipient -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", recipient.getId());
+                    item.put("name", recipient.getName());
+                    item.put("displayName", recipient.getDisplayName());
+                    return item;
+                })
+                .collect(Collectors.toList());
+        return ApiResponse.ok(result);
+    }
+
+    @PostMapping("/messages/send")
+    public ApiResponse<String> sendMessage(@RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            Long teacherId = parseLong(body != null ? body.get("teacherId") : null);
+            String subject = body != null && body.get("subject") != null
+                    ? String.valueOf(body.get("subject")).trim()
+                    : "";
+            String content = body != null && body.get("content") != null
+                    ? String.valueOf(body.get("content")).trim()
+                    : "";
+
+            if (teacherId == null) {
+                return ApiResponse.error(400, "请选择收件教师");
+            }
+            if (subject.isBlank()) {
+                return ApiResponse.error(400, "消息主题不能为空");
+            }
+            if (content.isBlank()) {
+                return ApiResponse.error(400, "消息内容不能为空");
+            }
+
+            Teacher teacher = messageService.findTeacherMessageRecipient(student.getSchool(), teacherId);
+            messageService.sendMessage(
+                    "STUDENT", student.getId(), student.getName(),
+                    "TEACHER", teacher.getId(), teacher.getName(),
+                    subject, content, student.getSchool());
+            return ApiResponse.ok("消息已发送");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
     }
 
     @PostMapping("/messages/{id}/read")
@@ -313,5 +429,19 @@ public class StudentApiController {
         result.put("relatedCourseId", msg.getRelatedCourseId());
         result.put("relatedCourseName", msg.getRelatedCourseName());
         return result;
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 }
