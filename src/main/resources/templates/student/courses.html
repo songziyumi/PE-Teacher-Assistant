@@ -31,13 +31,21 @@
             padding: 8px 14px;
             color: #fff;
             cursor: pointer;
+            transition: opacity .2s ease, transform .2s ease;
         }
         .btn-primary { background: #2980b9; }
         .btn-secondary { background: #8e44ad; }
         .btn-success { background: #27ae60; }
         .btn-request { background: #8e44ad; }
+        .btn-success:disabled,
+        .btn-success.btn-loading {
+            opacity: .7;
+            cursor: not-allowed;
+        }
         .selection-list { margin: 0; padding-left: 18px; }
         .selection-list li { margin: 6px 0; }
+        .ajax-feedback { display: none; margin-bottom: 16px; }
+        .ajax-feedback.show { display: block; }
     </style>
 </head>
 <body>
@@ -57,6 +65,7 @@
 <div class="page-wrap">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div id="ajaxFeedback" class="ajax-feedback"></div>
 
     <div th:if="${noEvent}" class="panel" style="text-align:center;color:#666;">
         <h3>暂无进行中的选课活动</h3>
@@ -168,9 +177,16 @@
                 </div>
 
                 <div class="actions" th:if="${inRound2}">
-                    <form th:action="@{/student/courses/{id}/select(id=${c.id})}" method="post">
+                    <form th:action="@{/student/courses/{id}/select(id=${c.id})}"
+                          th:attr="data-ajax-action=@{/student/courses/{id}/select-ajax(id=${c.id})}"
+                          method="post"
+                          class="round2-select-form">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <button type="submit" class="btn-success" th:disabled="${remainingMap[c.id] == 0}">立即抢课</button>
+                        <button type="submit"
+                                class="btn-success round2-select-button"
+                                th:disabled="${remainingMap[c.id] == 0}"
+                                data-default-text="立即抢课"
+                                data-loading-text="抢课提交中...">立即抢课</button>
                     </form>
                 </div>
 
@@ -191,6 +207,103 @@
 </div>
 <script th:inline="javascript">
 const round1LeaveGuard = document.getElementById('round1LeaveGuard');
+const round2SelectForms = Array.from(document.querySelectorAll('.round2-select-form'));
+const round2SelectButtons = Array.from(document.querySelectorAll('.round2-select-button'));
+const ajaxFeedback = document.getElementById('ajaxFeedback');
+
+if (round2SelectForms.length > 0) {
+    let round2Submitting = false;
+
+    function showAjaxFeedback(type, message) {
+        if (!ajaxFeedback) {
+            return;
+        }
+        ajaxFeedback.className = `ajax-feedback alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
+        ajaxFeedback.textContent = message;
+        ajaxFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setRound2ButtonsDisabled(disabled, activeButton = null) {
+        round2SelectButtons.forEach(button => {
+            const defaultText = button.dataset.defaultText || '立即抢课';
+            const loadingText = button.dataset.loadingText || '抢课提交中...';
+            if (disabled) {
+                button.disabled = true;
+                button.classList.add('btn-loading');
+                button.textContent = button === activeButton ? loadingText : '处理中...';
+                return;
+            }
+            if (!button.hasAttribute('data-original-disabled')) {
+                button.disabled = false;
+            }
+            button.classList.remove('btn-loading');
+            button.textContent = defaultText;
+        });
+    }
+
+    round2SelectButtons.forEach(button => {
+        if (button.disabled) {
+            button.setAttribute('data-original-disabled', 'true');
+        }
+    });
+
+    round2SelectForms.forEach(form => {
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (round2Submitting) {
+                return;
+            }
+            round2Submitting = true;
+            let shouldKeepLocked = false;
+            const submitButton = form.querySelector('.round2-select-button');
+            const csrfInput = form.querySelector('input[name="_csrf"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+            const ajaxAction = form.dataset.ajaxAction || form.action;
+            setRound2ButtonsDisabled(true, submitButton);
+            if (ajaxFeedback) {
+                ajaxFeedback.className = 'ajax-feedback';
+                ajaxFeedback.textContent = '';
+            }
+
+            try {
+                const response = await fetch(ajaxAction, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: new URLSearchParams({ _csrf: csrfToken }).toString()
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload) {
+                    throw new Error('网络繁忙，请稍后重试');
+                }
+                if (payload.code === 200) {
+                    shouldKeepLocked = true;
+                    showAjaxFeedback('success', payload.message || '抢课成功！');
+                    window.setTimeout(() => window.location.reload(), 600);
+                    return;
+                }
+                showAjaxFeedback('error', payload.message || '抢课失败，请稍后重试');
+            } catch (error) {
+                showAjaxFeedback('error', error.message || '请求未发送成功，请检查网络后重试');
+            } finally {
+                if (!shouldKeepLocked) {
+                    round2Submitting = false;
+                    setRound2ButtonsDisabled(false);
+                }
+            }
+        });
+    });
+
+    window.addEventListener('pageshow', () => {
+        round2Submitting = false;
+        setRound2ButtonsDisabled(false);
+    });
+}
+
 if (round1LeaveGuard) {
     let allowLeave = false;
     const hasPref1 = round1LeaveGuard.dataset.hasPref1 === 'true';

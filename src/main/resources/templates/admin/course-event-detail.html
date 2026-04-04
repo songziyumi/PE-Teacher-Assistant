@@ -263,7 +263,7 @@
                 <td th:text="${c.teacher != null ? c.teacher.name : '-'}"></td>
                 <td th:text="${c.capacityMode == 'GLOBAL' ? '全局名额' : '按班名额'}"></td>
                 <td th:text="${c.totalCapacity}"></td>
-                <td th:text="${c.currentCount}"></td>
+                <td th:text="${confirmedCountByCourse[c.id]}"></td>
                 <td>
                     <span class="badge"
                           th:classappend="${c.status == 'ACTIVE' ? 'badge-active' : 'badge-draft'}"
