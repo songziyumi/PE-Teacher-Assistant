@@ -38,9 +38,16 @@
         .btn-success { background: #27ae60; }
         .btn-request { background: #8e44ad; }
         .btn-success:disabled,
-        .btn-success.btn-loading {
+        .btn-primary:disabled,
+        .btn-secondary:disabled,
+        .btn-request:disabled,
+        .btn-success.btn-loading,
+        .btn-primary.btn-loading,
+        .btn-secondary.btn-loading,
+        .btn-request.btn-loading {
             opacity: .7;
             cursor: not-allowed;
+            transform: none;
         }
         .selection-list { margin: 0; padding-left: 18px; }
         .selection-list li { margin: 6px 0; }
@@ -133,11 +140,11 @@
             <p class="muted" th:if="${hasPref1 && !round1SubmissionConfirmed}">当前志愿已保存为草稿，确认填报后才会参与第一轮抽签。</p>
             <p class="muted" th:if="${round1SubmissionConfirmed}">当前志愿已确认提交。若继续修改，系统会自动退回草稿，需重新确认填报。</p>
             <div class="actions">
-                <form th:action="@{/student/courses/save-draft}" method="post">
+                <form th:action="@{/student/courses/save-draft}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <button type="submit" class="btn-secondary">保存为草稿</button>
                 </form>
-                <form th:action="@{/student/courses/confirm}" method="post">
+                <form th:action="@{/student/courses/confirm}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <button type="submit" class="btn-primary" th:disabled="${!hasPref1}">确认填报</button>
                 </form>
@@ -164,12 +171,12 @@
                 </div>
 
                 <div class="actions" th:if="${inRound1}">
-                    <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post">
+                    <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" name="preference" value="1">
                         <button type="submit" class="btn-primary">设为第一志愿</button>
                     </form>
-                    <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post">
+                    <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" name="preference" value="2">
                         <button type="submit" class="btn-secondary">设为第二志愿</button>
@@ -191,7 +198,7 @@
                 </div>
 
                 <div class="actions" th:if="${inRound3 and c.teacher != null}">
-                    <form th:action="@{/student/courses/{id}/request(id=${c.id})}" method="post">
+                    <form th:action="@{/student/courses/{id}/request(id=${c.id})}" method="post" class="single-submit-form" data-submit-scope="round3-actions">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" name="content" value="">
                         <button type="submit" class="btn-request">提交申请</button>
@@ -207,9 +214,38 @@
 </div>
 <script th:inline="javascript">
 const round1LeaveGuard = document.getElementById('round1LeaveGuard');
+const singleSubmitForms = Array.from(document.querySelectorAll('.single-submit-form'));
 const round2SelectForms = Array.from(document.querySelectorAll('.round2-select-form'));
 const round2SelectButtons = Array.from(document.querySelectorAll('.round2-select-button'));
 const ajaxFeedback = document.getElementById('ajaxFeedback');
+const singleSubmitLocks = new Set();
+
+function rememberOriginalButtonState(button) {
+    if (!button) {
+        return;
+    }
+    if (button.disabled) {
+        button.setAttribute('data-original-disabled', 'true');
+    }
+    if (!button.dataset.defaultText) {
+        button.dataset.defaultText = (button.textContent || '').trim();
+    }
+}
+
+function restoreManagedButton(button) {
+    if (!button) {
+        return;
+    }
+    button.disabled = button.getAttribute('data-original-disabled') === 'true';
+    button.classList.remove('btn-loading');
+    if (button.dataset.defaultText) {
+        button.textContent = button.dataset.defaultText;
+    }
+}
+
+singleSubmitForms.forEach(form => {
+    rememberOriginalButtonState(form.querySelector('button[type="submit"]'));
+});
 
 if (round2SelectForms.length > 0) {
     let round2Submitting = false;
@@ -241,11 +277,7 @@ if (round2SelectForms.length > 0) {
         });
     }
 
-    round2SelectButtons.forEach(button => {
-        if (button.disabled) {
-            button.setAttribute('data-original-disabled', 'true');
-        }
-    });
+    round2SelectButtons.forEach(button => rememberOriginalButtonState(button));
 
     round2SelectForms.forEach(form => {
         form.addEventListener('submit', async event => {
@@ -301,6 +333,36 @@ if (round2SelectForms.length > 0) {
     window.addEventListener('pageshow', () => {
         round2Submitting = false;
         setRound2ButtonsDisabled(false);
+    });
+}
+
+if (singleSubmitForms.length > 0) {
+    singleSubmitForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            const scope = form.dataset.submitScope || form.action;
+            if (singleSubmitLocks.has(scope)) {
+                event.preventDefault();
+                return;
+            }
+            singleSubmitLocks.add(scope);
+
+            const activeButton = form.querySelector('button[type="submit"]');
+            const scopedForms = singleSubmitForms.filter(item => (item.dataset.submitScope || item.action) === scope);
+            scopedForms.forEach(item => {
+                const button = item.querySelector('button[type="submit"]');
+                if (!button) {
+                    return;
+                }
+                button.disabled = true;
+                button.classList.add('btn-loading');
+                button.textContent = button === activeButton ? '提交中...' : (button.dataset.defaultText || button.textContent);
+            });
+        });
+    });
+
+    window.addEventListener('pageshow', () => {
+        singleSubmitLocks.clear();
+        singleSubmitForms.forEach(form => restoreManagedButton(form.querySelector('button[type="submit"]')));
     });
 }
 
