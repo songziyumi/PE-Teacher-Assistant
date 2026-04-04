@@ -41,6 +41,40 @@ class _StudentMyCoursesScreenState extends State<StudentMyCoursesScreen> {
     return local.length >= 16 ? local.substring(0, 16) : local;
   }
 
+  Future<void> _dropSelection(StudentSelection selection) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('退课确认'),
+        content: const Text('退课后可进入第二轮重新抢课，是否继续？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await StudentService.dropSelection(selection.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('退课成功，请重新参与第二轮抢课')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('退课失败: $e')));
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'CONFIRMED':
@@ -123,6 +157,16 @@ class _StudentMyCoursesScreenState extends State<StudentMyCoursesScreen> {
                               ),
                               Text('提交时间：${_formatDate(item.selectedAt)}'),
                               Text('确认时间：${_formatDate(item.confirmedAt)}'),
+                              if (item.canDrop) ...[
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: OutlinedButton(
+                                    onPressed: () => _dropSelection(item),
+                                    child: const Text('退课'),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

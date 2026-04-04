@@ -7,6 +7,7 @@ class StudentSelection {
   final String status;
   final DateTime? selectedAt;
   final DateTime? confirmedAt;
+  final bool canDrop;
 
   const StudentSelection({
     required this.id,
@@ -17,6 +18,7 @@ class StudentSelection {
     required this.status,
     this.selectedAt,
     this.confirmedAt,
+    required this.canDrop,
   });
 
   factory StudentSelection.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class StudentSelection {
       confirmedAt: json['confirmedAt'] != null
           ? DateTime.tryParse(json['confirmedAt'].toString())
           : null,
+      canDrop: json['canDrop'] == true,
     );
   }
 

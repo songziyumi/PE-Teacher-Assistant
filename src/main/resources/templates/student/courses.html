@@ -31,13 +31,21 @@
             padding: 8px 14px;
             color: #fff;
             cursor: pointer;
+            transition: opacity .2s ease, transform .2s ease;
         }
         .btn-primary { background: #2980b9; }
         .btn-secondary { background: #8e44ad; }
         .btn-success { background: #27ae60; }
         .btn-request { background: #8e44ad; }
+        .btn-success:disabled,
+        .btn-success.btn-loading {
+            opacity: .7;
+            cursor: not-allowed;
+        }
         .selection-list { margin: 0; padding-left: 18px; }
         .selection-list li { margin: 6px 0; }
+        .ajax-feedback { display: none; margin-bottom: 16px; }
+        .ajax-feedback.show { display: block; }
     </style>
 </head>
 <body>
@@ -57,6 +65,7 @@
 <div class="page-wrap">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div id="ajaxFeedback" class="ajax-feedback"></div>
 
     <div th:if="${noEvent}" class="panel" style="text-align:center;color:#666;">
         <h3>暂无进行中的选课活动</h3>
@@ -77,6 +86,7 @@
         <div th:if="${inRound2}" class="banner success">
             <h3>第二轮抢课进行中</h3>
             <p>截止时间：<span th:text="${#temporals.format(event.round2End, 'MM月dd日 HH:mm')}"></span></p>
+            <p>第一轮已确认学生如需换课，可先到“我的选课”退掉当前课程，再按第二轮规则重新抢课；退课后不会回到第一轮重新分配。</p>
         </div>
 
         <div th:if="${event.status == 'ROUND1' and !inRound1}" class="banner waiting">
@@ -108,10 +118,37 @@
                     <span th:if="${sel.preference == 2}">第二志愿</span>
                     <span th:if="${sel.preference == 0}">第二轮/管理员分配</span>
                     -
-                    <span th:text="${sel.status}"></span>
+                    <span th:if="${sel.status == 'DRAFT'}">草稿</span>
+                    <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
+                    <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
+                    <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
+                    <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
                 </li>
             </ul>
         </div>
+
+        <div th:if="${inRound1}" class="panel">
+            <h3 style="margin-top:0;">填报操作</h3>
+            <p class="muted" th:if="${!hasPref1}">请先选择第一志愿，第二志愿可选，再确认填报。</p>
+            <p class="muted" th:if="${hasPref1 && !round1SubmissionConfirmed}">当前志愿已保存为草稿，确认填报后才会参与第一轮抽签。</p>
+            <p class="muted" th:if="${round1SubmissionConfirmed}">当前志愿已确认提交。若继续修改，系统会自动退回草稿，需重新确认填报。</p>
+            <div class="actions">
+                <form th:action="@{/student/courses/save-draft}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn-secondary">保存为草稿</button>
+                </form>
+                <form th:action="@{/student/courses/confirm}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn-primary" th:disabled="${!hasPref1}">确认填报</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="round1LeaveGuard"
+             th:if="${event != null and inRound1 and (!round1SubmissionConfirmed)}"
+             th:attr="data-has-pref1=${hasPref1},
+                      data-has-pref2=${hasPref2},
+                      data-confirmed=${round1SubmissionConfirmed}"></div>
 
         <div class="course-grid">
             <div th:each="c : ${courses}" class="course-card">
@@ -122,10 +159,8 @@
                 </div>
                 <div class="muted" th:if="${c.description != null and !c.description.isBlank()}" th:text="${c.description}"></div>
                 <div class="muted">
-                    剩余名额：
-                    <span th:text="${remainingMap[c.id]}"></span>
-                    /
-                    <span th:text="${c.totalCapacity}"></span>
+                    课程人数现状：已选 <span th:text="${c.currentCount}"></span> / <span th:text="${c.totalCapacity}"></span>
+                    ，当前可选剩余 <span th:text="${remainingMap[c.id]}"></span>
                 </div>
 
                 <div class="actions" th:if="${inRound1}">
@@ -142,9 +177,16 @@
                 </div>
 
                 <div class="actions" th:if="${inRound2}">
-                    <form th:action="@{/student/courses/{id}/select(id=${c.id})}" method="post">
+                    <form th:action="@{/student/courses/{id}/select(id=${c.id})}"
+                          th:attr="data-ajax-action=@{/student/courses/{id}/select-ajax(id=${c.id})}"
+                          method="post"
+                          class="round2-select-form">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <button type="submit" class="btn-success" th:disabled="${remainingMap[c.id] == 0}">立即抢课</button>
+                        <button type="submit"
+                                class="btn-success round2-select-button"
+                                th:disabled="${remainingMap[c.id] == 0}"
+                                data-default-text="立即抢课"
+                                data-loading-text="抢课提交中...">立即抢课</button>
                     </form>
                 </div>
 
@@ -163,5 +205,158 @@
         </div>
     </div>
 </div>
+<script th:inline="javascript">
+const round1LeaveGuard = document.getElementById('round1LeaveGuard');
+const round2SelectForms = Array.from(document.querySelectorAll('.round2-select-form'));
+const round2SelectButtons = Array.from(document.querySelectorAll('.round2-select-button'));
+const ajaxFeedback = document.getElementById('ajaxFeedback');
+
+if (round2SelectForms.length > 0) {
+    let round2Submitting = false;
+
+    function showAjaxFeedback(type, message) {
+        if (!ajaxFeedback) {
+            return;
+        }
+        ajaxFeedback.className = `ajax-feedback alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
+        ajaxFeedback.textContent = message;
+        ajaxFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setRound2ButtonsDisabled(disabled, activeButton = null) {
+        round2SelectButtons.forEach(button => {
+            const defaultText = button.dataset.defaultText || '立即抢课';
+            const loadingText = button.dataset.loadingText || '抢课提交中...';
+            if (disabled) {
+                button.disabled = true;
+                button.classList.add('btn-loading');
+                button.textContent = button === activeButton ? loadingText : '处理中...';
+                return;
+            }
+            if (!button.hasAttribute('data-original-disabled')) {
+                button.disabled = false;
+            }
+            button.classList.remove('btn-loading');
+            button.textContent = defaultText;
+        });
+    }
+
+    round2SelectButtons.forEach(button => {
+        if (button.disabled) {
+            button.setAttribute('data-original-disabled', 'true');
+        }
+    });
+
+    round2SelectForms.forEach(form => {
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (round2Submitting) {
+                return;
+            }
+            round2Submitting = true;
+            let shouldKeepLocked = false;
+            const submitButton = form.querySelector('.round2-select-button');
+            const csrfInput = form.querySelector('input[name="_csrf"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+            const ajaxAction = form.dataset.ajaxAction || form.action;
+            setRound2ButtonsDisabled(true, submitButton);
+            if (ajaxFeedback) {
+                ajaxFeedback.className = 'ajax-feedback';
+                ajaxFeedback.textContent = '';
+            }
+
+            try {
+                const response = await fetch(ajaxAction, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: new URLSearchParams({ _csrf: csrfToken }).toString()
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload) {
+                    throw new Error('网络繁忙，请稍后重试');
+                }
+                if (payload.code === 200) {
+                    shouldKeepLocked = true;
+                    showAjaxFeedback('success', payload.message || '抢课成功！');
+                    window.setTimeout(() => window.location.reload(), 600);
+                    return;
+                }
+                showAjaxFeedback('error', payload.message || '抢课失败，请稍后重试');
+            } catch (error) {
+                showAjaxFeedback('error', error.message || '请求未发送成功，请检查网络后重试');
+            } finally {
+                if (!shouldKeepLocked) {
+                    round2Submitting = false;
+                    setRound2ButtonsDisabled(false);
+                }
+            }
+        });
+    });
+
+    window.addEventListener('pageshow', () => {
+        round2Submitting = false;
+        setRound2ButtonsDisabled(false);
+    });
+}
+
+if (round1LeaveGuard) {
+    let allowLeave = false;
+    const hasPref1 = round1LeaveGuard.dataset.hasPref1 === 'true';
+    const hasPref2 = round1LeaveGuard.dataset.hasPref2 === 'true';
+    const confirmed = round1LeaveGuard.dataset.confirmed === 'true';
+
+    function leaveMessage() {
+        if (!hasPref1) {
+            if (!hasPref2) {
+                return '第一志愿和第二志愿都还未填报，确认后再离开这个页面！';
+            }
+            return '第一志愿还未填报，确认后再离开这个页面！';
+        }
+        if (!confirmed) {
+            return '当前志愿还未确认填报，确认后再离开这个页面！';
+        }
+        return '';
+    }
+
+    const message = leaveMessage();
+    if (message) {
+        document.querySelectorAll('form[action*="/student/courses/"]').forEach(form => {
+            form.addEventListener('submit', () => {
+                allowLeave = true;
+            });
+        });
+
+        document.querySelectorAll('a[href]').forEach(link => {
+            link.addEventListener('click', event => {
+                const href = link.getAttribute('href') || '';
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) {
+                    return;
+                }
+                if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+                if (!window.confirm(message)) {
+                    event.preventDefault();
+                    return;
+                }
+                allowLeave = true;
+            });
+        });
+
+        window.addEventListener('beforeunload', event => {
+            if (allowLeave) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = '';
+        });
+    }
+}
+</script>
 </body>
 </html>

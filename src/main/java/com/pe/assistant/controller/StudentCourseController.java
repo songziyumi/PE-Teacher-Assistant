@@ -1,5 +1,6 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.*;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/student")
@@ -81,6 +83,14 @@ public class StudentCourseController {
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
         List<CourseSelection> mySelections = courseService.findMySelections(student, event);
         boolean hasConfirmed = mySelections.stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
+        boolean hasPref1 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 1 && !"CANCELLED".equals(s.getStatus()));
+        boolean hasPref2 = mySelections.stream()
+                .anyMatch(s -> s.getRound() == 1 && s.getPreference() == 2 && !"CANCELLED".equals(s.getStatus()));
+        boolean round1SubmissionConfirmed = hasPref1 && mySelections.stream()
+                .filter(s -> s.getRound() == 1 && (s.getPreference() == 1 || s.getPreference() == 2))
+                .filter(s -> !"CANCELLED".equals(s.getStatus()))
+                .allMatch(s -> "PENDING".equals(s.getStatus()));
 
         model.addAttribute("event", event);
         model.addAttribute("courses", courses);
@@ -89,6 +99,9 @@ public class StudentCourseController {
         model.addAttribute("inRound2", eventService.isInRound2(event));
         model.addAttribute("inRound3", false);
         model.addAttribute("hasConfirmed", hasConfirmed);
+        model.addAttribute("hasPref1", hasPref1);
+        model.addAttribute("hasPref2", hasPref2);
+        model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
         model.addAttribute("student", student);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
         model.addAttribute("remainingMap",
@@ -118,6 +131,34 @@ public class StudentCourseController {
 
     // ===== 第二轮抢课 =====
 
+    @PostMapping("/courses/save-draft")
+    public String saveDraft(RedirectAttributes ra) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) throw new RuntimeException("当前没有进行中的选课活动");
+            courseService.saveRound1Draft(student, event.getId());
+            ra.addFlashAttribute("success", "草稿已保存");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/student/courses";
+    }
+
+    @PostMapping("/courses/confirm")
+    public String confirmRound1(RedirectAttributes ra) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) throw new RuntimeException("当前没有进行中的选课活动");
+            courseService.confirmRound1Selections(student, event.getId());
+            ra.addFlashAttribute("success", "志愿已确认提交，系统将按已确认志愿参与第一轮抽签");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/student/courses";
+    }
+
     @PostMapping("/courses/{courseId}/select")
     public String select(@PathVariable Long courseId, RedirectAttributes ra) {
         try {
@@ -132,6 +173,22 @@ public class StudentCourseController {
         return "redirect:/student/courses";
     }
 
+    @PostMapping("/courses/{courseId}/select-ajax")
+    @ResponseBody
+    public ApiResponse<String> selectAjax(@PathVariable Long courseId) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.selectRound2(student, event.getId(), courseId);
+            return ApiResponse.ok("抢课成功！");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
     // ===== 我的选课 =====
 
     @GetMapping("/my-courses")
@@ -144,8 +201,13 @@ public class StudentCourseController {
         }
         model.addAttribute("student", student);
         if (event != null) {
+            List<CourseSelection> mySelections = courseService.findMySelections(student, event);
             model.addAttribute("event", event);
-            model.addAttribute("mySelections", courseService.findMySelections(student, event));
+            model.addAttribute("mySelections", mySelections);
+            model.addAttribute("droppableSelectionIds", mySelections.stream()
+                    .filter(courseService::canDropSelection)
+                    .map(CourseSelection::getId)
+                    .collect(Collectors.toList()));
         }
         return "student/my-courses";
     }

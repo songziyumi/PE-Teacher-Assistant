@@ -210,7 +210,12 @@ class AdminService {
     if (keyword.isNotEmpty) params['keyword'] = [keyword];
     if (accountStatus.isNotEmpty) params['accountStatus'] = [accountStatus];
     if (params.isEmpty) return '_=1';
-    return Uri(queryParametersAll: params).query;
+    return params.entries
+        .expand((entry) => entry.value.map(
+              (value) =>
+                  '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(value)}',
+            ))
+        .join('&');
   }
 
   static Future<void> deleteStudent(int id) => ApiService.delete('/admin/students/$id');

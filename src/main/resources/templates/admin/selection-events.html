@@ -36,7 +36,7 @@
     <div class="nav-brand">🏃 体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/admin}">管理后台</a>
-        <span class="nav-user" th:text="${currentSchool?.name}"></span>
+        <span class="nav-user" th:text="${currentSchool != null ? currentSchool.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
@@ -47,12 +47,8 @@
     <div class="page-header">
         <h2>选课活动管理</h2>
         <div style="display:flex;gap:8px;">
-            <form th:action="@{/admin/courses/init-passwords}" method="post" style="display:inline"
-                  onsubmit="return confirm('将为所有尚未设置密码的学生初始化登录密码（初始密码=学号），确认执行？')">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                <button type="submit" class="btn btn-secondary">初始化学生密码</button>
-            </form>
-            <button class="btn btn-primary" onclick="openModal('addModal')">+ 新建活动</button>
+            <a th:href="@{/admin/student-accounts}" class="btn btn-secondary">学生账号管理</a>
+            <button class="btn btn-primary" onclick="openModal('addModal')">+ 新建活动并设置参与学生</button>
         </div>
     </div>
 
@@ -67,29 +63,26 @@
         <div class="event-info">
             <h3 th:text="${event.name}"></h3>
             <div class="event-meta">
-                第一轮：<span th:text="${event.round1Start} ? ${#temporals.format(event.round1Start,'MM-dd HH:mm')} : '未设置'"></span>
-                ～ <span th:text="${event.round1End} ? ${#temporals.format(event.round1End,'MM-dd HH:mm')} : '未设置'"></span>
+                第一轮：<span th:text="${event.round1Start != null ? #temporals.format(event.round1Start,'MM-dd HH:mm') : '未设置'}"></span>
+                ～ <span th:text="${event.round1End != null ? #temporals.format(event.round1End,'MM-dd HH:mm') : '未设置'}"></span>
                 &nbsp;|&nbsp;
-                第二轮：<span th:text="${event.round2Start} ? ${#temporals.format(event.round2Start,'MM-dd HH:mm')} : '未设置'"></span>
-                ～ <span th:text="${event.round2End} ? ${#temporals.format(event.round2End,'MM-dd HH:mm')} : '未设置'"></span>
+                第二轮：<span th:text="${event.round2Start != null ? #temporals.format(event.round2Start,'MM-dd HH:mm') : '未设置'}"></span>
+                ～ <span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span class="badge"
-                  th:classappend="${event.status == 'DRAFT'} ? 'badge-draft' :
-                                  (${event.status == 'ROUND1'} ? 'badge-round1' :
-                                  (${event.status == 'PROCESSING'} ? 'badge-processing' :
-                                  (${event.status == 'ROUND2'} ? 'badge-round2' : 'badge-closed')))"
-                  th:text="${event.status == 'DRAFT'} ? '草稿' :
-                            (${event.status == 'ROUND1'} ? '第一轮进行中' :
-                            (${event.status == 'PROCESSING'} ? '结算中' :
-                            (${event.status == 'ROUND2'} ? '第二轮进行中' : '已关闭')))">
+                  th:classappend="${event.adminDisplayStatusBadgeClass}"
+                  th:text="${event.adminDisplayStatusText}">
             </span>
-            <!-- 抽签进度显示 -->
             <span th:if="${event.status == 'PROCESSING' and event.lotteryNote != null}"
-                  th:id="'lottery-note-' + ${event.id}"
+                  th:id="|lottery-note-${event.id}|"
                   style="font-size:.78rem;color:#f39c12;font-weight:600;"
                   th:text="${event.lotteryNote}"></span>
+            <span th:if="${event.status == 'PROCESSING'}"
+                  style="display:block;font-size:.76rem;color:#6b7280;margin-top:4px;">
+                当前规则：先结算第一志愿，再结算第二志愿
+            </span>
             <div class="event-actions">
                 <a th:href="@{/admin/courses/{id}/detail(id=${event.id})}" class="btn btn-secondary btn-sm">管理</a>
                 <button class="btn btn-secondary btn-sm edit-btn"
@@ -99,17 +92,20 @@
                         th:data-r1e="${event.round1End}"
                         th:data-r2s="${event.round2Start}"
                         th:data-r2e="${event.round2End}">编辑</button>
-                <form th:if="${event.status == 'DRAFT'}" th:action="@{/admin/courses/events/{id}/delete(id=${event.id})}" method="post" style="display:inline"
+                <form th:action="@{/admin/courses/events/{id}/delete(id=${event.id})}" method="post" style="display:inline"
                       onsubmit="return confirm('确认删除此活动？')">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <button type="submit" class="btn btn-danger btn-sm">删除</button>
                 </form>
+                <span th:if="${event.status != 'DRAFT'}"
+                      style="display:inline-block;margin-left:4px;font-size:.74rem;color:#6b7280;">
+                    仅草稿活动可删除
+                </span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 新建活动弹窗 -->
 <div class="modal-overlay" id="addModal">
     <div class="modal">
         <div class="modal-header">
@@ -119,6 +115,9 @@
         <form th:action="@{/admin/courses/events/save}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="modal-body">
+                <p style="margin:0 0 12px;color:#666;font-size:.86rem;">
+                    先填写活动基础信息，保存后会进入“参与学生”步骤，再配置课程和名额。
+                </p>
                 <div class="form-row single">
                     <div class="form-group">
                         <label>活动名称 *</label>
@@ -148,13 +147,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">取消</button>
-                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="submit" class="btn btn-primary">下一步：参与学生</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 编辑活动弹窗 -->
 <div class="modal-overlay" id="editModal">
     <div class="modal">
         <div class="modal-header">
@@ -204,7 +202,6 @@
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-// 编辑按钮：从 data-* 属性读值
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -219,7 +216,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 轮询抽签进度（每10秒）
     const processingNotes = document.querySelectorAll('[id^="lottery-note-"]');
     if (processingNotes.length > 0) {
         processingNotes.forEach(function(noteEl) {
@@ -231,7 +227,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         noteEl.textContent = data.note || '';
                         if (data.status !== 'PROCESSING') {
                             clearInterval(poll);
-                            // 自动刷新页面以更新状态徽章
                             setTimeout(() => location.reload(), 1500);
                         }
                     })
