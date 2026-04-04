@@ -1,6 +1,7 @@
 package com.pe.assistant.controller.api;
 
 import com.pe.assistant.dto.ApiResponse;
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.InternalMessage;
@@ -197,7 +198,7 @@ public class StudentApiController {
             courseService.submitPreference(student, event.getId(), courseId, preference);
             return ApiResponse.ok("志愿提交成功");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -212,7 +213,7 @@ public class StudentApiController {
             courseService.saveRound1Draft(student, event.getId());
             return ApiResponse.ok("草稿已保存");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -227,7 +228,7 @@ public class StudentApiController {
             courseService.confirmRound1Selections(student, event.getId());
             return ApiResponse.ok("志愿已确认提交");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -242,7 +243,7 @@ public class StudentApiController {
             courseService.selectRound2(student, event.getId(), courseId);
             return ApiResponse.ok("抢课成功");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -253,7 +254,7 @@ public class StudentApiController {
             courseService.dropCourse(student, selectionId);
             return ApiResponse.ok("退课成功");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -310,7 +311,7 @@ public class StudentApiController {
             messageService.sendCourseRequest(student, course, content);
             return ApiResponse.ok("申请已发送，请等待教师处理");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 

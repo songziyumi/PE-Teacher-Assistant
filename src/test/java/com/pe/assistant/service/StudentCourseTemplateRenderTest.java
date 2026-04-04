@@ -6,6 +6,7 @@ import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
+import com.pe.assistant.entity.CourseSelection;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -127,6 +128,49 @@ class StudentCourseTemplateRenderTest {
         org.junit.jupiter.api.Assertions.assertTrue(html.contains("重新申请"));
         org.junit.jupiter.api.Assertions.assertTrue(html.contains("教师备注"));
         org.junit.jupiter.api.Assertions.assertTrue(html.contains("request-textarea"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("request-counter"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("request-status-badge"));
+    }
+
+    @Test
+    void studentMyCoursesTemplateShouldRenderDropFeedbackState() {
+        SpringTemplateEngine engine = buildTemplateEngine();
+        WebContext context = buildContext();
+
+        School school = new School();
+        school.setName("测试学校");
+
+        Student student = new Student();
+        student.setName("张三");
+        student.setSchool(school);
+
+        SelectionEvent event = new SelectionEvent();
+        event.setId(3L);
+        event.setName("2026 春季选课");
+        event.setStatus("ROUND2");
+
+        Course course = new Course();
+        course.setId(30L);
+        course.setName("足球");
+
+        CourseSelection selection = new CourseSelection();
+        selection.setId(40L);
+        selection.setCourse(course);
+        selection.setStatus("CONFIRMED");
+        selection.setRound(1);
+        selection.setPreference(1);
+
+        context.setVariable("_csrf", new FakeCsrfToken());
+        context.setVariable("student", student);
+        context.setVariable("event", event);
+        context.setVariable("mySelections", List.of(selection));
+        context.setVariable("droppableSelectionIds", List.of(40L));
+
+        String html = engine.process("student/my-courses", context);
+
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("dropAjaxFeedback"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("drop-selection-button"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("退课处理中..."));
     }
 
     private SpringTemplateEngine buildTemplateEngine() {

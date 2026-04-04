@@ -12,6 +12,7 @@
         .toolbar-form { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
         .toolbar-form label { display:block; font-size:.86rem; font-weight:600; color:#475569; margin-bottom:6px; }
         .toolbar-meta { font-size:.82rem; color:#64748b; }
+        .toolbar-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
         .status-banner { border-radius:10px; padding:14px 16px; font-weight:600; }
         .status-banner.ok { background:#ecfdf5; color:#047857; }
         .status-banner.warn { background:#fffbeb; color:#b45309; }
@@ -32,6 +33,9 @@
         .issue-card.warn { border-left:4px solid #f59e0b; background:#fffbf1; }
         .issue-code { font-size:.76rem; color:#64748b; margin-bottom:6px; }
         .issue-message, .activity-desc { font-size:.94rem; color:#111827; }
+        .issue-actions, .activity-actions { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+        .link-btn { display:inline-flex; align-items:center; gap:4px; color:#2563eb; text-decoration:none; font-size:.84rem; font-weight:600; }
+        .link-btn:hover { text-decoration:underline; }
         .table-wrap { overflow:auto; }
         .diag-table { width:100%; border-collapse:collapse; font-size:.92rem; }
         .diag-table th, .diag-table td { padding:10px 12px; border-bottom:1px solid #e5e7eb; text-align:left; }
@@ -88,6 +92,18 @@
                                 th:text="${event.name + '（' + event.adminDisplayStatusText + '）'}"></option>
                     </select>
                 </div>
+                <div>
+                    <label for="issueLevelFilter">风险级别</label>
+                    <select id="issueLevelFilter" class="form-control">
+                        <option value="ALL">全部问题</option>
+                        <option value="ERROR">仅高风险</option>
+                        <option value="WARN">仅待关注</option>
+                    </select>
+                </div>
+            </div>
+            <div class="toolbar-actions">
+                <button type="button" class="btn btn-secondary" id="exportJsonBtn">导出 JSON</button>
+                <button type="button" class="btn btn-secondary" id="exportTextBtn">导出文本</button>
             </div>
             <div class="toolbar-meta" id="toolbarMeta">等待加载诊断数据…</div>
         </div>
@@ -144,7 +160,10 @@
 <script th:inline="javascript">
     const initialSelectedEventId = /*[[${selectedEventId}]]*/ null;
     const eventSelect = document.getElementById('eventSelect');
+    const issueLevelFilter = document.getElementById('issueLevelFilter');
     const refreshBtn = document.getElementById('refreshBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const exportTextBtn = document.getElementById('exportTextBtn');
     const toolbarMeta = document.getElementById('toolbarMeta');
     const diagnosticsRoot = document.getElementById('diagnosticsRoot');
     const statusBanner = document.getElementById('statusBanner');
@@ -154,6 +173,7 @@
     const hotCourseBody = document.getElementById('hotCourseBody');
     const activitySummaryGrid = document.getElementById('activitySummaryGrid');
     const activityList = document.getElementById('activityList');
+    let currentDiagnostics = null;
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -183,6 +203,84 @@
         return 'ok';
     }
 
+    function currentIssueLevelFilter() {
+        return issueLevelFilter?.value || 'ALL';
+    }
+
+    function filterIssues(issues) {
+        const level = currentIssueLevelFilter();
+        if (level === 'ALL') return issues || [];
+        return (issues || []).filter(issue => issue?.level === level);
+    }
+
+    function linkHtml(url, label) {
+        if (!url) return '';
+        return `<a class="link-btn" href="${escapeHtml(url)}">${escapeHtml(label || '查看详情')}</a>`;
+    }
+
+    function downloadBlob(filename, content, type) {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function buildExportBaseName() {
+        const eventId = currentDiagnostics?.event?.id || 'latest';
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        return `course-selection-diagnostics-${eventId}-${stamp}`;
+    }
+
+    function buildTextExport(data) {
+        const event = data?.event || {};
+        const overview = data?.overview || {};
+        const health = data?.health || {};
+        const hotCourses = data?.hotCourses || [];
+        const activity = data?.recentActivity || {};
+        const issueLines = (health.issues || []).map((issue, index) =>
+            `${index + 1}. [${issue.level}] ${issue.code} ${issue.message}`);
+        const hotCourseLines = hotCourses.map((course, index) =>
+            `${index + 1}. ${course.courseName} / 已确认 ${course.confirmedCount} / 计数字段 ${course.currentCount} / 超编 ${course.overflowCount}`);
+        const activityLines = (activity.entries || []).map((entry, index) =>
+            `${index + 1}. ${formatDateTime(entry.operatedAt)} ${entry.title || entry.action || '-'} ${entry.description || ''}`);
+        return [
+            '抢课诊断导出',
+            `生成时间：${formatDateTime(data?.generatedAt)}`,
+            `活动：${event.name || '-'} (${event.statusText || event.status || '-'})`,
+            '',
+            '核心指标：',
+            `- 课程总数：${overview.courseCount ?? 0}`,
+            `- 启用课程：${overview.activeCourseCount ?? 0}`,
+            `- 报名记录：${overview.selectionCount ?? 0}`,
+            `- 已确认：${overview.confirmedCount ?? 0}`,
+            '',
+            `风险级别：${health.severity || 'OK'}，问题数：${health.issueCount ?? 0}`,
+            '问题列表：',
+            ...(issueLines.length > 0 ? issueLines : ['- 无']),
+            '',
+            '重点课程：',
+            ...(hotCourseLines.length > 0 ? hotCourseLines : ['- 无']),
+            '',
+            '近 24 小时活动：',
+            ...(activityLines.length > 0 ? activityLines : ['- 无'])
+        ].join('\n');
+    }
+
+    function exportDiagnosticsJson() {
+        if (!currentDiagnostics) return;
+        downloadBlob(`${buildExportBaseName()}.json`, JSON.stringify(currentDiagnostics, null, 2), 'application/json;charset=utf-8');
+    }
+
+    function exportDiagnosticsText() {
+        if (!currentDiagnostics) return;
+        downloadBlob(`${buildExportBaseName()}.txt`, buildTextExport(currentDiagnostics), 'text/plain;charset=utf-8');
+    }
+
     function renderMetricGrid(target, items) {
         target.innerHTML = items.map(item => `
             <div class="metric-card">
@@ -201,6 +299,7 @@
             <div class="event-meta-item"><span class="label">第二轮时间</span><span class="value">${formatDateTime(event?.round2Start)} ~ ${formatDateTime(event?.round2End)}</span></div>
             <div class="event-meta-item"><span class="label">创建时间</span><span class="value">${formatDateTime(event?.createdAt)}</span></div>
             <div class="event-meta-item"><span class="label">结算提示</span><span class="value">${escapeHtml(event?.lotteryNote || '无')}</span></div>
+            <div class="event-meta-item"><span class="label">快速跳转</span><span class="value">${linkHtml(event?.detailUrl, '课程页') || '-'} ${linkHtml(event?.studentUrl, '学生页')}</span></div>
         `;
     }
 
@@ -218,15 +317,18 @@
     function renderHealth(health) {
         statusBanner.className = `status-banner ${severityClass(health?.severity)}`;
         const severityText = health?.severity === 'ERROR' ? '发现高风险问题' : (health?.severity === 'WARN' ? '发现待关注问题' : '当前未发现异常');
-        statusBanner.textContent = `${severityText}：${health?.issueCount ?? 0} 项`;
-        if (!health?.issues || health.issues.length === 0) {
+        const filteredIssues = filterIssues(health?.issues || []);
+        const totalCount = health?.issueCount ?? (health?.issues || []).length;
+        statusBanner.textContent = `${severityText}：${totalCount} 项${currentIssueLevelFilter() !== 'ALL' ? `（当前筛选 ${filteredIssues.length} 项）` : ''}`;
+        if (filteredIssues.length === 0) {
             issueList.innerHTML = '<div class="issue-card"><div class="issue-message">当前没有检测到超编、计数错位或流程卡住等问题。</div></div>';
             return;
         }
-        issueList.innerHTML = health.issues.map(issue => `
+        issueList.innerHTML = filteredIssues.map(issue => `
             <div class="issue-card ${severityClass(issue.level)}">
                 <div class="issue-code">${escapeHtml(issue.level)} · ${escapeHtml(issue.code)}</div>
                 <div class="issue-message">${escapeHtml(issue.message)}</div>
+                ${issue.jumpUrl ? `<div class="issue-actions">${linkHtml(issue.jumpUrl, issue.jumpLabel || '查看详情')}</div>` : ''}
             </div>
         `).join('');
     }
@@ -238,7 +340,7 @@
         }
         hotCourseBody.innerHTML = courses.map(course => `
             <tr>
-                <td>${escapeHtml(course.courseName)}</td>
+                <td>${course.detailUrl ? `<a class="link-btn" href="${escapeHtml(course.detailUrl)}">${escapeHtml(course.courseName)}</a>` : escapeHtml(course.courseName)}</td>
                 <td>${escapeHtml(course.capacityMode === 'PER_CLASS' ? '按班名额' : '全局名额')}</td>
                 <td>${escapeHtml(course.status)}</td>
                 <td>${escapeHtml(course.totalCapacity)}</td>
@@ -268,6 +370,7 @@
                     <div class="activity-time mono">${escapeHtml(formatDateTime(entry.operatedAt))}</div>
                 </div>
                 <div class="activity-desc">${escapeHtml(entry.description || '-')}</div>
+                ${entry.jumpUrl ? `<div class="activity-actions">${linkHtml(entry.jumpUrl, entry.jumpLabel || '查看详情')}</div>` : ''}
             </div>
         `).join('');
     }
@@ -291,6 +394,7 @@
                 throw new Error(payload?.message || '诊断数据加载失败');
             }
             const data = payload.data || {};
+            currentDiagnostics = data;
             renderEventMeta(data.event || {});
             renderOverview(data.overview || {});
             renderHealth(data.health || {});
@@ -301,6 +405,7 @@
                 eventSelect.value = String(data.event.id);
             }
         } catch (error) {
+            currentDiagnostics = null;
             statusBanner.className = 'status-banner error';
             statusBanner.textContent = error.message || '诊断数据加载失败';
             issueList.innerHTML = `<div class="issue-card error"><div class="issue-code">ERROR · LOAD_FAILED</div><div class="issue-message">${escapeHtml(error.message || '诊断数据加载失败')}</div></div>`;
@@ -316,7 +421,16 @@
         if (initialSelectedEventId) eventSelect.value = String(initialSelectedEventId);
         eventSelect.addEventListener('change', loadDiagnostics);
     }
+    if (issueLevelFilter) {
+        issueLevelFilter.addEventListener('change', () => {
+            if (currentDiagnostics) {
+                renderHealth(currentDiagnostics.health || {});
+            }
+        });
+    }
     if (refreshBtn) refreshBtn.addEventListener('click', loadDiagnostics);
+    if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportDiagnosticsJson);
+    if (exportTextBtn) exportTextBtn.addEventListener('click', exportDiagnosticsText);
     if (diagnosticsRoot) loadDiagnostics();
 </script>
 </body>

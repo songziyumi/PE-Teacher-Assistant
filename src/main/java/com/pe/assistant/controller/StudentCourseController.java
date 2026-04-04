@@ -1,6 +1,7 @@
 package com.pe.assistant.controller;
 
 import com.pe.assistant.dto.ApiResponse;
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.*;
@@ -132,7 +133,7 @@ public class StudentCourseController {
             courseService.submitPreference(student, event.getId(), courseId, preference);
             ra.addFlashAttribute("success", "志愿提交成功");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -148,7 +149,7 @@ public class StudentCourseController {
             courseService.saveRound1Draft(student, event.getId());
             ra.addFlashAttribute("success", "草稿已保存");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -162,7 +163,7 @@ public class StudentCourseController {
             courseService.confirmRound1Selections(student, event.getId());
             ra.addFlashAttribute("success", "志愿已确认提交，系统将按已确认志愿参与第一轮抽签");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -176,7 +177,7 @@ public class StudentCourseController {
             courseService.selectRound2(student, event.getId(), courseId);
             ra.addFlashAttribute("success", "抢课成功！");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -193,7 +194,7 @@ public class StudentCourseController {
             courseService.selectRound2(student, event.getId(), courseId);
             return ApiResponse.ok("抢课成功！");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -229,7 +230,7 @@ public class StudentCourseController {
             courseService.dropCourse(student, selectionId);
             ra.addFlashAttribute("success", "退课成功");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/my-courses";
     }

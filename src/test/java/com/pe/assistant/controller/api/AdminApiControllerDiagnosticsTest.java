@@ -124,8 +124,11 @@ class AdminApiControllerDiagnosticsTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.health.severity").value("ERROR"))
                 .andExpect(jsonPath("$.data.health.issues[0].code").value("COURSE_COUNT_MISMATCH"))
+                .andExpect(jsonPath("$.data.health.issues[0].jumpUrl").value("/admin/courses/10/courses/20/enrollments"))
                 .andExpect(jsonPath("$.data.hotCourses[0].courseName").value("足球"))
-                .andExpect(jsonPath("$.data.hotCourses[0].countMismatch").value(true));
+                .andExpect(jsonPath("$.data.hotCourses[0].countMismatch").value(true))
+                .andExpect(jsonPath("$.data.hotCourses[0].detailUrl").value("/admin/courses/10/courses/20/enrollments"))
+                .andExpect(jsonPath("$.data.event.detailUrl").value("/admin/courses/10/detail?tab=courses"));
     }
 
     private School buildSchool(Long id) {

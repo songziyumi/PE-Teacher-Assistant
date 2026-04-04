@@ -105,7 +105,7 @@ public class AdminApiController {
         result.put("overview", buildDiagnosticOverview(event, courses, selections, opLogs, requestAudits, overflowAudits));
         result.put("health", buildDiagnosticHealth(event, courses, selections, overflowAudits));
         result.put("hotCourses", buildHotCourseList(courses, selections));
-        result.put("recentActivity", buildRecentActivity(opLogs, requestAudits, overflowAudits));
+        result.put("recentActivity", buildRecentActivity(event, courses, opLogs, requestAudits, overflowAudits));
         return ApiResponse.ok(result);
     }
 
@@ -610,6 +610,8 @@ public class AdminApiController {
         map.put("round2End", event.getRound2End());
         map.put("lotteryNote", event.getLotteryNote());
         map.put("createdAt", event.getCreatedAt());
+        map.put("detailUrl", buildEventDetailUrl(event.getId(), "courses"));
+        map.put("studentUrl", buildEventDetailUrl(event.getId(), "students"));
         return map;
     }
 
@@ -656,11 +658,11 @@ public class AdminApiController {
         LocalDateTime now = LocalDateTime.now();
 
         if ("ROUND2".equals(event.getStatus()) && event.getRound2End() != null && now.isAfter(event.getRound2End())) {
-            issues.add(buildIssue("WARN", "ROUND2_TIMEOUT", "活动仍处于第二轮，但结束时间已过，请检查自动收尾是否执行"));
+            issues.add(buildIssue("WARN", "ROUND2_TIMEOUT", "活动仍处于第二轮，但结束时间已过，请检查自动收尾是否执行", event.getId(), null, null));
         }
         if ("PROCESSING".equals(event.getStatus()) && event.getCreatedAt() != null
                 && event.getCreatedAt().isBefore(now.minusMinutes(10))) {
-            issues.add(buildIssue("WARN", "PROCESSING_STALE", "活动长时间停留在抽签结算中，请检查抽签日志与任务执行情况"));
+            issues.add(buildIssue("WARN", "PROCESSING_STALE", "活动长时间停留在抽签结算中，请检查抽签日志与任务执行情况", event.getId(), null, null));
         }
 
         Map<Long, List<CourseSelection>> selectionsByCourse = selections.stream()
@@ -683,6 +685,7 @@ public class AdminApiController {
                         "COURSE_COUNT_MISMATCH",
                         "课程“" + course.getName() + "”计数字段与确认人数不一致（字段=" + course.getCurrentCount()
                                 + "，确认=" + confirmedUniqueCount + "）",
+                        event.getId(),
                         course.getId(),
                         course.getName()));
             }
@@ -695,9 +698,9 @@ public class AdminApiController {
                         .count();
                 String message = "课程“" + course.getName() + "”当前超编 " + overflowCount + " 人";
                 if (overflowAuditCount == 0) {
-                    issues.add(buildIssue("ERROR", "OVERFLOW_WITHOUT_AUDIT", message + "，但未发现强制超编审计记录", course.getId(), course.getName()));
+                    issues.add(buildIssue("ERROR", "OVERFLOW_WITHOUT_AUDIT", message + "，但未发现强制超编审计记录", event.getId(), course.getId(), course.getName()));
                 } else {
-                    issues.add(buildIssue("WARN", "OVERFLOW_WITH_AUDIT", message + "，已记录强制超编审计 " + overflowAuditCount + " 条", course.getId(), course.getName()));
+                    issues.add(buildIssue("WARN", "OVERFLOW_WITH_AUDIT", message + "，已记录强制超编审计 " + overflowAuditCount + " 条", event.getId(), course.getId(), course.getName()));
                 }
             }
 
@@ -709,6 +712,7 @@ public class AdminApiController {
                             "PER_CLASS_TOTAL_MISMATCH",
                             "课程“" + course.getName() + "”总计数字段与班级名额计数和不一致（字段=" + course.getCurrentCount()
                                     + "，班级合计=" + capacityCurrentTotal + "）",
+                            event.getId(),
                             course.getId(),
                             course.getName()));
                 }
@@ -730,6 +734,7 @@ public class AdminApiController {
                                         + (capacity.getSchoolClass() != null ? capacity.getSchoolClass().getName() : "未知班级")
                                         + "”的计数字段与确认人数不一致（字段=" + capacity.getCurrentCount()
                                         + "，确认=" + confirmedClassCount + "）",
+                                event.getId(),
                                 course.getId(),
                                 course.getName()));
                     }
@@ -776,6 +781,8 @@ public class AdminApiController {
                     map.put("remainingCapacity", remainingCapacity);
                     map.put("overflowCount", Math.max(0L, confirmedUniqueCount - course.getTotalCapacity()));
                     map.put("countMismatch", course.getCurrentCount() != confirmedUniqueCount);
+                    map.put("detailUrl", buildCourseEnrollmentsUrl(course.getEvent() != null ? course.getEvent().getId() : null, course.getId()));
+                    map.put("eventUrl", buildEventDetailUrl(course.getEvent() != null ? course.getEvent().getId() : null, "courses"));
                     return map;
                 })
                 .sorted(Comparator
@@ -786,11 +793,16 @@ public class AdminApiController {
                 .collect(Collectors.toList());
     }
 
-    private Map<String, Object> buildRecentActivity(List<TeacherOperationLog> opLogs,
+    private Map<String, Object> buildRecentActivity(SelectionEvent event,
+                                                    List<Course> courses,
+                                                    List<TeacherOperationLog> opLogs,
                                                     List<CourseRequestAudit> requestAudits,
                                                     List<CourseOverflowAudit> overflowAudits) {
         LocalDateTime since = LocalDateTime.now().minusHours(24);
         List<Map<String, Object>> entries = new ArrayList<>();
+        Map<Long, Course> courseById = courses.stream()
+                .filter(course -> course.getId() != null)
+                .collect(Collectors.toMap(Course::getId, course -> course, (left, right) -> left, LinkedHashMap::new));
 
         for (TeacherOperationLog log : opLogs) {
             if (log.getOperatedAt() == null || log.getOperatedAt().isBefore(since)) {
@@ -804,6 +816,8 @@ public class AdminApiController {
             entry.put("description", log.getDescription());
             entry.put("teacherName", log.getTeacherName());
             entry.put("operatedAt", log.getOperatedAt());
+            entry.put("jumpUrl", buildEventDetailUrl(event.getId(), "courses"));
+            entry.put("jumpLabel", "查看活动");
             entries.add(entry);
         }
 
@@ -821,6 +835,13 @@ public class AdminApiController {
                     + (audit.getSenderName() != null ? "，申请人：" + audit.getSenderName() : ""));
             entry.put("teacherName", audit.getOperatorTeacherName());
             entry.put("operatedAt", audit.getHandledAt());
+            if (audit.getRelatedCourseId() != null && courseById.containsKey(audit.getRelatedCourseId())) {
+                entry.put("jumpUrl", buildCourseEnrollmentsUrl(event.getId(), audit.getRelatedCourseId()));
+                entry.put("jumpLabel", "查看课程明细");
+            } else {
+                entry.put("jumpUrl", buildEventDetailUrl(event.getId(), "courses"));
+                entry.put("jumpLabel", "查看活动");
+            }
             entries.add(entry);
         }
 
@@ -838,6 +859,8 @@ public class AdminApiController {
                     + (audit.getReason() != null && !audit.getReason().isBlank() ? "，原因：" + audit.getReason() : ""));
             entry.put("teacherName", audit.getOperatorTeacherName());
             entry.put("operatedAt", audit.getCreatedAt());
+            entry.put("jumpUrl", buildCourseEnrollmentsUrl(audit.getEventId(), audit.getCourseId()));
+            entry.put("jumpLabel", "查看课程明细");
             entries.add(entry);
         }
 
@@ -852,16 +875,34 @@ public class AdminApiController {
     }
 
     private Map<String, Object> buildIssue(String level, String code, String message) {
-        return buildIssue(level, code, message, null, null);
+        return buildIssue(level, code, message, null, null, null);
     }
 
-    private Map<String, Object> buildIssue(String level, String code, String message, Long courseId, String courseName) {
+    private Map<String, Object> buildIssue(String level, String code, String message, Long eventId, Long courseId, String courseName) {
         Map<String, Object> issue = new LinkedHashMap<>();
         issue.put("level", level);
         issue.put("code", code);
         issue.put("message", message);
+        issue.put("eventId", eventId);
         issue.put("courseId", courseId);
         issue.put("courseName", courseName);
+        issue.put("jumpUrl", courseId != null ? buildCourseEnrollmentsUrl(eventId, courseId) : buildEventDetailUrl(eventId, "courses"));
+        issue.put("jumpLabel", courseId != null ? "查看课程明细" : "查看活动");
         return issue;
+    }
+
+    private String buildEventDetailUrl(Long eventId, String tab) {
+        if (eventId == null) {
+            return null;
+        }
+        String resolvedTab = (tab == null || tab.isBlank()) ? "courses" : tab;
+        return "/admin/courses/" + eventId + "/detail?tab=" + resolvedTab;
+    }
+
+    private String buildCourseEnrollmentsUrl(Long eventId, Long courseId) {
+        if (eventId == null || courseId == null) {
+            return null;
+        }
+        return "/admin/courses/" + eventId + "/courses/" + courseId + "/enrollments";
     }
 }

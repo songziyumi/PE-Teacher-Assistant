@@ -94,8 +94,14 @@
         .request-status.rejected { background: #fdecec; color: #b34040; }
         .request-status.approved { background: #eafaf1; color: #217346; }
         .request-help { color: #7a7a7a; font-size: .84rem; line-height: 1.5; }
+        .request-helper-row { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+        .request-counter { color: #7a7a7a; font-size: .8rem; white-space: nowrap; }
+        .request-counter.warn { color: #b45309; }
+        .request-counter.error { color: #b91c1c; font-weight: 600; }
         .request-inline-feedback { display: none; font-size: .84rem; line-height: 1.5; }
         .request-inline-feedback.show { display: block; }
+        .request-meta.hidden { display:none; }
+        .request-textarea.textarea-readonly { background:#f8fafc; color:#64748b; }
     </style>
 </head>
 <body>
@@ -243,21 +249,19 @@
                 </div>
 
                 <div class="request-panel" th:if="${inRound3}">
-                    <div class="request-meta"
-                         th:if="${round3RequestMap != null and round3RequestMap[c.id] != null}">
-                        <span class="request-status pending"
-                              th:if="${round3RequestMap[c.id].status == 'PENDING'}">已提交，等待教师处理</span>
-                        <span class="request-status rejected"
-                              th:if="${round3RequestMap[c.id].status == 'REJECTED'}">上次申请未通过，可重新申请</span>
-                        <span class="request-status approved"
-                              th:if="${round3RequestMap[c.id].status == 'APPROVED'}">申请已通过</span>
-                        <div class="request-help"
-                             th:if="${round3RequestMap[c.id].content != null and !#strings.isEmpty(round3RequestMap[c.id].content)}">
-                            上次申请理由：<span th:text="${round3RequestMap[c.id].content}"></span>
+                    <div class="request-meta round3-request-meta"
+                         th:with="request=${round3RequestMap != null ? round3RequestMap[c.id] : null}"
+                         th:classappend="${request == null ? ' hidden' : ''}">
+                        <span class="request-status request-status-badge"
+                              th:classappend="${request != null and request.status == 'PENDING'} ? ' pending' : (${request != null and request.status == 'APPROVED'} ? ' approved' : ' rejected')"
+                              th:text="${request != null and request.status == 'PENDING'} ? '已提交，等待教师处理' : (${request != null and request.status == 'APPROVED'} ? '申请已通过' : '上次申请未通过，可重新申请')"></span>
+                        <div class="request-help request-content-line"
+                             th:classappend="${request == null or request.content == null or #strings.isEmpty(request.content)} ? ' hidden' : ''">
+                            申请理由：<span class="request-content-text" th:text="${request != null ? request.content : ''}"></span>
                         </div>
-                        <div class="request-help"
-                             th:if="${round3RequestMap[c.id].handleRemark != null and !#strings.isEmpty(round3RequestMap[c.id].handleRemark)}">
-                            教师备注：<span th:text="${round3RequestMap[c.id].handleRemark}"></span>
+                        <div class="request-help request-remark-line"
+                             th:classappend="${request == null or request.handleRemark == null or #strings.isEmpty(request.handleRemark)} ? ' hidden' : ''">
+                            教师备注：<span class="request-remark-text" th:text="${request != null ? request.handleRemark : ''}"></span>
                         </div>
                     </div>
 
@@ -277,14 +281,18 @@
                                   maxlength="200"
                                   placeholder="可选填写申请理由，如：有相关基础、希望调剂到本课程等"
                                   th:text="${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'REJECTED' ? round3RequestMap[c.id].content : ''}"></textarea>
-                        <div class="request-help">建议填写申请理由，便于教师审批（最多 200 字）。</div>
+                        <div class="request-helper-row">
+                            <div class="request-help">建议填写申请理由，便于教师审批（最多 200 字）。</div>
+                            <div class="request-counter" data-max-length="200">0 / 200</div>
+                        </div>
                         <div class="request-inline-feedback"></div>
                         <div class="actions">
                             <button type="submit"
                                     class="btn-request round3-request-button"
                                     th:disabled="${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'PENDING'}"
                                     th:attr="data-default-text=${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'REJECTED' ? '重新申请' : '提交申请'},
-                                             data-loading-text='申请提交中...'">
+                                             data-loading-text='申请提交中...',
+                                             data-submitted-text='已提交申请'">
                                 <span th:text="${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'REJECTED' ? '重新申请' : '提交申请'}"></span>
                             </button>
                         </div>
@@ -338,6 +346,94 @@ function showAjaxFeedback(type, message) {
     ajaxFeedback.className = `ajax-feedback alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
     ajaxFeedback.textContent = message;
     ajaxFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function updateRound3Counter(form) {
+    if (!form) {
+        return;
+    }
+    const textarea = form.querySelector('textarea[name="content"]');
+    const counter = form.querySelector('.request-counter');
+    if (!textarea || !counter) {
+        return;
+    }
+    const maxLength = Number(counter.dataset.maxLength || textarea.getAttribute('maxlength') || 200);
+    const currentLength = textarea.value.trim().length;
+    counter.textContent = `${currentLength} / ${maxLength}`;
+    counter.classList.toggle('warn', currentLength >= Math.max(0, maxLength - 30) && currentLength < maxLength);
+    counter.classList.toggle('error', currentLength > maxLength);
+}
+
+function setRound3Feedback(feedback, type, message) {
+    if (!feedback) {
+        return;
+    }
+    if (!message) {
+        feedback.className = 'request-inline-feedback';
+        feedback.textContent = '';
+        return;
+    }
+    feedback.className = `request-inline-feedback alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
+    feedback.textContent = message;
+}
+
+function lockRound3Form(form, submitButton, submitted) {
+    const textarea = form?.querySelector('textarea[name="content"]');
+    if (submitButton) {
+        submitButton.dataset.submitting = submitted ? 'true' : 'false';
+        submitButton.disabled = submitted || submitButton.getAttribute('data-original-disabled') === 'true';
+        submitButton.classList.toggle('btn-loading', submitted);
+        submitButton.textContent = submitted
+            ? (submitButton.dataset.submittedText || '已提交申请')
+            : (submitButton.dataset.defaultText || '提交申请');
+    }
+    if (textarea) {
+        textarea.readOnly = submitted;
+        textarea.classList.toggle('textarea-readonly', submitted);
+    }
+}
+
+function updateRound3Meta(form, status, content, remark) {
+    const panel = form?.closest('.request-panel');
+    const meta = panel?.querySelector('.round3-request-meta');
+    if (!meta) {
+        return;
+    }
+    const badge = meta.querySelector('.request-status-badge');
+    const contentLine = meta.querySelector('.request-content-line');
+    const contentText = meta.querySelector('.request-content-text');
+    const remarkLine = meta.querySelector('.request-remark-line');
+    const remarkText = meta.querySelector('.request-remark-text');
+    meta.classList.remove('hidden');
+
+    if (badge) {
+        badge.classList.remove('pending', 'approved', 'rejected');
+        if (status === 'APPROVED') {
+            badge.classList.add('approved');
+            badge.textContent = '申请已通过';
+        } else if (status === 'REJECTED') {
+            badge.classList.add('rejected');
+            badge.textContent = '上次申请未通过，可重新申请';
+        } else {
+            badge.classList.add('pending');
+            badge.textContent = '已提交，等待教师处理';
+        }
+    }
+
+    if (contentLine && contentText) {
+        const hasContent = !!content;
+        contentLine.classList.toggle('hidden', !hasContent);
+        contentText.textContent = content || '';
+    }
+    if (remarkLine && remarkText) {
+        const hasRemark = !!remark;
+        remarkLine.classList.toggle('hidden', !hasRemark);
+        remarkText.textContent = remark || '';
+    }
+}
+
+function isRound3PendingPrompt(message) {
+    return typeof message === 'string' && message.includes('等待教师处理');
 }
 
 singleSubmitForms.forEach(form => {
@@ -428,10 +524,19 @@ round3RequestButtons.forEach(button => rememberOriginalButtonState(button));
 
 if (round3RequestForms.length > 0) {
     round3RequestForms.forEach(form => {
+        const submitButton = form.querySelector('.round3-request-button');
+        const textarea = form.querySelector('textarea[name="content"]');
+        if (textarea) {
+            textarea.addEventListener('input', () => updateRound3Counter(form));
+            updateRound3Counter(form);
+        }
+        if (submitButton?.getAttribute('data-original-disabled') === 'true') {
+            lockRound3Form(form, submitButton, true);
+        }
+
         form.addEventListener('submit', async event => {
             event.preventDefault();
 
-            const submitButton = form.querySelector('.round3-request-button');
             const feedback = form.querySelector('.request-inline-feedback');
             const textarea = form.querySelector('textarea[name="content"]');
             const csrfInput = form.querySelector('input[name="_csrf"]');
@@ -444,17 +549,11 @@ if (round3RequestForms.length > 0) {
                 return;
             }
             if (requestContent.length > 200) {
-                if (feedback) {
-                    feedback.className = 'request-inline-feedback alert alert-error show';
-                    feedback.textContent = '申请理由不能超过 200 字。';
-                }
+                setRound3Feedback(feedback, 'error', '申请理由不能超过 200 字。');
                 return;
             }
 
-            if (feedback) {
-                feedback.className = 'request-inline-feedback';
-                feedback.textContent = '';
-            }
+            setRound3Feedback(feedback, 'error', '');
             submitButton.dataset.submitting = 'true';
             submitButton.disabled = true;
             submitButton.classList.add('btn-loading');
@@ -476,28 +575,34 @@ if (round3RequestForms.length > 0) {
                     throw new Error('网络繁忙，请稍后重试');
                 }
                 if (payload.code === 200) {
-                    if (feedback) {
-                        feedback.className = 'request-inline-feedback alert alert-success show';
-                        feedback.textContent = payload.message || `已向《${courseName}》教师提交申请`;
-                    }
-                    showAjaxFeedback('success', payload.message || `已向《${courseName}》教师提交申请`);
-                    window.setTimeout(() => window.location.reload(), 600);
+                    const successMessage = payload.message || `已向《${courseName}》教师提交申请`;
+                    setRound3Feedback(feedback, 'success', successMessage);
+                    showAjaxFeedback('success', successMessage);
+                    updateRound3Meta(form, 'PENDING', requestContent, '');
+                    lockRound3Form(form, submitButton, true);
                     return;
                 }
                 const errorMessage = payload.message || '申请提交失败，请稍后重试';
-                if (feedback) {
-                    feedback.className = 'request-inline-feedback alert alert-error show';
-                    feedback.textContent = errorMessage;
+                if (isRound3PendingPrompt(errorMessage)) {
+                    setRound3Feedback(feedback, 'success', errorMessage);
+                    showAjaxFeedback('success', errorMessage);
+                    updateRound3Meta(form, 'PENDING', requestContent || textarea?.value.trim() || '', '');
+                    lockRound3Form(form, submitButton, true);
+                    return;
                 }
+                setRound3Feedback(feedback, 'error', errorMessage);
                 showAjaxFeedback('error', errorMessage);
             } catch (error) {
                 const errorMessage = error.message || '请求未发送成功，请检查网络后重试';
-                if (feedback) {
-                    feedback.className = 'request-inline-feedback alert alert-error show';
-                    feedback.textContent = errorMessage;
-                }
+                setRound3Feedback(feedback, 'error', errorMessage);
                 showAjaxFeedback('error', errorMessage);
             } finally {
+                if (submitButton.dataset.submitting !== 'true' || submitButton.disabled !== true || !submitButton.classList.contains('btn-loading')) {
+                    return;
+                }
+                if (submitButton.textContent === (submitButton.dataset.submittedText || '已提交申请')) {
+                    return;
+                }
                 submitButton.dataset.submitting = 'false';
                 restoreManagedButton(submitButton);
             }
@@ -506,9 +611,13 @@ if (round3RequestForms.length > 0) {
 
     window.addEventListener('pageshow', () => {
         round3RequestButtons.forEach(button => {
+            if (button.textContent === (button.dataset.submittedText || '已提交申请')) {
+                return;
+            }
             button.dataset.submitting = 'false';
             restoreManagedButton(button);
         });
+        round3RequestForms.forEach(form => updateRound3Counter(form));
     });
 }
 

@@ -72,4 +72,44 @@ public final class CourseSelectionPromptHelper {
         }
         return message;
     }
+
+    public static String normalizeStudentPrompt(String message) {
+        if (message == null || message.isBlank()) {
+            return "提交失败，请稍后重试";
+        }
+        if (message.contains("已经对该课程发送过申请") || message.contains("已对该课程发送过申请")) {
+            return "您已提交过该课程申请，请等待教师处理";
+        }
+        if (message.contains("暂未指定授课教师")) {
+            return "当前课程暂未分配教师，暂时无法提交申请";
+        }
+        if (message.contains("申请理由不能超过200字")) {
+            return "申请理由不能超过 200 字";
+        }
+        if (message.contains("没有可申请的选课活动")) {
+            return "当前暂无可申请的选课活动";
+        }
+        if (message.contains("已有确认的选课") || message.contains("已有确认的选课记录")) {
+            return "您已有已确认课程，无需重复申请";
+        }
+        if (message.contains("课程不属于当前活动")) {
+            return "该课程不属于当前申请活动，请刷新页面后重试";
+        }
+        if (message.contains("课程不存在")) {
+            return "课程不存在或已被删除，请刷新页面后重试";
+        }
+        if (message.contains("选课记录不存在")) {
+            return "选课记录不存在或已被删除，请刷新页面后重试";
+        }
+        if (message.contains("无权操作他人选课记录")) {
+            return "该选课记录不属于您，无法执行此操作";
+        }
+        if (message.contains("只能退已确认的课程")) {
+            return "仅已确认的课程支持退课";
+        }
+        if (message.contains("第一轮已确认课程在第二轮期间退课")) {
+            return "当前仅支持第一轮已确认课程在第二轮期间退课";
+        }
+        return message;
+    }
 }
