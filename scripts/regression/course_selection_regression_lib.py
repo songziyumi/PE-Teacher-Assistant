@@ -416,31 +416,15 @@ def fetch_course_map_for_current_event(account: Account, base_url: str) -> Dict[
 
 
 def activate_and_confirm_round1(account: Account, base_url: str) -> Dict[str, str]:
-    client = web_login_student(account, base_url)
-    password_page, _ = client.get_text("/student/password?force=true")
-    password_csrf = parse_csrf_token(password_page)
-    new_password = next_password(account.password)
-    client.post_form_quick(
-        "/student/password",
-        [
-            ("_csrf", password_csrf),
-            ("oldPassword", account.password),
-            ("newPassword", new_password),
-            ("confirmPassword", new_password),
-            ("force", "true"),
-        ],
-    )
-    account.password = new_password
-
-    courses_page, _ = client.get_text("/student/courses")
-    courses_csrf = parse_csrf_token(courses_page)
-    client.post_form_quick("/student/courses/confirm", [("_csrf", courses_csrf)])
+    client, login = api_login_student(account, base_url)
+    token = login["data"]["token"]
+    payload = client.api_request("POST", "/api/student/courses/confirm", token=token)
     return {
         "username": account.username,
         "student_no": account.student_no,
         "student_name": account.student_name,
         "new_password": account.password,
-        "status": "OK",
+        "status": str(payload.get("message", "OK")),
     }
 
 
@@ -448,8 +432,15 @@ def process_round1(client: RemoteClient, event_id: int, csrf: str) -> float:
     start = time.perf_counter()
     client.post_form_quick(f"/admin/courses/events/{event_id}/process", [("_csrf", csrf)])
     for _ in range(180):
-        payload, _ = client.get_text(f"/admin/courses/events/{event_id}/lottery-status")
-        data = json.loads(payload)
+        payload, final_url = client.get_text(f"/admin/courses/events/{event_id}/lottery-status")
+        if "/login" in final_url:
+            time.sleep(1)
+            continue
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            time.sleep(1)
+            continue
         status = data.get("status")
         if status and status != "PROCESSING":
             return (time.perf_counter() - start) * 1000

@@ -3,6 +3,7 @@ package com.pe.assistant.service;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CourseService {
 
@@ -218,67 +220,74 @@ public class CourseService {
 
     @Transactional
     public CourseSelection selectRound2(Student student, Long eventId, Long courseId) {
-        SelectionEvent event = eventRepo.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("活动不存在"));
-
-        if (!"ROUND2".equals(event.getStatus())) {
-            throw new RuntimeException("当前不在第二轮选课阶段");
-        }
-        LocalDateTime now = LocalDateTime.now();
-        if (event.getRound2Start() != null && now.isBefore(event.getRound2Start())) {
-            throw new RuntimeException("第二轮选课尚未开始");
-        }
-        if (event.getRound2End() != null && now.isAfter(event.getRound2End())) {
-            throw new RuntimeException("第二轮选课已结束");
-        }
-        // 校验是否在参与名单（未配置名单时全校均可）
-        if (eventStudentRepo.existsByEvent(event)
-                && !eventStudentRepo.existsByEventAndStudent(event, student)) {
-            throw new RuntimeException("您不在本次选课活动的参与名单中");
-        }
-        // 校验学生是否有第二轮资格（无 CONFIRMED 记录）
-        if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
-            throw new RuntimeException("您已成功选课，无需再次抢课");
-        }
-
-        Course course = findById(courseId);
-        if (!"ACTIVE".equals(course.getStatus())) {
-            throw new RuntimeException("该课程当前不可选");
-        }
-
-        // 按名额模式执行原子占位
-        if ("GLOBAL".equals(course.getCapacityMode())) {
-            if (courseRepo.incrementCurrentCountIfAvailable(courseId) == 0) {
-                throw new RuntimeException("该课程名额已满，请选择其他课程");
-            }
-        } else {
-            // PER_CLASS：按学生所在班级找对应名额
-            SchoolClass sc = student.getSchoolClass();
-            if (sc == null) throw new RuntimeException("您未分配行政班，无法参与按班名额的课程");
-            if (capacityRepo.findByCourseAndSchoolClass(course, sc).isEmpty()) {
-                throw new RuntimeException("您的班级没有该课程的名额配置");
-            }
-            if (capacityRepo.incrementCurrentCountIfAvailable(courseId, sc.getId()) == 0) {
-                throw new RuntimeException("您班级的该课程名额已满，请选择其他课程");
-            }
-            courseRepo.incrementCurrentCount(courseId);
-        }
-
-        CourseSelection cs = new CourseSelection();
-        cs.setEvent(event);
-        cs.setCourse(course);
-        cs.setStudent(student);
-        cs.setPreference(0);
-        cs.setRound(2);
-        cs.setStatus("CONFIRMED");
-        cs.setSelectedAt(LocalDateTime.now());
-        cs.setConfirmedAt(LocalDateTime.now());
+        long startedAtNanos = System.nanoTime();
+        SelectionEvent event = null;
+        Course course = null;
         try {
+            event = eventRepo.findById(eventId)
+                    .orElseThrow(() -> new RuntimeException("活动不存在"));
+
+            if (!"ROUND2".equals(event.getStatus())) {
+                throw new RuntimeException("当前不在第二轮选课阶段");
+            }
+            LocalDateTime now = LocalDateTime.now();
+            if (event.getRound2Start() != null && now.isBefore(event.getRound2Start())) {
+                throw new RuntimeException("第二轮选课尚未开始");
+            }
+            if (event.getRound2End() != null && now.isAfter(event.getRound2End())) {
+                throw new RuntimeException("第二轮选课已结束");
+            }
+            if (eventStudentRepo.existsByEvent(event)
+                    && !eventStudentRepo.existsByEventAndStudent(event, student)) {
+                throw new RuntimeException("您不在本次选课活动的参与名单中");
+            }
+            if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
+                throw new RuntimeException("您已成功选课，无需再次抢课");
+            }
+
+            course = findById(courseId);
+            if (!"ACTIVE".equals(course.getStatus())) {
+                throw new RuntimeException("该课程当前不可选");
+            }
+
+            if ("GLOBAL".equals(course.getCapacityMode())) {
+                if (courseRepo.incrementCurrentCountIfAvailable(courseId) == 0) {
+                    throw new RuntimeException("该课程名额已满，请选择其他课程");
+                }
+            } else {
+                SchoolClass schoolClass = student.getSchoolClass();
+                if (schoolClass == null) {
+                    throw new RuntimeException("您未分配行政班，无法参与按班名额的课程");
+                }
+                if (capacityRepo.findByCourseAndSchoolClass(course, schoolClass).isEmpty()) {
+                    throw new RuntimeException("您的班级没有该课程的名额配置");
+                }
+                if (capacityRepo.incrementCurrentCountIfAvailable(courseId, schoolClass.getId()) == 0) {
+                    throw new RuntimeException("您班级的该课程名额已满，请选择其他课程");
+                }
+                courseRepo.incrementCurrentCount(courseId);
+            }
+
+            CourseSelection cs = new CourseSelection();
+            cs.setEvent(event);
+            cs.setCourse(course);
+            cs.setStudent(student);
+            cs.setPreference(0);
+            cs.setRound(2);
+            cs.setStatus("CONFIRMED");
+            cs.setSelectedAt(LocalDateTime.now());
+            cs.setConfirmedAt(LocalDateTime.now());
             CourseSelection saved = selectionRepo.saveAndFlush(cs);
             studentService.assignElectiveClassFromCourse(student, course);
+            logRound2Attempt("SUCCESS", student, event, course, saved.getId(), null, startedAtNanos);
             return saved;
         } catch (DataIntegrityViolationException ex) {
-            throw resolveRound2Conflict(student, event, course);
+            RuntimeException resolved = resolveRound2Conflict(student, event, course);
+            logRound2Attempt("REJECTED", student, event, course, null, resolved, startedAtNanos);
+            throw resolved;
+        } catch (RuntimeException ex) {
+            logRound2Attempt("REJECTED", student, event, course, null, ex, startedAtNanos);
+            throw ex;
         }
     }
 
@@ -286,6 +295,7 @@ public class CourseService {
 
     @Transactional
     public int finalizeEndedRound2Event(Long eventId) {
+        long startedAtNanos = System.nanoTime();
         SelectionEvent event = eventRepo.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Selection event not found"));
         if (!"ROUND2".equals(event.getStatus())) {
@@ -295,6 +305,7 @@ public class CourseService {
             return 0;
         }
 
+        log.info("courseSelection.round2.finalize.started eventId={} round2End={}", event.getId(), event.getRound2End());
         int assignedCount = autoAssignRound2Fallback(event);
         event.setStatus("CLOSED");
         event.setLotteryNote(assignedCount > 0
@@ -302,17 +313,27 @@ public class CourseService {
                 : "Round2 closed");
         eventRepo.save(event);
         studentService.syncElectiveClassesForEvent(event);
+        int confirmedCount = selectionRepo.findByEventAndStatus(event, "CONFIRMED").size();
+        log.info("courseSelection.round2.finalize.completed eventId={} assignedCount={} confirmedCount={} latencyMs={}",
+                event.getId(),
+                assignedCount,
+                confirmedCount,
+                elapsedMillis(startedAtNanos));
         return assignedCount;
     }
 
     private int autoAssignRound2Fallback(SelectionEvent event) {
         List<Student> candidates = findRound2AutoAssignCandidates(event);
         if (candidates.isEmpty()) {
+            log.info("courseSelection.round2.autoAssign.skipped eventId={} reason=no_candidates", event.getId());
             return 0;
         }
 
         List<Course> activeCourses = courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE");
         if (activeCourses.isEmpty()) {
+            log.warn("courseSelection.round2.autoAssign.noActiveCourses eventId={} candidates={}",
+                    event.getId(),
+                    candidates.size());
             for (Student student : candidates) {
                 studentNotificationService.notifyRound2ClosedWithoutCourse(event, student);
             }
@@ -333,6 +354,12 @@ public class CourseService {
                 studentNotificationService.notifyRound2ClosedWithoutCourse(event, student);
             }
         }
+        log.info("courseSelection.round2.autoAssign.completed eventId={} candidates={} activeCourses={} assignedCount={} unassignedCount={}",
+                event.getId(),
+                candidates.size(),
+                activeCourses.size(),
+                assignedCount,
+                Math.max(0, candidates.size() - assignedCount));
         return assignedCount;
     }
 
@@ -700,6 +727,105 @@ public class CourseService {
             return new RuntimeException("该课程名额已满，请选择其他课程");
         }
         return new RuntimeException("抢课失败，请刷新页面后重试");
+    }
+
+    private void logRound2Attempt(String outcome,
+                                  Student student,
+                                  SelectionEvent event,
+                                  Course course,
+                                  Long selectionId,
+                                  RuntimeException exception,
+                                  long startedAtNanos) {
+        Long studentId = student != null ? student.getId() : null;
+        Long classId = student != null && student.getSchoolClass() != null ? student.getSchoolClass().getId() : null;
+        Long resolvedEventId = event != null ? event.getId() : null;
+        String eventStatus = event != null ? event.getStatus() : null;
+        Long resolvedCourseId = course != null ? course.getId() : null;
+        String capacityMode = course != null ? course.getCapacityMode() : null;
+        Integer remainingCapacity = resolveRemainingCapacity(course, student);
+        long latencyMs = elapsedMillis(startedAtNanos);
+        if (exception == null) {
+            log.info("courseSelection.round2.submit outcome={} eventId={} eventStatus={} courseId={} studentId={} classId={} capacityMode={} selectionId={} remainingCapacity={} latencyMs={}",
+                    outcome,
+                    resolvedEventId,
+                    eventStatus,
+                    resolvedCourseId,
+                    studentId,
+                    classId,
+                    capacityMode,
+                    selectionId,
+                    remainingCapacity,
+                    latencyMs);
+            return;
+        }
+        log.warn("courseSelection.round2.submit outcome={} reason={} eventId={} eventStatus={} courseId={} studentId={} classId={} capacityMode={} remainingCapacity={} latencyMs={} message={}",
+                outcome,
+                classifyRound2Failure(exception.getMessage()),
+                resolvedEventId,
+                eventStatus,
+                resolvedCourseId,
+                studentId,
+                classId,
+                capacityMode,
+                remainingCapacity,
+                latencyMs,
+                exception.getMessage());
+    }
+
+    private Integer resolveRemainingCapacity(Course course, Student student) {
+        if (course == null || student == null) {
+            return null;
+        }
+        try {
+            Course refreshedCourse = courseRepo.findById(course.getId()).orElse(course);
+            return getRemainingCapacity(refreshedCourse, student);
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String classifyRound2Failure(String message) {
+        if (message == null || message.isBlank()) {
+            return "UNKNOWN";
+        }
+        if (message.contains("活动不存在")) {
+            return "EVENT_NOT_FOUND";
+        }
+        if (message.contains("当前不在第二轮")) {
+            return "NOT_IN_ROUND2";
+        }
+        if (message.contains("尚未开始")) {
+            return "ROUND2_NOT_STARTED";
+        }
+        if (message.contains("已结束")) {
+            return "ROUND2_ENDED";
+        }
+        if (message.contains("参与名单")) {
+            return "NOT_IN_EVENT_LIST";
+        }
+        if (message.contains("已成功选课")) {
+            return "ALREADY_CONFIRMED";
+        }
+        if (message.contains("当前不可选")) {
+            return "COURSE_INACTIVE";
+        }
+        if (message.contains("未分配行政班")) {
+            return "CLASS_NOT_ASSIGNED";
+        }
+        if (message.contains("没有该课程的名额配置")) {
+            return "CLASS_CAPACITY_NOT_CONFIGURED";
+        }
+        if (message.contains("名额已满")) {
+            return "CAPACITY_FULL";
+        }
+        if (message.contains("刷新页面后重试")) {
+            return "CONCURRENT_CONFLICT";
+        }
+        return "UNKNOWN";
+    }
+
+    private long elapsedMillis(long startedAtNanos) {
+        return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
     }
     public boolean canDropSelection(CourseSelection selection) {
         if (selection == null

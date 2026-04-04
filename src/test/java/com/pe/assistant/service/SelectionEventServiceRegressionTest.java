@@ -20,7 +20,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +96,37 @@ class SelectionEventServiceRegressionTest {
         assertEquals("CLOSED", event.getStatus());
         verify(eventRepo).save(event);
         verify(studentService).syncElectiveClassesForEvent(event);
+    }
+
+    @Test
+    void processRound1AutomaticallyShouldStartLotteryWhenEventStillInRound1() {
+        when(eventRepo.markProcessingIfRound1(3L, "第一轮结束满5分钟，系统自动启动抽签")).thenReturn(1);
+
+        boolean started = selectionEventService.processRound1Automatically(3L);
+
+        assertTrue(started);
+        verify(lotteryService).runLottery(3L);
+    }
+
+    @Test
+    void processRound1AutomaticallyShouldSkipWhenEventAlreadyMovedOutOfRound1() {
+        when(eventRepo.markProcessingIfRound1(4L, "第一轮结束满5分钟，系统自动启动抽签")).thenReturn(0);
+
+        boolean started = selectionEventService.processRound1Automatically(4L);
+
+        assertFalse(started);
+        verify(lotteryService, never()).runLottery(4L);
+    }
+
+    @Test
+    void processRound1ShouldThrowWhenEventCannotEnterProcessing() {
+        when(eventRepo.markProcessingIfRound1(5L, "抽签即将开始")).thenReturn(0);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> selectionEventService.processRound1(5L));
+
+        assertEquals("活动当前状态不允许执行抽签", ex.getMessage());
+        verify(lotteryService, never()).runLottery(5L);
     }
 
     private Student buildStudent(Long id) {

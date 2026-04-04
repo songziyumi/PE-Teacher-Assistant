@@ -65,12 +65,14 @@ public class StudentCourseController {
                     // 展示第三轮申请页面
                     List<Course> allCourses = courseService.findByEvent(closedEvent);
                     Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(allCourses);
+                    Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", allCourses);
                     model.addAttribute("mySelections", mySelections);
                     model.addAttribute("student", student);
                     model.addAttribute("inRound3", true);
                     model.addAttribute("confirmedCountMap", confirmedCountMap);
+                    model.addAttribute("round3RequestMap", round3RequestMap);
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
                     model.addAttribute("remainingMap",

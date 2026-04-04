@@ -21,6 +21,10 @@
 - `scripts/regression/run_round5_badminton_cross_class_regression.py`
   - 验证羽毛球跨班混抢隔离
   - 检查“别班学生不能抢到本班剩余名额”
+- `scripts/regression/run_round2_drop_reselect_regression.py`
+  - 验证第一轮已确认学生在第二轮期间退课后，可重新抢第二轮课程
+- `scripts/regression/run_round3_request_approval_regression.py`
+  - 验证活动关闭后第三轮申请提交、教师同意、教师拒绝、学生侧状态回显
 - `scripts/regression/course_selection_regression_lib.py`
   - 公共登录、活动创建、选课、汇总能力
 
@@ -66,6 +70,21 @@ python scripts/regression/run_round4_badminton_per_class_regression.py `
 ```powershell
 python scripts/regression/run_round5_badminton_cross_class_regression.py `
   --accounts-csv scripts/jmeter/data/student_accounts.csv
+```
+
+### 5. 退课后再次进入第二轮回归
+
+```powershell
+python scripts/regression/run_round2_drop_reselect_regression.py `
+  --accounts-csv scripts/jmeter/data/student_accounts.csv
+```
+
+### 6. 第三轮申请与教师审批回归
+
+```powershell
+python scripts/regression/run_round3_request_approval_regression.py `
+  --accounts-csv scripts/jmeter/data/student_accounts.csv `
+  --auto-close-existing-events
 ```
 
 ## 输出目录

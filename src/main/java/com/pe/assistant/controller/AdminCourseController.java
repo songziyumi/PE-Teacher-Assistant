@@ -1,5 +1,6 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.School;
@@ -315,7 +316,7 @@ public class AdminCourseController {
             }
             ra.addFlashAttribute("success", forceOverflow ? "已强制超编加入" : "已手动加入");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeAdminPrompt(e.getMessage()));
         }
         return "redirect:/admin/courses/" + eventId + "/courses/" + courseId + "/enrollments";
     }
@@ -329,7 +330,7 @@ public class AdminCourseController {
             courseService.adminDrop(selectionId);
             ra.addFlashAttribute("success", "已移除");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeAdminPrompt(e.getMessage()));
         }
         return "redirect:/admin/courses/" + eventId + "/courses/" + courseId + "/enrollments";
     }

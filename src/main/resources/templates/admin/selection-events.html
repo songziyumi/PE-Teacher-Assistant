@@ -47,6 +47,7 @@
     <div class="page-header">
         <h2>选课活动管理</h2>
         <div style="display:flex;gap:8px;">
+            <a th:href="@{/admin/course-selection-diagnostics}" class="btn btn-secondary">抢课诊断面板</a>
             <a th:href="@{/admin/student-accounts}" class="btn btn-secondary">学生账号管理</a>
             <button class="btn btn-primary" onclick="openModal('addModal')">+ 新建活动并设置参与学生</button>
         </div>
@@ -68,6 +69,10 @@
                 &nbsp;|&nbsp;
                 第二轮：<span th:text="${event.round2Start != null ? #temporals.format(event.round2Start,'MM-dd HH:mm') : '未设置'}"></span>
                 ～ <span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
+            </div>
+            <div class="event-meta" th:if="${event.status == 'ROUND1' and event.round1End != null}" style="margin-top:4px;">
+                自动抽签：<span th:text="${#temporals.format(event.round1End.plusMinutes(5),'MM-dd HH:mm')}"></span>
+                <span style="color:#999;">（管理员也可手动提前结算）</span>
             </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">

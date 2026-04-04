@@ -114,7 +114,12 @@
             <span th:if="${event.status == 'ROUND1'}"
                   class="muted"
                   style="margin-left:8px;font-size:.85rem;">
-                执行后将先结算第一志愿，再结算第二志愿
+                第一轮结束满 5 分钟后系统会自动抽签；也可手动提前执行，结算顺序为先第一志愿、再第二志愿
+            </span>
+            <span th:if="${event.status == 'ROUND1' and event.round1End != null}"
+                  class="muted"
+                  style="display:block;width:100%;font-size:.82rem;color:#6b7280;">
+                自动抽签时间：<th:block th:text="${#temporals.format(event.round1End.plusMinutes(5), 'MM-dd HH:mm')}"></th:block>
             </span>
             <form th:if="${event.status == 'ROUND2'}"
                   th:action="@{/admin/courses/events/{id}/close(id=${event.id})}"

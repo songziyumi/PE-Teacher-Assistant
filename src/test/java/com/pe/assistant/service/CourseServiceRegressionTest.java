@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -301,6 +302,157 @@ class CourseServiceRegressionTest {
 
         assertThrows(RuntimeException.class, () -> courseService.selectRound2(student, 1L, 10L));
 
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenRound2NotStarted() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+        event.setRound2Start(LocalDateTime.now().plusMinutes(1));
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("第二轮选课尚未开始", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+        verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenStudentNotInEventParticipantList() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
+        when(eventStudentRepo.existsByEventAndStudent(event, student)).thenReturn(false);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("您不在本次选课活动的参与名单中", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+        verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenStudentAlreadyHasConfirmedSelection() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(true);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("您已成功选课，无需再次抢课", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassCourseStudentHasNoAdministrativeClass() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("您未分配行政班，无法参与按班名额的课程", ex.getMessage());
+        verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassCapacityConfigMissing() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(20L);
+
+        Student student = buildStudent(100L);
+        student.setSchoolClass(schoolClass);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(capacityRepo.findByCourseAndSchoolClass(course, schoolClass)).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("您的班级没有该课程的名额配置", ex.getMessage());
+        verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassAtomicReserveFails() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(20L);
+
+        Student student = buildStudent(100L);
+        student.setSchoolClass(schoolClass);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        CourseClassCapacity capacity = new CourseClassCapacity();
+        capacity.setCourse(course);
+        capacity.setSchoolClass(schoolClass);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(capacityRepo.findByCourseAndSchoolClass(course, schoolClass)).thenReturn(Optional.of(capacity));
+        when(capacityRepo.incrementCurrentCountIfAvailable(10L, 20L)).thenReturn(0);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("您班级的该课程名额已满，请选择其他课程", ex.getMessage());
+        verify(courseRepo, never()).incrementCurrentCount(10L);
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
     }
 

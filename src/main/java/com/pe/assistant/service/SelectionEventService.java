@@ -153,14 +153,19 @@ public class SelectionEventService {
 
     @Transactional
     public void processRound1(Long eventId) {
-        SelectionEvent event = findById(eventId);
-        if (!"ROUND1".equals(event.getStatus())) {
+        if (!tryStartRound1Processing(eventId, "抽签即将开始")) {
             throw new RuntimeException("活动当前状态不允许执行抽签");
         }
-        event.setStatus("PROCESSING");
-        event.setLotteryNote("抽签即将开始");
-        eventRepo.save(event);
         lotteryService.runLottery(eventId);
+    }
+
+    @Transactional
+    public boolean processRound1Automatically(Long eventId) {
+        if (!tryStartRound1Processing(eventId, "第一轮结束满5分钟，系统自动启动抽签")) {
+            return false;
+        }
+        lotteryService.runLottery(eventId);
+        return true;
     }
 
     public Map<String, String> getLotteryProgress(Long eventId) {
@@ -179,6 +184,10 @@ public class SelectionEventService {
         }
         event.setStatus("ROUND1");
         eventRepo.save(event);
+    }
+
+    private boolean tryStartRound1Processing(Long eventId, String lotteryNote) {
+        return eventRepo.markProcessingIfRound1(eventId, lotteryNote) > 0;
     }
 
     @Transactional

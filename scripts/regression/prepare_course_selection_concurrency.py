@@ -228,10 +228,17 @@ def fetch_classes(client: RemoteClient, token: str, grade_name: str, class_count
 def fetch_students_from_classes(client: RemoteClient, token: str, class_rows: List[dict], prefix: str, students_per_class: int):
     collected = []
     for class_row in class_rows:
-        path = f"/api/admin/students?classId={class_row['id']}&page=0&size={students_per_class + 20}"
-        payload = client.api_request("GET", path, token=token)
-        content = (payload.get("data") or {}).get("content") or []
-        matched = [item for item in content if str(item.get("name", "")).startswith(prefix)]
+        matched = []
+        page = 0
+        total_pages = 1
+        while page < total_pages and len(matched) < students_per_class:
+            path = f"/api/admin/students?classId={class_row['id']}&page={page}&size={students_per_class + 20}"
+            payload = client.api_request("GET", path, token=token)
+            page_data = payload.get("data") or {}
+            content = page_data.get("content") or []
+            matched.extend(item for item in content if str(item.get("name", "")).startswith(prefix))
+            total_pages = int(page_data.get("totalPages") or 0) or 1
+            page += 1
         if len(matched) != students_per_class:
             raise RuntimeError(f"班级 {class_row['name']} 仅匹配到 {len(matched)} 名测试学生，预期 {students_per_class} 名")
         collected.extend(matched)
@@ -346,21 +353,25 @@ def read_first_account(export_path: Path) -> Dict[str, str]:
     workbook = load_workbook(export_path)
     sheet = workbook.active
     headers = [cell.value for cell in sheet[1]]
-    index_map = {str(value): idx for idx, value in enumerate(headers)}
-    required = ["姓名", "学号", "登录账号", "初始密码"]
-    for column in required:
-        if column not in index_map:
-            raise RuntimeError(f"导出账号文件缺少列：{column}")
+    index_map = {str(value).strip(): idx for idx, value in enumerate(headers) if value is not None}
+    name_key = next((key for key in ("\u59d3\u540d", "\u6fee\u6493\u60b5") if key in index_map), None)
+    student_no_key = next((key for key in ("\u5b66\u53f7", "\u701b\ufe65\u5f7f") if key in index_map), None)
+    login_key = next((key for key in ("\u8d26\u53f7", "\u767b\u5f55\u8d26\u53f7", "\u9427\u8be4\u7efd\u7490\uf47f") if key in index_map), None)
+    password_key = next((key for key in ("\u521d\u59cb\u5bc6\u7801", "\u9352\u6fe1\u255d\u7015\u55d7\u7234") if key in index_map), None)
+    if not all([name_key, student_no_key, login_key]):
+        raise RuntimeError(f"\u5bfc\u51fa\u8d26\u53f7\u6587\u4ef6\u8868\u5934\u65e0\u6cd5\u8bc6\u522b\uff1a{headers}")
     row = sheet[2]
     return {
-        "name": row[index_map["姓名"]].value,
-        "studentNo": row[index_map["学号"]].value,
-        "loginId": row[index_map["登录账号"]].value,
-        "password": row[index_map["初始密码"]].value,
+        "name": row[index_map[name_key]].value,
+        "studentNo": row[index_map[student_no_key]].value,
+        "loginId": row[index_map[login_key]].value,
+        "password": row[index_map[password_key]].value if password_key else None,
     }
 
 
 def verify_student_access(client: RemoteClient, account: Dict[str, str]) -> Dict[str, object]:
+    if not account.get("password"):
+        return {"skipped": True, "reason": "missing_password"}
     token = client.api_request("POST", "/api/auth/login", json_body={"username": account["loginId"], "password": account["password"]})["data"]["token"]
     event_payload = client.api_request("GET", "/api/student/events/current", token=token)
     courses_payload = client.api_request("GET", "/api/student/courses", token=token)

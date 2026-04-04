@@ -167,8 +167,18 @@ public class StudentApiController {
             return ApiResponse.ok(result);
         }
 
+        Map<Long, InternalMessage> requestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
         List<Map<String, Object>> courses = courseService.findByEvent(closedEvent).stream()
-                .map(course -> toCourseMap(course, student))
+                .map(course -> {
+                    Map<String, Object> item = toCourseMap(course, student);
+                    InternalMessage request = requestMap.get(course.getId());
+                    item.put("requestStatus", request != null ? request.getStatus() : null);
+                    item.put("requestContent", request != null ? request.getContent() : null);
+                    item.put("requestHandleRemark", request != null ? request.getHandleRemark() : null);
+                    item.put("requestHandledAt", request != null ? request.getHandledAt() : null);
+                    item.put("hasPendingRequest", request != null && "PENDING".equals(request.getStatus()));
+                    return item;
+                })
                 .collect(Collectors.toList());
 
         result.put("canRequest", true);

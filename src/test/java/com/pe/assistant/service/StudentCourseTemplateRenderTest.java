@@ -1,9 +1,11 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
+import com.pe.assistant.entity.Teacher;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -69,6 +71,62 @@ class StudentCourseTemplateRenderTest {
         context.setVariable("round1SubmissionConfirmed", false);
 
         engine.process("student/courses", context);
+    }
+
+    @Test
+    void studentCoursesTemplateShouldRenderRound3RequestState() {
+        SpringTemplateEngine engine = buildTemplateEngine();
+        WebContext context = buildContext();
+
+        School school = new School();
+        school.setName("测试学校");
+
+        Student student = new Student();
+        student.setName("张三");
+        student.setSchool(school);
+
+        SelectionEvent event = new SelectionEvent();
+        event.setId(2L);
+        event.setName("2026 春季选课");
+        event.setStatus("CLOSED");
+
+        Course course = new Course();
+        course.setId(20L);
+        course.setName("羽毛球");
+        course.setTotalCapacity(40);
+        course.setStatus("ACTIVE");
+        Teacher teacher = new Teacher();
+        teacher.setId(3L);
+        teacher.setName("李老师");
+        course.setTeacher(teacher);
+
+        InternalMessage request = new InternalMessage();
+        request.setStatus("REJECTED");
+        request.setContent("我想补报羽毛球");
+        request.setHandleRemark("请补充申请说明");
+
+        context.setVariable("_csrf", new FakeCsrfToken());
+        context.setVariable("event", event);
+        context.setVariable("student", student);
+        context.setVariable("courses", List.of(course));
+        context.setVariable("mySelections", List.of());
+        context.setVariable("remainingMap", Map.of(course.getId(), 2));
+        context.setVariable("confirmedCountMap", Map.of(course.getId(), 38));
+        context.setVariable("round3RequestMap", Map.of(course.getId(), request));
+        context.setVariable("unreadCount", 0L);
+        context.setVariable("inRound1", false);
+        context.setVariable("inRound2", false);
+        context.setVariable("inRound3", true);
+        context.setVariable("hasConfirmed", false);
+        context.setVariable("hasPref1", false);
+        context.setVariable("hasPref2", false);
+        context.setVariable("round1SubmissionConfirmed", false);
+
+        String html = engine.process("student/courses", context);
+
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("重新申请"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("教师备注"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("request-textarea"));
     }
 
     private SpringTemplateEngine buildTemplateEngine() {

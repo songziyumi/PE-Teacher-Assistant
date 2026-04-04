@@ -5,6 +5,7 @@ import com.pe.assistant.entity.CourseRequestAudit;
 import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
+import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.entity.TeacherAccountType;
 import com.pe.assistant.repository.CourseRepository;
@@ -20,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -222,6 +224,54 @@ class MessageServiceRegressionTest {
         assertEquals("Teacher-A（Basketball、Football）", recipients.get(0).getDisplayName());
     }
 
+    @Test
+    void getLatestStudentCourseRequestsShouldKeepLatestPerCourse() {
+        Student student = buildStudent(99L, "Student-A");
+        SelectionEvent event = new SelectionEvent();
+        event.setId(7L);
+
+        Course basketball = new Course();
+        basketball.setId(3L);
+        Course football = new Course();
+        football.setId(4L);
+
+        InternalMessage latestBasketball = buildCourseRequestMessage("PENDING", 10L);
+        latestBasketball.setRelatedCourseId(3L);
+        InternalMessage olderBasketball = buildCourseRequestMessage("REJECTED", 10L);
+        olderBasketball.setId(2L);
+        olderBasketball.setRelatedCourseId(3L);
+        InternalMessage otherCourse = buildCourseRequestMessage("PENDING", 10L);
+        otherCourse.setId(3L);
+        otherCourse.setRelatedCourseId(99L);
+
+        when(courseService.findByEvent(event)).thenReturn(List.of(basketball, football));
+        when(messageRepo.findByTypeAndSenderIdAndSenderTypeOrderBySentAtDesc("COURSE_REQUEST", 99L, "STUDENT"))
+                .thenReturn(List.of(latestBasketball, olderBasketball, otherCourse));
+
+        Map<Long, InternalMessage> result = messageService.getLatestStudentCourseRequests(student, event);
+
+        assertEquals(1, result.size());
+        assertSame(latestBasketball, result.get(3L));
+    }
+
+    @Test
+    void sendCourseRequestShouldRejectTooLongContent() {
+        Student student = buildStudent(99L, "Student-A");
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        Course course = new Course();
+        course.setId(3L);
+        course.setTeacher(teacher);
+
+        when(messageRepo.existsByTypeAndRelatedCourseIdAndSenderIdAndStatusNot(
+                "COURSE_REQUEST", 3L, 99L, "REJECTED")).thenReturn(false);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> messageService.sendCourseRequest(student, course, "x".repeat(201)));
+
+        assertEquals("申请理由不能超过200字", ex.getMessage());
+        verify(messageRepo, never()).save(any());
+    }
+
     private InternalMessage buildCourseRequestMessage(String status, Long recipientTeacherId) {
         InternalMessage msg = new InternalMessage();
         msg.setId(1L);
@@ -257,5 +307,13 @@ class MessageServiceRegressionTest {
         teacher.setName(name);
         teacher.setRole("TEACHER");
         return teacher;
+    }
+
+    private Student buildStudent(Long id, String name) {
+        Student student = new Student();
+        student.setId(id);
+        student.setName(name);
+        student.setSchool(new School());
+        return student;
     }
 }

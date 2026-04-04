@@ -36,6 +36,10 @@ public interface InternalMessageRepository extends JpaRepository<InternalMessage
     boolean existsByTypeAndRelatedCourseIdAndSenderIdAndStatusNot(
             String type, Long relatedCourseId, Long senderId, String status);
 
+    /** 某学生发出的课程申请（按时间倒序） */
+    List<InternalMessage> findByTypeAndSenderIdAndSenderTypeOrderBySentAtDesc(
+            String type, Long senderId, String senderType);
+
     /** 全校某类型消息（用于管理员导出） */
     List<InternalMessage> findBySchoolAndTypeOrderBySentAtDesc(School school, String type);
 }

@@ -1,5 +1,7 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.controller.api.AdminApiController;
+import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,8 @@ public class AdminController {
     private final SchoolService schoolService;
     private final CurrentUserService currentUserService;
     private final TeacherPermissionService teacherPermissionService;
+    private final SelectionEventService selectionEventService;
+    private final AdminApiController adminApiController;
 
     @ModelAttribute("currentSchool")
     public School currentSchool() {
@@ -50,6 +54,20 @@ public class AdminController {
         model.addAttribute("classCount", classService.findAll(school).size());
         model.addAttribute("gradeCount", gradeService.findAll(school).size());
         return "admin/dashboard";
+    }
+
+    @GetMapping("/course-selection-diagnostics")
+    public String courseSelectionDiagnostics(@RequestParam(required = false) Long eventId, Model model) {
+        School school = currentUserService.getCurrentSchool();
+        model.addAttribute("events", selectionEventService.findBySchool(school));
+        model.addAttribute("selectedEventId", eventId);
+        return "admin/course-selection-diagnostics";
+    }
+
+    @GetMapping("/course-selection-diagnostics/data")
+    @ResponseBody
+    public ApiResponse<Map<String, Object>> courseSelectionDiagnosticsData(@RequestParam(required = false) Long eventId) {
+        return adminApiController.courseSelectionDiagnostics(eventId);
     }
 
     // ===== 教师功能权限 =====

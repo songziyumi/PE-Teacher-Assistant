@@ -12,7 +12,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -76,7 +78,7 @@ public class MessageService {
         msg.setRecipientId(teacher.getId());
         msg.setRecipientName(teacher.getName());
         msg.setSubject("第三轮选课申请：" + course.getName());
-        msg.setContent(content);
+        msg.setContent(normalizeRequestContent(content));
         msg.setType("COURSE_REQUEST");
         msg.setRelatedCourseId(course.getId());
         msg.setRelatedCourseName(course.getName());
@@ -249,6 +251,31 @@ public class MessageService {
         return messageRepo.findByRecipientTypeAndRecipientIdOrderBySentAtDesc("STUDENT", student.getId());
     }
 
+    public Map<Long, InternalMessage> getLatestStudentCourseRequests(Student student, SelectionEvent event) {
+        if (student == null || student.getId() == null || event == null) {
+            return Map.of();
+        }
+        Set<Long> eventCourseIds = courseService.findByEvent(event).stream()
+                .map(Course::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (eventCourseIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, InternalMessage> latestRequestMap = new LinkedHashMap<>();
+        List<InternalMessage> requests = messageRepo.findByTypeAndSenderIdAndSenderTypeOrderBySentAtDesc(
+                "COURSE_REQUEST", student.getId(), "STUDENT");
+        for (InternalMessage request : requests) {
+            Long courseId = request.getRelatedCourseId();
+            if (courseId == null || !eventCourseIds.contains(courseId) || latestRequestMap.containsKey(courseId)) {
+                continue;
+            }
+            latestRequestMap.put(courseId, request);
+        }
+        return latestRequestMap;
+    }
+
     public InternalMessage getStudentMessageById(Student student, Long messageId) {
         InternalMessage msg = messageRepo.findById(messageId)
                 .orElseThrow(() -> new RuntimeException("消息不存在"));
@@ -399,6 +426,20 @@ public class MessageService {
             return null;
         }
         return trimmed.length() <= 500 ? trimmed : trimmed.substring(0, 500);
+    }
+
+    private String normalizeRequestContent(String content) {
+        if (content == null) {
+            return "";
+        }
+        String trimmed = content.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        if (trimmed.length() > 200) {
+            throw new RuntimeException("申请理由不能超过200字");
+        }
+        return trimmed;
     }
 
     private void saveRequestAudit(
