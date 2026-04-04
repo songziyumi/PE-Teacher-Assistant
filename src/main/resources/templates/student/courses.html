@@ -166,7 +166,7 @@
                 </div>
                 <div class="muted" th:if="${c.description != null and !c.description.isBlank()}" th:text="${c.description}"></div>
                 <div class="muted">
-                    课程人数现状：已选 <span th:text="${c.currentCount}"></span> / <span th:text="${c.totalCapacity}"></span>
+                    课程人数现状：已选 <span th:text="${confirmedCountMap[c.id]}"></span> / <span th:text="${c.totalCapacity}"></span>
                     ，当前可选剩余 <span th:text="${remainingMap[c.id]}"></span>
                 </div>
 

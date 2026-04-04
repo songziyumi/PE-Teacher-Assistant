@@ -10,7 +10,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -62,11 +64,13 @@ public class StudentCourseController {
                 if (!hasConfirmed) {
                     // 展示第三轮申请页面
                     List<Course> allCourses = courseService.findByEvent(closedEvent);
+                    Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(allCourses);
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", allCourses);
                     model.addAttribute("mySelections", mySelections);
                     model.addAttribute("student", student);
                     model.addAttribute("inRound3", true);
+                    model.addAttribute("confirmedCountMap", confirmedCountMap);
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
                     model.addAttribute("remainingMap",
@@ -81,6 +85,7 @@ public class StudentCourseController {
         }
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
+        Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(courses);
         List<CourseSelection> mySelections = courseService.findMySelections(student, event);
         boolean hasConfirmed = mySelections.stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
         boolean hasPref1 = mySelections.stream()
@@ -104,6 +109,7 @@ public class StudentCourseController {
         model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
         model.addAttribute("student", student);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
+        model.addAttribute("confirmedCountMap", confirmedCountMap);
         model.addAttribute("remainingMap",
                 courses.stream().collect(java.util.stream.Collectors.toMap(
                         Course::getId,
@@ -250,5 +256,13 @@ public class StudentCourseController {
             ra.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/student/courses";
+    }
+
+    private Map<Long, Integer> buildConfirmedCountMap(List<Course> courses) {
+        Map<Long, Integer> confirmedCountMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            confirmedCountMap.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
+        }
+        return confirmedCountMap;
     }
 }

@@ -403,12 +403,14 @@ public class StudentApiController {
 
     private Map<String, Object> toCourseMap(Course course, Student student) {
         Map<String, Object> result = new LinkedHashMap<>();
+        int confirmedCount = courseService.countConfirmedUniqueEnrollments(course);
         result.put("id", course.getId());
         result.put("name", course.getName());
         result.put("description", course.getDescription());
         result.put("teacherName", course.getTeacher() != null ? course.getTeacher().getName() : null);
         result.put("totalCapacity", course.getTotalCapacity());
-        result.put("currentCount", course.getCurrentCount());
+        result.put("currentCount", confirmedCount);
+        result.put("confirmedCount", confirmedCount);
         result.put("remaining", courseService.getRemainingCapacity(course, student));
         result.put("capacityMode", course.getCapacityMode());
         return result;
