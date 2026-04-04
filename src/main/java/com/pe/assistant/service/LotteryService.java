@@ -42,6 +42,7 @@ public class LotteryService {
     private final CourseClassCapacityRepository capacityRepo;
     private final CourseSelectionRepository selectionRepo;
     private final StudentNotificationService studentNotificationService;
+    private final StudentService studentService;
 
     @Async
     public void runLottery(Long eventId) {
@@ -196,6 +197,9 @@ public class LotteryService {
                 cs.setStatus("LOTTERY_FAIL");
             }
             selectionRepo.save(cs);
+            if ("CONFIRMED".equals(cs.getStatus())) {
+                studentService.assignElectiveClassFromCourse(cs.getStudent(), cs.getCourse());
+            }
         }
         return newlyConfirmedStudentIds;
     }

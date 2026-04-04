@@ -43,6 +43,8 @@ class SelectionEventServiceRegressionTest {
     private StudentAccountService studentAccountService;
     @Mock
     private LotteryService lotteryService;
+    @Mock
+    private StudentService studentService;
 
     @InjectMocks
     private SelectionEventService selectionEventService;
@@ -75,6 +77,21 @@ class SelectionEventServiceRegressionTest {
                 .map(relation -> relation.getStudent().getId())
                 .toList();
         assertEquals(List.of(101L, 102L), savedStudentIds);
+    }
+
+    @Test
+    void closeEventShouldSyncStudentElectiveClasses() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(2L);
+        event.setStatus("ROUND2");
+
+        when(eventRepo.findById(2L)).thenReturn(Optional.of(event));
+
+        selectionEventService.closeEvent(2L);
+
+        assertEquals("CLOSED", event.getStatus());
+        verify(eventRepo).save(event);
+        verify(studentService).syncElectiveClassesForEvent(event);
     }
 
     private Student buildStudent(Long id) {

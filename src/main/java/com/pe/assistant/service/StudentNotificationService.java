@@ -35,15 +35,33 @@ public class StudentNotificationService {
             subject = "第一轮选课结果：未中签";
             content = "第一轮选课结果已公布，您在第一轮暂未中签。"
                     + buildRound2ScheduleText(event)
-                    + "请按时参加第二轮抢课。";
+                    + "请按时参加第二轮抢课；如未参加，第二轮结束后系统会从仍有空余名额的课程中随机为您分配。";
         }
         return sendSystemMessage(resolveSchool(student, event), student, subject, content);
     }
 
     @Transactional
+    public InternalMessage notifyRound2AutoAssignment(SelectionEvent event, Student student, Course course) {
+        String subject = "第二轮结束提醒：已自动分配课程";
+        String content = "第二轮已结束，系统已为您随机分配到《"
+                + (course != null ? course.getName() : "课程")
+                + "》。请及时查看选课结果。";
+        return sendSystemMessage(resolveSchool(student, event), student, subject, content);
+    }
+
+    @Transactional
+    public InternalMessage notifyRound2ClosedWithoutCourse(SelectionEvent event, Student student) {
+        String subject = "第二轮结束提醒：暂未分配课程";
+        String content = "第二轮已结束，但当前没有可分配的剩余课程名额，您暂未被分配到课程。"
+                + "如需处理，请联系老师。";
+        return sendSystemMessage(resolveSchool(student, event), student, subject, content);
+    }
+
+    @Transactional
     public InternalMessage notifyDropSuccess(Student student, Course course, SelectionEvent event) {
-        String subject = "退课成功提醒：《" + (course != null ? course.getName() : "课程") + "》";
-        String content = "您已成功退掉《" + (course != null ? course.getName() : "该课程") + "》。"
+        String courseName = course != null ? course.getName() : "课程";
+        String subject = "退课成功提醒：《" + courseName + "》";
+        String content = "您已成功退掉《" + courseName + "》。"
                 + buildRound2ScheduleText(event)
                 + "如需重新选课，请按时参加第二轮抢课。";
         return sendSystemMessage(resolveSchool(student, event), student, subject, content);

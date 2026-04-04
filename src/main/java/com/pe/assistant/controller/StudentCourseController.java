@@ -1,5 +1,6 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.*;
@@ -170,6 +171,22 @@ public class StudentCourseController {
             ra.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/student/courses";
+    }
+
+    @PostMapping("/courses/{courseId}/select-ajax")
+    @ResponseBody
+    public ApiResponse<String> selectAjax(@PathVariable Long courseId) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent event = findActiveEvent(student);
+            if (event == null) {
+                return ApiResponse.error(400, "当前没有进行中的选课活动");
+            }
+            courseService.selectRound2(student, event.getId(), courseId);
+            return ApiResponse.ok("抢课成功！");
+        } catch (Exception e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
     }
 
     // ===== 我的选课 =====

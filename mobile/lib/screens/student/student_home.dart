@@ -394,7 +394,7 @@ class _StudentHomeState extends State<StudentHome> {
         return '您已拥有确认课程，可在下方查看各课程当前人数。';
       }
       if (_hasLotteryFail) {
-        return '第一轮未中签，可在下方查看课程人数和剩余名额后参加第二轮抢课。';
+        return '第一轮未中签，可在下方查看课程人数和剩余名额后参加第二轮抢课；如未参加，第二轮结束后系统会随机分配到仍有空余名额的课程。';
       }
       return '可在下方查看课程人数和剩余名额。';
     }

@@ -46,6 +46,8 @@ class CourseServiceDropCourseTest {
     private StudentRepository studentRepo;
     @Mock
     private StudentNotificationService studentNotificationService;
+    @Mock
+    private StudentService studentService;
 
     @InjectMocks
     private CourseService courseService;
@@ -66,6 +68,7 @@ class CourseServiceDropCourseTest {
         assertEquals("CANCELLED", selection.getStatus());
         assertEquals(1, course.getCurrentCount());
         verify(studentNotificationService).notifyDropSuccess(student, course, event);
+        verify(studentService).refreshElectiveClassFromConfirmedSelections(student);
     }
 
     @Test
