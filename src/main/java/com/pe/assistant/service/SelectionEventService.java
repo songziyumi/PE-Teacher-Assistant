@@ -38,6 +38,7 @@ public class SelectionEventService {
     private final StudentAccountService studentAccountService;
     private final LotteryService lotteryService;
     private final StudentService studentService;
+    private final CourseService courseService;
 
     public List<SelectionEvent> findBySchool(School school) {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(school);
@@ -193,6 +194,7 @@ public class SelectionEventService {
     @Transactional
     public void closeEvent(Long eventId) {
         SelectionEvent event = findById(eventId);
+        courseService.validateThirdRoundTeacherAssignments(event);
         event.setStatus("CLOSED");
         eventRepo.save(event);
         studentService.syncElectiveClassesForEvent(event);

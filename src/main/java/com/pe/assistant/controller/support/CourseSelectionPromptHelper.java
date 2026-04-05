@@ -15,6 +15,9 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("无权处理他人的申请")) {
             return "该申请不属于您负责的课程，无法处理";
         }
+        if (message.contains("UNAUTHORIZED_COURSE_REQUEST")) {
+            return "该申请不属于您负责的课程，无法处理";
+        }
         if (message.contains("该消息不是选课申请")) {
             return "当前记录不是选课申请，无法处理";
         }

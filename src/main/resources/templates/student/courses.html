@@ -302,7 +302,7 @@
         </div>
 
         <div th:if="${#lists.isEmpty(courses)}" class="panel" style="text-align:center;color:#666;">
-            暂无可选课程
+            <span th:text="${inRound3} ? '暂无可申请课程' : '暂无可选课程'">暂无可选课程</span>
         </div>
     </div>
 </div>

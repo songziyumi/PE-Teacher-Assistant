@@ -170,6 +170,7 @@ public class StudentApiController {
 
         Map<Long, InternalMessage> requestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
         List<Map<String, Object>> courses = courseService.findByEvent(closedEvent).stream()
+                .filter(course -> course.getTeacher() != null)
                 .map(course -> {
                     Map<String, Object> item = toCourseMap(course, student);
                     InternalMessage request = requestMap.get(course.getId());
@@ -419,6 +420,7 @@ public class StudentApiController {
         result.put("name", course.getName());
         result.put("description", course.getDescription());
         result.put("teacherName", course.getTeacher() != null ? course.getTeacher().getName() : null);
+        result.put("teacherAssigned", course.getTeacher() != null);
         result.put("totalCapacity", course.getTotalCapacity());
         result.put("currentCount", confirmedCount);
         result.put("confirmedCount", confirmedCount);

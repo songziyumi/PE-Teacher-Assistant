@@ -108,6 +108,7 @@ public class MessageService {
         }
         // 找到申请人和对应活动（通过课程关联）
         Course course = courseService.findById(msg.getRelatedCourseId());
+        validateTeacherOwnsCourseRequest(course, teacher);
         // 复用 adminEnroll 逻辑（内部处理容量检查和记录创建）
         courseService.adminEnroll(course.getId(), msg.getSenderId(), course.getEvent().getId());
         String beforeStatus = msg.getStatus();
@@ -154,6 +155,8 @@ public class MessageService {
         if (!teacher.getId().equals(msg.getRecipientId())) {
             throw new RuntimeException("无权处理他人的申请");
         }
+        Course course = courseService.findById(msg.getRelatedCourseId());
+        validateTeacherOwnsCourseRequest(course, teacher);
         String beforeStatus = msg.getStatus();
         String normalizedRemark = normalizeRemark(remark);
         LocalDateTime handledAt = LocalDateTime.now();
@@ -475,7 +478,16 @@ public class MessageService {
         if (courseNames == null || courseNames.isEmpty()) {
             return teacher.getName();
         }
-        return teacher.getName() + "（" + String.join("、", courseNames) + "）";
+        return teacher.getName() + "\uFF08" + String.join("\u3001", courseNames) + "\uFF09";
+    }
+
+    private void validateTeacherOwnsCourseRequest(Course course, Teacher teacher) {
+        if (course.getTeacher() == null || course.getTeacher().getId() == null) {
+            throw new RuntimeException("UNAUTHORIZED_COURSE_REQUEST");
+        }
+        if (!teacher.getId().equals(course.getTeacher().getId())) {
+            throw new RuntimeException("UNAUTHORIZED_COURSE_REQUEST");
+        }
     }
 
     public static final class TeacherMessageRecipient {

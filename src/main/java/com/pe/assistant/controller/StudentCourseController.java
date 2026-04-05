@@ -65,10 +65,13 @@ public class StudentCourseController {
                 if (!hasConfirmed) {
                     // 展示第三轮申请页面
                     List<Course> allCourses = courseService.findByEvent(closedEvent);
-                    Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(allCourses);
+                    List<Course> requestableCourses = allCourses.stream()
+                            .filter(course -> course.getTeacher() != null)
+                            .toList();
+                    Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(requestableCourses);
                     Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
                     model.addAttribute("event", closedEvent);
-                    model.addAttribute("courses", allCourses);
+                    model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
                     model.addAttribute("student", student);
                     model.addAttribute("inRound3", true);
@@ -77,7 +80,7 @@ public class StudentCourseController {
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
                     model.addAttribute("remainingMap",
-                            allCourses.stream().collect(java.util.stream.Collectors.toMap(
+                            requestableCourses.stream().collect(java.util.stream.Collectors.toMap(
                                     Course::getId,
                                     c -> courseService.getRemainingCapacity(c, student))));
                     return "student/courses";

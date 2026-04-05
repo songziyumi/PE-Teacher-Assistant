@@ -39,6 +39,20 @@ public class CourseService {
         return courseRepo.findByEventOrderByNameAsc(event);
     }
 
+    public void validateThirdRoundTeacherAssignments(SelectionEvent event) {
+        if (event == null) {
+            return;
+        }
+        List<String> unassignedCourseNames = findByEvent(event).stream()
+                .filter(course -> !"CLOSED".equals(course.getStatus()))
+                .filter(course -> course.getTeacher() == null || course.getTeacher().getId() == null)
+                .map(Course::getName)
+                .toList();
+        if (!unassignedCourseNames.isEmpty()) {
+            throw new IllegalStateException("以下课程尚未分配授课教师，暂不能进入第三轮：" + String.join("、", unassignedCourseNames));
+        }
+    }
+
     public Course findById(Long id) {
         return courseRepo.findById(id).orElseThrow(() -> new RuntimeException("课程不存在"));
     }
@@ -307,6 +321,7 @@ public class CourseService {
 
         log.info("courseSelection.round2.finalize.started eventId={} round2End={}", event.getId(), event.getRound2End());
         int assignedCount = autoAssignRound2Fallback(event);
+        validateThirdRoundTeacherAssignments(event);
         event.setStatus("CLOSED");
         event.setLotteryNote(assignedCount > 0
                 ? "Round2 closed, auto-assigned " + assignedCount + " students"
