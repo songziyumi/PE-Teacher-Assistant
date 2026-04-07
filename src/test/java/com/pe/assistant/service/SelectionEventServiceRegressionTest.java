@@ -1,6 +1,7 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.EventStudent;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
@@ -49,6 +50,8 @@ class SelectionEventServiceRegressionTest {
     private LotteryService lotteryService;
     @Mock
     private StudentService studentService;
+    @Mock
+    private CourseService courseService;
 
     @InjectMocks
     private SelectionEventService selectionEventService;
@@ -96,6 +99,30 @@ class SelectionEventServiceRegressionTest {
         assertEquals("CLOSED", event.getStatus());
         verify(eventRepo).save(event);
         verify(studentService).syncElectiveClassesForEvent(event);
+    }
+
+    @Test
+    void deleteShouldRemoveNonDraftEventAndRefreshAffectedStudents() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(6L);
+        event.setStatus("CLOSED");
+
+        Student student = buildStudent(201L);
+        CourseSelection selection = new CourseSelection();
+        selection.setEvent(event);
+        selection.setStudent(student);
+
+        when(eventRepo.findById(6L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
+        when(selectionRepo.findByEvent(event)).thenReturn(List.of(selection));
+        when(courseRepo.findByEventOrderByNameAsc(event)).thenReturn(List.of());
+
+        selectionEventService.delete(6L);
+
+        verify(selectionRepo).delete(selection);
+        verify(eventStudentRepo).deleteByEvent(event);
+        verify(eventRepo).delete(event);
+        verify(studentService).refreshElectiveClassFromConfirmedSelections(student);
     }
 
     @Test

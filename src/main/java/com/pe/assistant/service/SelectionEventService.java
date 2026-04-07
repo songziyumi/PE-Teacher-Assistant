@@ -2,11 +2,11 @@ package com.pe.assistant.service;
 
 import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.EventStudent;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
-import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
 import com.pe.assistant.repository.CourseRepository;
 import com.pe.assistant.repository.CourseSelectionRepository;
@@ -18,8 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,16 +56,20 @@ public class SelectionEventService {
     @Transactional
     public void delete(Long id) {
         SelectionEvent event = findById(id);
-        if (!"DRAFT".equals(event.getStatus())) {
-            throw new RuntimeException("只能删除草稿状态的活动");
+        Set<Student> affectedStudents = new LinkedHashSet<>(findEventStudents(event));
+        for (CourseSelection selection : selectionRepo.findByEvent(event)) {
+            if (selection.getStudent() != null) {
+                affectedStudents.add(selection.getStudent());
+            }
+            selectionRepo.delete(selection);
         }
-        selectionRepo.findByEventAndStatus(event, "PENDING").forEach(selectionRepo::delete);
         eventStudentRepo.deleteByEvent(event);
         courseRepo.findByEventOrderByNameAsc(event).forEach(course -> {
             capacityRepo.deleteByCourse(course);
             courseRepo.delete(course);
         });
         eventRepo.delete(event);
+        affectedStudents.forEach(studentService::refreshElectiveClassFromConfirmedSelections);
     }
 
     public List<Student> findEventStudents(SelectionEvent event) {
@@ -77,6 +81,16 @@ public class SelectionEventService {
             return studentRepo.findBySchoolOrderByStudentNo(event.getSchool());
         }
         return findEventStudents(event);
+    }
+
+    public boolean canStudentAccessEvent(SelectionEvent event, Student student) {
+        if (event == null || student == null) {
+            return false;
+        }
+        if (!eventStudentRepo.existsByEvent(event)) {
+            return true;
+        }
+        return eventStudentRepo.existsByEventAndStudent(event, student);
     }
 
     public Set<Long> findParticipatingClassIds(SelectionEvent event) {

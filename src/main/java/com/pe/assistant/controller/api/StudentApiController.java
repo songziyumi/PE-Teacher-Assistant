@@ -16,6 +16,7 @@ import com.pe.assistant.service.MessageService;
 import com.pe.assistant.service.SelectionEventService;
 import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/student")
+@Slf4j
 @RequiredArgsConstructor
 public class StudentApiController {
 
@@ -52,6 +54,7 @@ public class StudentApiController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
                 .findFirst()
                 .orElse(null);
     }
@@ -69,6 +72,19 @@ public class StudentApiController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> "CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private SelectionEvent findLatestEventWithSelections(Student student) {
+        if (student.getSchool() == null) {
+            return null;
+        }
+        return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
+                .stream()
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
+                .filter(e -> !courseService.findMySelections(student, e).isEmpty())
                 .findFirst()
                 .orElse(null);
     }
@@ -78,7 +94,11 @@ public class StudentApiController {
             return;
         }
         if (!LocalDateTime.now().isBefore(event.getRound2End())) {
-            courseService.finalizeEndedRound2Event(event.getId());
+            try {
+                courseService.finalizeEndedRound2Event(event.getId());
+            } catch (IllegalStateException ex) {
+                log.warn("学生端跳过第二轮自动收尾，eventId={} reason={}", event.getId(), ex.getMessage());
+            }
         }
     }
 
@@ -262,7 +282,13 @@ public class StudentApiController {
     @GetMapping("/my-selections")
     public ApiResponse<List<Map<String, Object>>> mySelections() {
         Student student = currentUserService.getCurrentStudent();
-        SelectionEvent event = findActiveEvent(student);
+        SelectionEvent event = findLatestEventWithSelections(student);
+        if (event == null) {
+            event = findActiveEvent(student);
+        }
+        if (event == null) {
+            event = findLatestClosedEvent(student);
+        }
         if (event == null) {
             return ApiResponse.ok(List.of());
         }

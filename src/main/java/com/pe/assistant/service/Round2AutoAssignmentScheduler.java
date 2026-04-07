@@ -20,6 +20,8 @@ public class Round2AutoAssignmentScheduler {
         for (SelectionEvent event : eventRepo.findByStatusOrderByCreatedAtAsc("ROUND2")) {
             try {
                 courseService.finalizeEndedRound2Event(event.getId());
+            } catch (IllegalStateException ex) {
+                log.warn("第二轮自动分配暂未完成，eventId={} reason={}", event.getId(), ex.getMessage());
             } catch (Exception ex) {
                 log.error("第二轮自动分配失败，eventId={}", event.getId(), ex);
             }

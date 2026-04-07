@@ -6,6 +6,7 @@ import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/student")
+@Slf4j
 @RequiredArgsConstructor
 public class StudentCourseController {
 
@@ -36,6 +38,7 @@ public class StudentCourseController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
                 .findFirst().orElse(null);
     }
 
@@ -45,6 +48,16 @@ public class StudentCourseController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> "CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
+                .findFirst().orElse(null);
+    }
+
+    private SelectionEvent findLatestEventWithSelections(Student student) {
+        if (student.getSchool() == null) return null;
+        return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
+                .stream()
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
+                .filter(e -> !courseService.findMySelections(student, e).isEmpty())
                 .findFirst().orElse(null);
     }
 
@@ -53,7 +66,18 @@ public class StudentCourseController {
     @GetMapping("/courses")
     public String courses(Model model) {
         Student student = currentUserService.getCurrentStudent();
-        SelectionEvent event = findActiveEvent(student);
+        model.addAttribute("student", student);
+        model.addAttribute("inRound1", false);
+        model.addAttribute("inRound2", false);
+        model.addAttribute("inRound3", false);
+        model.addAttribute("hasConfirmed", false);
+        model.addAttribute("hasPref1", false);
+        model.addAttribute("hasPref2", false);
+        model.addAttribute("round1SubmissionConfirmed", false);
+        model.addAttribute("mySelections", List.of());
+        model.addAttribute("courses", List.of());
+        try {
+            SelectionEvent event = findActiveEvent(student);
 
         // 如果无进行中活动，检查是否有关闭的活动（用于第三轮）
         if (event == null) {
@@ -73,7 +97,6 @@ public class StudentCourseController {
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
-                    model.addAttribute("student", student);
                     model.addAttribute("inRound3", true);
                     model.addAttribute("confirmedCountMap", confirmedCountMap);
                     model.addAttribute("round3RequestMap", round3RequestMap);
@@ -113,7 +136,6 @@ public class StudentCourseController {
         model.addAttribute("hasPref1", hasPref1);
         model.addAttribute("hasPref2", hasPref2);
         model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
-        model.addAttribute("student", student);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
         model.addAttribute("confirmedCountMap", confirmedCountMap);
         model.addAttribute("remainingMap",
@@ -121,6 +143,16 @@ public class StudentCourseController {
                         Course::getId,
                         c -> courseService.getRemainingCapacity(c, student))));
         return "student/courses";
+        } catch (Exception ex) {
+            log.error("student.courses.render.failed studentId={} schoolId={} message={}",
+                    student != null ? student.getId() : null,
+                    student != null && student.getSchool() != null ? student.getSchool().getId() : null,
+                    ex.getMessage(),
+                    ex);
+            model.addAttribute("noEvent", true);
+            model.addAttribute("error", "课程页加载失败，请刷新后重试");
+            return "student/courses";
+        }
     }
 
     // ===== 第一轮提交志愿 =====
@@ -206,7 +238,10 @@ public class StudentCourseController {
     @GetMapping("/my-courses")
     public String myCourses(Model model) {
         Student student = currentUserService.getCurrentStudent();
-        SelectionEvent event = findActiveEvent(student);
+        SelectionEvent event = findLatestEventWithSelections(student);
+        if (event == null) {
+            event = findActiveEvent(student);
+        }
         // 若无进行中活动，尝试取最近的关闭活动（展示历史选课结果）
         if (event == null) {
             event = findLatestClosedEvent(student);

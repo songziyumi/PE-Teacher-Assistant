@@ -64,6 +64,7 @@ class StudentApiControllerRegressionTest {
 
         when(currentUserService.getCurrentStudent()).thenReturn(student);
         when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(closedEvent));
+        when(eventService.canStudentAccessEvent(closedEvent, student)).thenReturn(true);
         when(courseService.findMySelections(student, closedEvent)).thenReturn(List.of());
         when(courseService.findById(21L)).thenReturn(course);
         doThrow(new RuntimeException("您已经对该课程发送过申请，请等待教师处理"))
@@ -89,6 +90,7 @@ class StudentApiControllerRegressionTest {
 
         when(currentUserService.getCurrentStudent()).thenReturn(student);
         when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(closedEvent));
+        when(eventService.canStudentAccessEvent(closedEvent, student)).thenReturn(true);
         when(courseService.findMySelections(student, closedEvent)).thenReturn(List.of());
         when(messageService.getLatestStudentCourseRequests(student, closedEvent)).thenReturn(Map.of(22L, request));
         when(courseService.findByEvent(closedEvent)).thenReturn(List.of(course));
@@ -113,6 +115,7 @@ class StudentApiControllerRegressionTest {
 
         when(currentUserService.getCurrentStudent()).thenReturn(student);
         when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(closedEvent));
+        when(eventService.canStudentAccessEvent(closedEvent, student)).thenReturn(true);
         when(courseService.findMySelections(student, closedEvent)).thenReturn(List.of());
         when(courseService.findById(23L)).thenReturn(course);
         doThrow(new RuntimeException("该课程暂未指定授课教师，无法发送申请"))
@@ -124,6 +127,88 @@ class StudentApiControllerRegressionTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("当前课程暂未分配教师，暂时无法提交申请"));
+    }
+
+    @Test
+    void mySelectionsShouldReturnEmptyWhenStudentCannotAccessActiveEvent() throws Exception {
+        Student student = buildStudent();
+        SelectionEvent activeEvent = new SelectionEvent();
+        activeEvent.setId(14L);
+        activeEvent.setSchool(student.getSchool());
+        activeEvent.setName("2026 鏄ュ閫夎");
+        activeEvent.setStatus("ROUND2");
+
+        when(currentUserService.getCurrentStudent()).thenReturn(student);
+        when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(activeEvent));
+        when(eventService.canStudentAccessEvent(activeEvent, student)).thenReturn(false);
+
+        mockMvc.perform(get("/api/student/my-selections"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void currentEventShouldIgnoreFinalizeBlockWhenTeachersAreUnassigned() throws Exception {
+        Student student = buildStudent();
+        SelectionEvent activeEvent = new SelectionEvent();
+        activeEvent.setId(15L);
+        activeEvent.setSchool(student.getSchool());
+        activeEvent.setName("2026 鏄ュ閫夎");
+        activeEvent.setStatus("ROUND2");
+        activeEvent.setRound2End(java.time.LocalDateTime.now().minusMinutes(1));
+
+        when(currentUserService.getCurrentStudent()).thenReturn(student);
+        when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(activeEvent));
+        when(eventService.canStudentAccessEvent(activeEvent, student)).thenReturn(true);
+        doThrow(new IllegalStateException("以下课程尚未分配授课教师"))
+                .when(courseService).finalizeEndedRound2Event(15L);
+        when(courseService.findMySelections(student, activeEvent)).thenReturn(List.of());
+        when(eventService.isInRound1(activeEvent)).thenReturn(false);
+        when(eventService.isInRound2(activeEvent)).thenReturn(false);
+
+        mockMvc.perform(get("/api/student/events/current"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.id").value(15))
+                .andExpect(jsonPath("$.data.status").value("ROUND2"));
+    }
+
+    @Test
+    void mySelectionsShouldUseLatestEventThatHasSelections() throws Exception {
+        Student student = buildStudent();
+        SelectionEvent activeEvent = new SelectionEvent();
+        activeEvent.setId(16L);
+        activeEvent.setSchool(student.getSchool());
+        activeEvent.setName("2026 秋季选课");
+        activeEvent.setStatus("ROUND1");
+
+        SelectionEvent closedEvent = buildClosedEvent(student.getSchool(), 17L);
+        Course course = buildCourse(closedEvent, 24L, "篮球");
+        CourseSelection selection = new CourseSelection();
+        selection.setId(25L);
+        selection.setEvent(closedEvent);
+        selection.setCourse(course);
+        selection.setStudent(student);
+        selection.setPreference(0);
+        selection.setRound(0);
+        selection.setStatus("CONFIRMED");
+
+        when(currentUserService.getCurrentStudent()).thenReturn(student);
+        when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(activeEvent, closedEvent));
+        when(eventService.canStudentAccessEvent(activeEvent, student)).thenReturn(true);
+        when(eventService.canStudentAccessEvent(closedEvent, student)).thenReturn(true);
+        when(courseService.findMySelections(student, activeEvent)).thenReturn(List.of());
+        when(courseService.findMySelections(student, closedEvent)).thenReturn(List.of(selection));
+        when(courseService.canDropSelection(selection)).thenReturn(false);
+
+        mockMvc.perform(get("/api/student/my-selections"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].courseId").value(24))
+                .andExpect(jsonPath("$.data[0].courseName").value("篮球"))
+                .andExpect(jsonPath("$.data[0].status").value("CONFIRMED"));
     }
 
     private Student buildStudent() {

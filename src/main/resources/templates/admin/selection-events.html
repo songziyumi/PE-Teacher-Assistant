@@ -65,10 +65,10 @@
             <h3 th:text="${event.name}"></h3>
             <div class="event-meta">
                 第一轮：<span th:text="${event.round1Start != null ? #temporals.format(event.round1Start,'MM-dd HH:mm') : '未设置'}"></span>
-                ～ <span th:text="${event.round1End != null ? #temporals.format(event.round1End,'MM-dd HH:mm') : '未设置'}"></span>
+                ~<span th:text="${event.round1End != null ? #temporals.format(event.round1End,'MM-dd HH:mm') : '未设置'}"></span>
                 &nbsp;|&nbsp;
                 第二轮：<span th:text="${event.round2Start != null ? #temporals.format(event.round2Start,'MM-dd HH:mm') : '未设置'}"></span>
-                ～ <span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
+                ~<span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
             </div>
             <div class="event-meta" th:if="${event.status == 'ROUND1' and event.round1End != null}" style="margin-top:4px;">
                 自动抽签：<span th:text="${#temporals.format(event.round1End.plusMinutes(5),'MM-dd HH:mm')}"></span>
@@ -98,14 +98,10 @@
                         th:data-r2s="${event.round2Start}"
                         th:data-r2e="${event.round2End}">编辑</button>
                 <form th:action="@{/admin/courses/events/{id}/delete(id=${event.id})}" method="post" style="display:inline"
-                      onsubmit="return confirm('确认删除此活动？')">
+                      onsubmit="return confirm('确认删除这个选课活动吗？此操作会同时删除课程、参与名单、志愿/选课记录，且不可恢复。')">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                     <button type="submit" class="btn btn-danger btn-sm">删除</button>
                 </form>
-                <span th:if="${event.status != 'DRAFT'}"
-                      style="display:inline-block;margin-left:4px;font-size:.74rem;color:#6b7280;">
-                    仅草稿活动可删除
-                </span>
             </div>
         </div>
     </div>
