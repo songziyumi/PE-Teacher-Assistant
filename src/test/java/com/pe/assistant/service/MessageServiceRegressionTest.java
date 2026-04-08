@@ -82,6 +82,7 @@ class MessageServiceRegressionTest {
         Teacher teacher = buildTeacher(10L, "Teacher-A");
         Course course = new Course();
         course.setId(3L);
+        course.setTeacher(teacher);
         SelectionEvent event = new SelectionEvent();
         event.setId(4L);
         course.setEvent(event);
@@ -117,8 +118,12 @@ class MessageServiceRegressionTest {
         InternalMessage msgLong = buildCourseRequestMessage("PENDING", 10L);
         msgLong.setId(2L);
         Teacher teacher = buildTeacher(10L, "Teacher-A");
+        Course course = new Course();
+        course.setId(3L);
+        course.setTeacher(teacher);
         when(messageRepo.findById(1L)).thenReturn(Optional.of(msgBlank));
         when(messageRepo.findById(2L)).thenReturn(Optional.of(msgLong));
+        when(courseService.findById(3L)).thenReturn(course);
         when(messageRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         messageService.rejectRequest(1L, teacher, "   ");

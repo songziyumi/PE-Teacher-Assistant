@@ -604,6 +604,91 @@ class CourseServiceRegressionTest {
         verify(studentNotificationService).notifyRound2ClosedWithoutCourse(event, student);
     }
 
+    @Test
+    void adminEnrollShouldNotifyStudentWhenForceOverflowEnabled() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+
+        Student student = buildStudent(100L);
+        Course course = new Course();
+        course.setId(10L);
+        course.setEvent(event);
+        course.setCapacityMode("GLOBAL");
+        course.setCurrentCount(56);
+        course.setTotalCapacity(56);
+
+        Course lockedCourse = new Course();
+        lockedCourse.setId(10L);
+        lockedCourse.setEvent(event);
+        lockedCourse.setCapacityMode("GLOBAL");
+        lockedCourse.setCurrentCount(56);
+        lockedCourse.setTotalCapacity(56);
+
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(studentRepo.findById(100L)).thenReturn(Optional.of(student));
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findByIdForUpdate(10L)).thenReturn(Optional.of(lockedCourse));
+
+        courseService.adminEnroll(10L, 100L, 1L, true);
+
+        assertEquals(57, lockedCourse.getCurrentCount());
+        verify(selectionRepo).save(any(CourseSelection.class));
+        verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(studentNotificationService).notifyAdminEnrollSuccess(student, course, event, true);
+    }
+
+    @Test
+    void adminEnrollShouldReuseCancelledAdminSelection() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+
+        Student student = buildStudent(100L);
+        Course course = new Course();
+        course.setId(10L);
+        course.setEvent(event);
+        course.setCapacityMode("GLOBAL");
+        course.setCurrentCount(1);
+        course.setTotalCapacity(10);
+
+        Course lockedCourse = new Course();
+        lockedCourse.setId(10L);
+        lockedCourse.setEvent(event);
+        lockedCourse.setCapacityMode("GLOBAL");
+        lockedCourse.setCurrentCount(1);
+        lockedCourse.setTotalCapacity(10);
+
+        CourseSelection cancelledSelection = new CourseSelection();
+        cancelledSelection.setId(88L);
+        cancelledSelection.setEvent(event);
+        cancelledSelection.setStudent(student);
+        cancelledSelection.setCourse(course);
+        cancelledSelection.setPreference(0);
+        cancelledSelection.setRound(0);
+        cancelledSelection.setStatus("CANCELLED");
+
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(studentRepo.findById(100L)).thenReturn(Optional.of(student));
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findByIdForUpdate(10L)).thenReturn(Optional.of(lockedCourse));
+        when(selectionRepo.findByEventAndStudentAndPreference(event, student, 0))
+                .thenReturn(Optional.of(cancelledSelection));
+
+        courseService.adminEnroll(10L, 100L, 1L, false);
+
+        assertSame(course, cancelledSelection.getCourse());
+        assertEquals("CONFIRMED", cancelledSelection.getStatus());
+        assertEquals(0, cancelledSelection.getPreference());
+        assertEquals(0, cancelledSelection.getRound());
+        assertNotNull(cancelledSelection.getSelectedAt());
+        assertNotNull(cancelledSelection.getConfirmedAt());
+        assertEquals(2, lockedCourse.getCurrentCount());
+        verify(selectionRepo).save(argThat(selection -> selection == cancelledSelection));
+        verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(studentNotificationService).notifyAdminEnrollSuccess(student, course, event, false);
+    }
+
     private Student buildStudent(Long id) {
         Student student = new Student();
         student.setId(id);

@@ -520,7 +520,9 @@ public class CourseService {
         if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
             throw new RuntimeException("该学生已有确认的选课记录");
         }
-        CourseSelection cs = new CourseSelection();
+        reserveCapacityForAdminEnroll(course, student, forceOverflow);
+        CourseSelection cs = selectionRepo.findByEventAndStudentAndPreference(event, student, 0)
+                .orElseGet(CourseSelection::new);
         cs.setEvent(event);
         cs.setCourse(course);
         cs.setStudent(student);
@@ -529,9 +531,9 @@ public class CourseService {
         cs.setStatus("CONFIRMED");
         cs.setSelectedAt(LocalDateTime.now());
         cs.setConfirmedAt(LocalDateTime.now());
-        reserveCapacityForAdminEnroll(course, student, forceOverflow);
         selectionRepo.save(cs);
         studentService.assignElectiveClassFromCourse(student, course);
+        studentNotificationService.notifyAdminEnrollSuccess(student, course, event, forceOverflow);
     }
 
     private void reserveCapacityForAdminEnroll(Course course, Student student, boolean forceOverflow) {
@@ -572,11 +574,32 @@ public class CourseService {
         CourseSelection cs = selectionRepo.findById(selectionId)
                 .orElseThrow(() -> new RuntimeException("选课记录不存在"));
         cs.setStatus("CANCELLED");
+        cs.setConfirmedAt(null);
         selectionRepo.save(cs);
-        Course course = cs.getCourse();
+        releaseCapacityForAdminDrop(cs);
+        studentService.refreshElectiveClassFromConfirmedSelections(cs.getStudent());
+    }
+
+    private void releaseCapacityForAdminDrop(CourseSelection selection) {
+        Course course = courseRepo.findByIdForUpdate(selection.getCourse().getId())
+                .orElseThrow(() -> new RuntimeException("课程不存在"));
         course.setCurrentCount(Math.max(0, course.getCurrentCount() - 1));
         courseRepo.save(course);
-        studentService.refreshElectiveClassFromConfirmedSelections(cs.getStudent());
+
+        if (!"PER_CLASS".equals(course.getCapacityMode())) {
+            return;
+        }
+
+        Student student = selection.getStudent();
+        SchoolClass schoolClass = student.getSchoolClass();
+        if (schoolClass == null) {
+            return;
+        }
+        capacityRepo.findByCourseIdAndClassIdForUpdate(course.getId(), schoolClass.getId())
+                .ifPresent(capacity -> {
+                    capacity.setCurrentCount(Math.max(0, capacity.getCurrentCount() - 1));
+                    capacityRepo.save(capacity);
+                });
     }
 
     // ===== 报名名单 =====
