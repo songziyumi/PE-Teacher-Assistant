@@ -15,13 +15,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -141,6 +145,29 @@ class StudentCourseControllerRegressionTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("student/courses"))
                 .andExpect(model().attribute("inRound3", true));
+    }
+
+    @Test
+    void requestAjaxShouldReturnJsonForWebRound3Submission() throws Exception {
+        Student student = buildStudent();
+        SelectionEvent closedEvent = buildEvent(15L, student.getSchool(), "CLOSED");
+        Course course = new Course();
+        course.setId(61L);
+        course.setName("篮球");
+        course.setEvent(closedEvent);
+
+        when(currentUserService.getCurrentStudent()).thenReturn(student);
+        when(selectionEventRepository.findBySchoolOrderByCreatedAtDesc(student.getSchool())).thenReturn(List.of(closedEvent));
+        when(eventService.canStudentAccessEvent(closedEvent, student)).thenReturn(true);
+        when(courseService.findMySelections(student, closedEvent)).thenReturn(List.of());
+        when(courseService.findById(61L)).thenReturn(course);
+
+                mockMvc.perform(post("/student/courses/61/request-ajax")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"网页端第三轮申请\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").value("申请已发送，请等待教师处理"));
     }
 
     private Student buildStudent() {

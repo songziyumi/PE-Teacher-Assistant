@@ -271,7 +271,7 @@
 
                     <form th:if="${c.teacher != null}"
                           th:action="@{/student/courses/{id}/request(id=${c.id})}"
-                          th:attr="data-ajax-action=@{/api/student/courses/{id}/request(id=${c.id})},data-course-name=${c.name}"
+                          th:attr="data-ajax-action=@{/student/courses/{id}/request-ajax(id=${c.id})},data-course-name=${c.name}"
                           method="post"
                           class="round3-request-form">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -493,7 +493,7 @@ if (round2SelectForms.length > 0) {
                     body: new URLSearchParams({ _csrf: csrfToken }).toString()
                 });
                 const payload = await response.json().catch(() => null);
-                if (!response.ok || !payload) {
+                if (!payload) {
                     throw new Error('网络繁忙，请稍后重试');
                 }
                 if (payload.code === 200) {
@@ -575,7 +575,7 @@ if (round3RequestForms.length > 0) {
                     throw new Error('网络繁忙，请稍后重试');
                 }
                 if (payload.code === 200) {
-                    const successMessage = payload.message || `已向《${courseName}》教师提交申请`;
+                    const successMessage = payload.data || payload.message || `已向《${courseName}》教师提交申请`;
                     setRound3Feedback(feedback, 'success', successMessage);
                     showAjaxFeedback('success', successMessage);
                     updateRound3Meta(form, 'PENDING', requestContent, '');

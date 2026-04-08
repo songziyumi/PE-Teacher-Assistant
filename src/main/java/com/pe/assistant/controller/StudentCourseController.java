@@ -299,6 +299,37 @@ public class StudentCourseController {
         return "redirect:/student/courses";
     }
 
+    @PostMapping("/courses/{courseId}/request-ajax")
+    @ResponseBody
+    public ApiResponse<String> sendCourseRequestAjax(@PathVariable Long courseId,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent closedEvent = findLatestClosedEvent(student);
+            if (closedEvent == null) {
+                return ApiResponse.error(400, "当前没有可申请的选课活动");
+            }
+            boolean hasConfirmed = courseService.findMySelections(student, closedEvent)
+                    .stream()
+                    .anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
+            if (hasConfirmed) {
+                return ApiResponse.error(400, "您已有确认的选课，无需申请");
+            }
+            Course course = courseService.findById(courseId);
+            if (course.getEvent() == null || !course.getEvent().getId().equals(closedEvent.getId())) {
+                return ApiResponse.error(400, "该课程不属于当前活动");
+            }
+
+            String content = body != null && body.get("content") != null
+                    ? String.valueOf(body.get("content"))
+                    : "";
+            messageService.sendCourseRequest(student, course, content);
+            return ApiResponse.ok("申请已发送，请等待教师处理");
+        } catch (Exception e) {
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
+        }
+    }
+
     private Map<Long, Integer> buildConfirmedCountMap(List<Course> courses) {
         Map<Long, Integer> confirmedCountMap = new LinkedHashMap<>();
         for (Course course : courses) {
