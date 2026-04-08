@@ -208,9 +208,9 @@ public class StudentCourseController {
         try {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent event = findActiveEvent(student);
-            if (event == null) throw new RuntimeException("当前没有进行中的选课活动");
+            if (event == null) throw new RuntimeException("\u5f53\u524d\u6ca1\u6709\u8fdb\u884c\u4e2d\u7684\u9009\u8bfe\u6d3b\u52a8");
             courseService.selectRound2(student, event.getId(), courseId);
-            ra.addFlashAttribute("success", "抢课成功！");
+            ra.addFlashAttribute("success", "\u62a2\u8bfe\u6210\u529f\uff01");
         } catch (Exception e) {
             ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
@@ -224,10 +224,10 @@ public class StudentCourseController {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent event = findActiveEvent(student);
             if (event == null) {
-                return ApiResponse.error(400, "当前没有进行中的选课活动");
+                return ApiResponse.error(400, "\u5f53\u524d\u6ca1\u6709\u8fdb\u884c\u4e2d\u7684\u9009\u8bfe\u6d3b\u52a8");
             }
             courseService.selectRound2(student, event.getId(), courseId);
-            return ApiResponse.ok("抢课成功！");
+            return ApiResponse.ok("\u62a2\u8bfe\u6210\u529f\uff01");
         } catch (Exception e) {
             return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
@@ -266,7 +266,7 @@ public class StudentCourseController {
         try {
             Student student = currentUserService.getCurrentStudent();
             courseService.dropCourse(student, selectionId);
-            ra.addFlashAttribute("success", "退课成功");
+            ra.addFlashAttribute("success", "\u9000\u8bfe\u6210\u529f");
         } catch (Exception e) {
             ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }

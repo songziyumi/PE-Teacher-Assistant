@@ -12,10 +12,7 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("申请已处理") || message.contains("请求已处理")) {
             return "该申请已被处理，请刷新审批列表后再试";
         }
-        if (message.contains("无权处理他人的申请")) {
-            return "该申请不属于您负责的课程，无法处理";
-        }
-        if (message.contains("UNAUTHORIZED_COURSE_REQUEST")) {
+        if (message.contains("无权处理他人的申请") || message.contains("UNAUTHORIZED_COURSE_REQUEST")) {
             return "该申请不属于您负责的课程，无法处理";
         }
         if (message.contains("该消息不是选课申请")) {
@@ -110,7 +107,7 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("只能退已确认的课程")) {
             return "仅已确认的课程支持退课";
         }
-        if (message.contains("第一轮已确认课程在第二轮期间退课")) {
+        if (message.contains("当前仅支持第一轮已确认课程在第二轮期间退课")) {
             return "当前仅支持第一轮已确认课程在第二轮期间退课";
         }
         return message;

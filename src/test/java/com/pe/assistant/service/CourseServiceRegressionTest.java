@@ -319,7 +319,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("第二轮选课尚未开始", ex.getMessage());
+        assertEquals("\u7b2c\u4e8c\u8f6e\u9009\u8bfe\u5c1a\u672a\u5f00\u59cb", ex.getMessage());
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
         verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
     }
@@ -339,7 +339,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("您不在本次选课活动的参与名单中", ex.getMessage());
+        assertEquals("\u60a8\u4e0d\u5728\u672c\u6b21\u9009\u8bfe\u6d3b\u52a8\u7684\u53c2\u4e0e\u540d\u5355\u4e2d", ex.getMessage());
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
         verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
     }
@@ -359,7 +359,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("您已成功选课，无需再次抢课", ex.getMessage());
+        assertEquals("\u60a8\u5df2\u6210\u529f\u9009\u8bfe\uff0c\u65e0\u9700\u518d\u6b21\u62a2\u8bfe", ex.getMessage());
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
     }
 
@@ -384,7 +384,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("您未分配行政班，无法参与按班名额的课程", ex.getMessage());
+        assertEquals("\u60a8\u672a\u5206\u914d\u884c\u653f\u73ed\uff0c\u65e0\u6cd5\u53c2\u4e0e\u6309\u73ed\u540d\u989d\u7684\u8bfe\u7a0b", ex.getMessage());
         verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
     }
@@ -415,7 +415,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("您的班级没有该课程的名额配置", ex.getMessage());
+        assertEquals("\u60a8\u7684\u73ed\u7ea7\u6ca1\u6709\u8be5\u8bfe\u7a0b\u7684\u540d\u989d\u914d\u7f6e", ex.getMessage());
         verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
     }
@@ -451,7 +451,7 @@ class CourseServiceRegressionTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> courseService.selectRound2(student, 1L, 10L));
 
-        assertEquals("您班级的该课程名额已满，请选择其他课程", ex.getMessage());
+        assertEquals("\u60a8\u73ed\u7ea7\u7684\u8be5\u8bfe\u7a0b\u540d\u989d\u5df2\u6ee1\uff0c\u8bf7\u9009\u62e9\u5176\u4ed6\u8bfe\u7a0b", ex.getMessage());
         verify(courseRepo, never()).incrementCurrentCount(10L);
         verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
     }

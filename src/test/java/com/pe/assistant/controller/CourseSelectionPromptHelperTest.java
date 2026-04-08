@@ -9,35 +9,35 @@ class CourseSelectionPromptHelperTest {
 
     @Test
     void shouldNormalizeTeacherPrompts() {
-        assertEquals("该申请已被处理，请刷新审批列表后再试",
-                CourseSelectionPromptHelper.normalizeTeacherPrompt("申请已处理，无法重复操作"));
-        assertEquals("该申请不属于您负责的课程，无法处理",
-                CourseSelectionPromptHelper.normalizeTeacherPrompt("无权处理他人的申请"));
-        assertEquals("审批记录不存在或已被删除，请刷新后重试",
-                CourseSelectionPromptHelper.normalizeTeacherPrompt("消息不存在"));
+        assertEquals("\u8be5\u7533\u8bf7\u5df2\u88ab\u5904\u7406\uff0c\u8bf7\u5237\u65b0\u5ba1\u6279\u5217\u8868\u540e\u518d\u8bd5",
+                CourseSelectionPromptHelper.normalizeTeacherPrompt("\u7533\u8bf7\u5df2\u5904\u7406\uff0c\u65e0\u6cd5\u91cd\u590d\u64cd\u4f5c"));
+        assertEquals("\u8be5\u7533\u8bf7\u4e0d\u5c5e\u4e8e\u60a8\u8d1f\u8d23\u7684\u8bfe\u7a0b\uff0c\u65e0\u6cd5\u5904\u7406",
+                CourseSelectionPromptHelper.normalizeTeacherPrompt("\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7"));
+        assertEquals("\u5ba1\u6279\u8bb0\u5f55\u4e0d\u5b58\u5728\u6216\u5df2\u88ab\u5220\u9664\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5",
+                CourseSelectionPromptHelper.normalizeTeacherPrompt("\u6d88\u606f\u4e0d\u5b58\u5728"));
     }
 
     @Test
     void shouldNormalizeAdminPrompts() {
-        assertEquals("课程名额已满；如需超编，请勾选“强制超编”并填写原因",
-                CourseSelectionPromptHelper.normalizeAdminPrompt("课程总名额已满"));
-        assertEquals("该学生未分配行政班，无法加入按班名额课程",
-                CourseSelectionPromptHelper.normalizeAdminPrompt("学生未分配行政班"));
-        assertEquals("勾选强制超编后，必须填写超编原因",
-                CourseSelectionPromptHelper.normalizeAdminPrompt("强制超编时必须填写原因"));
+        assertEquals("\u8bfe\u7a0b\u540d\u989d\u5df2\u6ee1\uff1b\u5982\u9700\u8d85\u7f16\uff0c\u8bf7\u52fe\u9009\u201c\u5f3a\u5236\u8d85\u7f16\u201d\u5e76\u586b\u5199\u539f\u56e0",
+                CourseSelectionPromptHelper.normalizeAdminPrompt("\u8bfe\u7a0b\u603b\u540d\u989d\u5df2\u6ee1"));
+        assertEquals("\u8be5\u5b66\u751f\u672a\u5206\u914d\u884c\u653f\u73ed\uff0c\u65e0\u6cd5\u52a0\u5165\u6309\u73ed\u540d\u989d\u8bfe\u7a0b",
+                CourseSelectionPromptHelper.normalizeAdminPrompt("\u5b66\u751f\u672a\u5206\u914d\u884c\u653f\u73ed"));
+        assertEquals("\u52fe\u9009\u5f3a\u5236\u8d85\u7f16\u540e\uff0c\u5fc5\u987b\u586b\u5199\u8d85\u7f16\u539f\u56e0",
+                CourseSelectionPromptHelper.normalizeAdminPrompt("\u5f3a\u5236\u8d85\u7f16\u65f6\u5fc5\u987b\u586b\u5199\u539f\u56e0"));
     }
 
     @Test
     void shouldNormalizeStudentPrompts() {
-        assertEquals("您已提交过该课程申请，请等待教师处理",
-                CourseSelectionPromptHelper.normalizeStudentPrompt("您已经对该课程发送过申请，请等待教师处理"));
-        assertEquals("当前课程暂未分配教师，暂时无法提交申请",
-                CourseSelectionPromptHelper.normalizeStudentPrompt("该课程暂未指定授课教师，无法发送申请"));
-        assertEquals("申请理由不能超过 200 字",
-                CourseSelectionPromptHelper.normalizeStudentPrompt("申请理由不能超过200字"));
-        assertEquals("仅已确认的课程支持退课",
-                CourseSelectionPromptHelper.normalizeStudentPrompt("只能退已确认的课程"));
-        assertEquals("当前仅支持第一轮已确认课程在第二轮期间退课",
-                CourseSelectionPromptHelper.normalizeStudentPrompt("当前仅支持第一轮已确认课程在第二轮期间退课"));
+        assertEquals("\u60a8\u5df2\u63d0\u4ea4\u8fc7\u8be5\u8bfe\u7a0b\u7533\u8bf7\uff0c\u8bf7\u7b49\u5f85\u6559\u5e08\u5904\u7406",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u60a8\u5df2\u7ecf\u5bf9\u8be5\u8bfe\u7a0b\u53d1\u9001\u8fc7\u7533\u8bf7\uff0c\u8bf7\u7b49\u5f85\u6559\u5e08\u5904\u7406"));
+        assertEquals("\u5f53\u524d\u8bfe\u7a0b\u6682\u672a\u5206\u914d\u6559\u5e08\uff0c\u6682\u65f6\u65e0\u6cd5\u63d0\u4ea4\u7533\u8bf7",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u8be5\u8bfe\u7a0b\u6682\u672a\u6307\u5b9a\u6388\u8bfe\u6559\u5e08\uff0c\u65e0\u6cd5\u53d1\u9001\u7533\u8bf7"));
+        assertEquals("\u7533\u8bf7\u7406\u7531\u4e0d\u80fd\u8d85\u8fc7 200 \u5b57",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u7533\u8bf7\u7406\u7531\u4e0d\u80fd\u8d85\u8fc7200\u5b57"));
+        assertEquals("\u4ec5\u5df2\u786e\u8ba4\u7684\u8bfe\u7a0b\u652f\u6301\u9000\u8bfe",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u53ea\u80fd\u9000\u5df2\u786e\u8ba4\u7684\u8bfe\u7a0b"));
+        assertEquals("\u5f53\u524d\u4ec5\u652f\u6301\u7b2c\u4e00\u8f6e\u5df2\u786e\u8ba4\u8bfe\u7a0b\u5728\u7b2c\u4e8c\u8f6e\u671f\u95f4\u9000\u8bfe",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u5f53\u524d\u4ec5\u652f\u6301\u7b2c\u4e00\u8f6e\u5df2\u786e\u8ba4\u8bfe\u7a0b\u5728\u7b2c\u4e8c\u8f6e\u671f\u95f4\u9000\u8bfe"));
     }
 }

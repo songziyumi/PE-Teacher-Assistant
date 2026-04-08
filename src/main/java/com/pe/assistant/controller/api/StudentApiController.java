@@ -259,10 +259,10 @@ public class StudentApiController {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent event = findActiveEvent(student);
             if (event == null) {
-                return ApiResponse.error(400, "当前没有进行中的选课活动");
+                return ApiResponse.error(400, "\u5f53\u524d\u6ca1\u6709\u8fdb\u884c\u4e2d\u7684\u9009\u8bfe\u6d3b\u52a8");
             }
             courseService.selectRound2(student, event.getId(), courseId);
-            return ApiResponse.ok("抢课成功");
+            return ApiResponse.ok("\u62a2\u8bfe\u6210\u529f");
         } catch (Exception e) {
             return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
@@ -273,7 +273,7 @@ public class StudentApiController {
         try {
             Student student = currentUserService.getCurrentStudent();
             courseService.dropCourse(student, selectionId);
-            return ApiResponse.ok("退课成功");
+            return ApiResponse.ok("\u9000\u8bfe\u6210\u529f");
         } catch (Exception e) {
             return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
