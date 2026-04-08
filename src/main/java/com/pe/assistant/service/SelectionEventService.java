@@ -242,4 +242,13 @@ public class SelectionEventService {
                 && now.isAfter(event.getRound2Start())
                 && now.isBefore(event.getRound2End());
     }
+
+    public boolean isInRound3(SelectionEvent event) {
+        LocalDateTime now = LocalDateTime.now();
+        return "CLOSED".equals(event.getStatus())
+                && event.getRound3Start() != null
+                && event.getRound3End() != null
+                && !now.isBefore(event.getRound3Start())
+                && now.isBefore(event.getRound3End());
+    }
 }

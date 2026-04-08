@@ -38,6 +38,15 @@
         .summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px; }
         .summary-card strong { display:block; font-size:1.2rem; margin-bottom:4px; }
         .summary-card span { font-size:.84rem; color:#666; }
+        .summary-card small { display:block; margin-top:4px; color:#94a3b8; font-size:.78rem; }
+        .review-panel { margin:18px 0 20px; padding:18px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; }
+        .review-panel h3 { margin:0 0 8px; font-size:1.05rem; color:#1f2937; }
+        .review-panel p { margin:0 0 14px; font-size:.84rem; color:#64748b; }
+        .review-table-wrap { overflow-x:auto; }
+        .review-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        .review-table th, .review-table td { border-bottom:1px solid #eef2f7; padding:10px 8px; text-align:left; white-space:nowrap; }
+        .review-table th { color:#475569; background:#f8fafc; font-weight:600; }
+        .review-table td.muted { color:#94a3b8; }
         .section-tip { margin:0 0 14px; color:#666; font-size:.86rem; }
         .per-class-rows { display:none; }
         .per-class-rows.active { display:block; }
@@ -94,6 +103,11 @@
             <th:block th:text="${event.round2Start != null ? #temporals.format(event.round2Start, 'MM-dd HH:mm') : '未设'}"></th:block>
             ~
             <th:block th:text="${event.round2End != null ? #temporals.format(event.round2End, 'MM-dd HH:mm') : '未设'}"></th:block>
+            &nbsp;|&nbsp;
+            第三轮：
+            <th:block th:text="${event.round3Start != null ? #temporals.format(event.round3Start, 'MM-dd HH:mm') : '未设'}"></th:block>
+            ~
+            <th:block th:text="${event.round3End != null ? #temporals.format(event.round3End, 'MM-dd HH:mm') : '未设'}"></th:block>
         </span>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
             <form th:if="${event.status == 'DRAFT'}"
@@ -165,6 +179,82 @@
         <strong th:text="${round1Summary.submittedStudentCount}">0</strong>
         人。
     </p>
+
+    <div class="review-panel">
+        <h3>活动复盘统计</h3>
+        <p>汇总第二轮抢课、第三轮申请与管理员干预情况，便于在选课管理面板直接复盘本次活动。</p>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <strong th:text="${reviewStats.round2ConfirmedCount}">0</strong>
+                <span>第二轮抢课成功人数</span>
+                <small>按 `round = 2` 且已确认统计</small>
+            </div>
+            <div class="summary-card">
+                <strong th:text="${reviewStats.round3RequestCount}">0</strong>
+                <span>第三轮申请总数</span>
+                <small>
+                    待审批
+                    <th:block th:text="${reviewStats.round3PendingCount}">0</th:block>
+                    条
+                </small>
+            </div>
+            <div class="summary-card">
+                <strong th:text="${reviewStats.round3ApprovedCount}">0</strong>
+                <span>第三轮审批通过</span>
+                <small>
+                    拒绝
+                    <th:block th:text="${reviewStats.round3RejectedCount}">0</th:block>
+                    条
+                </small>
+            </div>
+            <div class="summary-card">
+                <strong th:text="${reviewStats.adminInterventionCount}">0</strong>
+                <span>管理员干预人数</span>
+                <small>当前活动内手动加人的在册人数</small>
+            </div>
+            <div class="summary-card">
+                <strong th:text="${reviewStats.forcedOverflowCount}">0</strong>
+                <span>管理员强制加人</span>
+                <small>按强制超编审计记录统计</small>
+            </div>
+        </div>
+        <div class="review-table-wrap">
+            <table class="review-table">
+                <thead>
+                <tr>
+                    <th>课程</th>
+                    <th>教师</th>
+                    <th>名额模式</th>
+                    <th>第二轮成功</th>
+                    <th>第三轮申请</th>
+                    <th>待审批</th>
+                    <th>通过</th>
+                    <th>拒绝</th>
+                    <th>管理员干预</th>
+                    <th>强制加人</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(reviewStats.courseStats)}">
+                    <td colspan="10" class="muted">暂无可复盘的课程统计。</td>
+                </tr>
+                <tr th:each="item : ${reviewStats.courseStats}">
+                    <td th:text="${item.courseName}">课程</td>
+                    <td th:text="${item.teacherName}">教师</td>
+                    <td th:text="${item.capacityMode}">全局名额</td>
+                    <td th:text="${item.round2ConfirmedCount}">0</td>
+                    <td th:text="${item.round3RequestCount}">0</td>
+                    <td th:text="${item.round3PendingCount}">0</td>
+                    <td th:text="${item.round3ApprovedCount}">0</td>
+                    <td th:text="${item.round3RejectedCount}">0</td>
+                    <td th:text="${item.adminInterventionCount}">0</td>
+                    <td th:text="${item.forcedOverflowCount}">0</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="tab-bar">
         <button type="button"
                 class="tab-btn"

@@ -1,6 +1,7 @@
 package com.pe.assistant.controller;
 
 import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
+import com.pe.assistant.dto.CourseEventReviewStats;
 import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
 import com.pe.assistant.entity.School;
@@ -10,6 +11,7 @@ import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
 import com.pe.assistant.service.ClassService;
 import com.pe.assistant.service.CourseOverflowAuditService;
+import com.pe.assistant.service.CourseEventReviewService;
 import com.pe.assistant.service.CourseService;
 import com.pe.assistant.service.CurrentUserService;
 import com.pe.assistant.service.GradeService;
@@ -49,6 +51,7 @@ public class AdminCourseController {
     private final StudentService studentService;
     private final TeacherService teacherService;
     private final CourseOverflowAuditService courseOverflowAuditService;
+    private final CourseEventReviewService courseEventReviewService;
     private final CourseClassCapacityRepository capacityRepo;
 
     @ModelAttribute("currentSchool")
@@ -70,6 +73,8 @@ public class AdminCourseController {
                             @RequestParam(required = false) String round1End,
                             @RequestParam(required = false) String round2Start,
                             @RequestParam(required = false) String round2End,
+                            @RequestParam(required = false) String round3Start,
+                            @RequestParam(required = false) String round3End,
                             RedirectAttributes ra) {
         try {
             boolean created = (id == null);
@@ -88,6 +93,12 @@ public class AdminCourseController {
             }
             if (round2End != null && !round2End.isBlank()) {
                 event.setRound2End(LocalDateTime.parse(round2End));
+            }
+            if (round3Start != null && !round3Start.isBlank()) {
+                event.setRound3Start(LocalDateTime.parse(round3Start));
+            }
+            if (round3End != null && !round3End.isBlank()) {
+                event.setRound3End(LocalDateTime.parse(round3End));
             }
             event = eventService.save(event);
             ra.addFlashAttribute("success", "活动保存成功");
@@ -161,12 +172,14 @@ public class AdminCourseController {
         List<Student> participatingStudents = eventService.findParticipatingStudents(event);
         Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
         List<Course> courses = courseService.findByEvent(event);
+        CourseEventReviewStats reviewStats = courseEventReviewService.buildReviewStats(event, courses);
         Map<Long, Integer> confirmedCountByCourse = new LinkedHashMap<>();
         for (Course course : courses) {
             confirmedCountByCourse.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
         }
         model.addAttribute("event", event);
         model.addAttribute("courses", courses);
+        model.addAttribute("reviewStats", reviewStats);
         model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
         model.addAttribute("round1Summary", round1Summary);
         model.addAttribute("round1ResultAvailable", round1ResultAvailable);

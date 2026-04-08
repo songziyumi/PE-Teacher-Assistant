@@ -297,6 +297,7 @@
             <div class="event-meta-item"><span class="label">当前状态</span><span class="value">${escapeHtml(event?.statusText || event?.status || '-')}</span></div>
             <div class="event-meta-item"><span class="label">第一轮时间</span><span class="value">${formatDateTime(event?.round1Start)} ~ ${formatDateTime(event?.round1End)}</span></div>
             <div class="event-meta-item"><span class="label">第二轮时间</span><span class="value">${formatDateTime(event?.round2Start)} ~ ${formatDateTime(event?.round2End)}</span></div>
+            <div class="event-meta-item"><span class="label">&#31532;&#19977;&#36718;&#26102;&#38388;</span><span class="value">${formatDateTime(event?.round3Start)} ~ ${formatDateTime(event?.round3End)}</span></div>
             <div class="event-meta-item"><span class="label">创建时间</span><span class="value">${formatDateTime(event?.createdAt)}</span></div>
             <div class="event-meta-item"><span class="label">结算提示</span><span class="value">${escapeHtml(event?.lotteryNote || '无')}</span></div>
             <div class="event-meta-item"><span class="label">快速跳转</span><span class="value">${linkHtml(event?.detailUrl, '课程页') || '-'} ${linkHtml(event?.studentUrl, '学生页')}</span></div>

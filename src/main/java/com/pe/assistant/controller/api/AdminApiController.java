@@ -608,6 +608,8 @@ public class AdminApiController {
         map.put("round1End", event.getRound1End());
         map.put("round2Start", event.getRound2Start());
         map.put("round2End", event.getRound2End());
+        map.put("round3Start", event.getRound3Start());
+        map.put("round3End", event.getRound3End());
         map.put("lotteryNote", event.getLotteryNote());
         map.put("createdAt", event.getCreatedAt());
         map.put("detailUrl", buildEventDetailUrl(event.getId(), "courses"));

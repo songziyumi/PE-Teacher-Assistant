@@ -156,14 +156,28 @@
         </div>
 
         <div th:if="${event.status == 'CLOSED' and inRound3}" class="banner request">
-            <h3>第三轮选课申请</h3>
-            <p>您当前还没有确认课程，可以向课程教师提交申请。</p>
+            <h3>&#31532;&#19977;&#36718;&#36873;&#35838;&#30003;&#35831;</h3>
+            <p>
+                &#24744;&#24403;&#21069;&#36824;&#27809;&#26377;&#30830;&#35748;&#35838;&#31243;&#65292;&#21487;&#21521;&#25480;&#35838;&#25945;&#24072;&#25552;&#20132;&#30003;&#35831;&#12290;&#30003;&#35831;&#26102;&#38388;&#65306;
+                <span th:text="${event.round3Start != null ? #temporals.format(event.round3Start, 'MM-dd HH:mm') : '-'}"></span>
+                ~
+                <span th:text="${event.round3End != null ? #temporals.format(event.round3End, 'MM-dd HH:mm') : '-'}"></span>
+            </p>
         </div>
 
-        <div th:if="${event.status == 'CLOSED' and !inRound3}" class="banner waiting">
-            <h3>选课活动已结束</h3>
+        <div th:if="${event.status == 'CLOSED' and !inRound3 and round3NotStarted}" class="banner waiting">
+            <h3>&#31532;&#19977;&#36718;&#36873;&#35838;&#30003;&#35831;&#23578;&#26410;&#24320;&#22987;</h3>
+            <p>&#24320;&#22987;&#26102;&#38388;&#65306;<span th:text="${event.round3Start != null ? #temporals.format(event.round3Start, 'MM-dd HH:mm') : '-'}"></span></p>
         </div>
 
+        <div th:if="${event.status == 'CLOSED' and !inRound3 and round3Ended}" class="banner waiting">
+            <h3>&#31532;&#19977;&#36718;&#36873;&#35838;&#30003;&#35831;&#24050;&#32467;&#26463;</h3>
+            <p>&#32467;&#26463;&#26102;&#38388;&#65306;<span th:text="${event.round3End != null ? #temporals.format(event.round3End, 'MM-dd HH:mm') : '-'}"></span></p>
+        </div>
+
+        <div th:if="${event.status == 'CLOSED' and !inRound3 and !round3NotStarted and !round3Ended}" class="banner waiting">
+            <h3>&#36873;&#35838;&#27963;&#21160;&#24050;&#32467;&#26463;</h3>
+        </div>
         <div th:if="${!#lists.isEmpty(mySelections)}" class="panel">
             <h3 style="margin-top:0;">我的选课状态</h3>
             <ul class="selection-list">

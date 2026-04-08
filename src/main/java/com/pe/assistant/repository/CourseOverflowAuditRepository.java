@@ -7,6 +7,10 @@ import java.util.List;
 
 public interface CourseOverflowAuditRepository extends JpaRepository<CourseOverflowAudit, Long> {
 
+    long countByEventId(Long eventId);
+
+    List<CourseOverflowAudit> findByEventIdOrderByCreatedAtDesc(Long eventId);
+
     List<CourseOverflowAudit> findTop100ByOperatorTeacherIdOrderByCreatedAtDesc(Long operatorTeacherId);
 
     List<CourseOverflowAudit> findTop200BySchoolIdOrderByCreatedAtDesc(Long schoolId);

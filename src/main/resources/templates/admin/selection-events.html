@@ -70,6 +70,10 @@
                 第二轮：<span th:text="${event.round2Start != null ? #temporals.format(event.round2Start,'MM-dd HH:mm') : '未设置'}"></span>
                 ~<span th:text="${event.round2End != null ? #temporals.format(event.round2End,'MM-dd HH:mm') : '未设置'}"></span>
             </div>
+            <div class="event-meta">
+                Round 3: <span th:text="${event.round3Start != null ? #temporals.format(event.round3Start,'MM-dd HH:mm') : '-'}"></span>
+                ~<span th:text="${event.round3End != null ? #temporals.format(event.round3End,'MM-dd HH:mm') : '-'}"></span>
+            </div>
             <div class="event-meta" th:if="${event.status == 'ROUND1' and event.round1End != null}" style="margin-top:4px;">
                 自动抽签：<span th:text="${#temporals.format(event.round1End.plusMinutes(5),'MM-dd HH:mm')}"></span>
                 <span style="color:#999;">（管理员也可手动提前结算）</span>
@@ -96,7 +100,9 @@
                         th:data-r1s="${event.round1Start}"
                         th:data-r1e="${event.round1End}"
                         th:data-r2s="${event.round2Start}"
-                        th:data-r2e="${event.round2End}">编辑</button>
+                        th:data-r2e="${event.round2End}"
+                        th:data-r3s="${event.round3Start}"
+                        th:data-r3e="${event.round3End}">&#32534;&#36753;</button>
                 <form th:action="@{/admin/courses/events/{id}/delete(id=${event.id})}" method="post" style="display:inline"
                       onsubmit="return confirm('确认删除这个选课活动吗？此操作会同时删除课程、参与名单、志愿/选课记录，且不可恢复。')">
                     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -145,6 +151,16 @@
                         <input type="datetime-local" name="round2End">
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>&#31532;&#19977;&#36718;&#24320;&#22987;&#26102;&#38388;</label>
+                        <input type="datetime-local" name="round3Start">
+                    </div>
+                    <div class="form-group">
+                        <label>&#31532;&#19977;&#36718;&#32467;&#26463;&#26102;&#38388;</label>
+                        <input type="datetime-local" name="round3End">
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">取消</button>
@@ -190,6 +206,16 @@
                         <input type="datetime-local" name="round2End" id="editR2E">
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>&#31532;&#19977;&#36718;&#24320;&#22987;&#26102;&#38388;</label>
+                        <input type="datetime-local" name="round3Start" id="editR3S">
+                    </div>
+                    <div class="form-group">
+                        <label>&#31532;&#19977;&#36718;&#32467;&#26463;&#26102;&#38388;</label>
+                        <input type="datetime-local" name="round3End" id="editR3E">
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
@@ -213,6 +239,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('editR1E').value = fmt(btn.dataset.r1e);
             document.getElementById('editR2S').value = fmt(btn.dataset.r2s);
             document.getElementById('editR2E').value = fmt(btn.dataset.r2e);
+            document.getElementById('editR3S').value = fmt(btn.dataset.r3s);
+            document.getElementById('editR3E').value = fmt(btn.dataset.r3e);
             openModal('editModal');
         });
     });

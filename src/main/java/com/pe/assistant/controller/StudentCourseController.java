@@ -12,6 +12,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,34 @@ public class StudentCourseController {
                 .findFirst().orElse(null);
     }
 
+    private boolean isRound3NotStarted(SelectionEvent event) {
+        return event != null
+                && "CLOSED".equals(event.getStatus())
+                && event.getRound3Start() != null
+                && LocalDateTime.now().isBefore(event.getRound3Start());
+    }
+
+    private boolean isRound3Ended(SelectionEvent event) {
+        return event != null
+                && "CLOSED".equals(event.getStatus())
+                && event.getRound3End() != null
+                && !LocalDateTime.now().isBefore(event.getRound3End());
+    }
+
+    private String validateRound3Window(SelectionEvent event) {
+        if (event == null) {
+            return "\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (event.getRound3Start() == null || now.isBefore(event.getRound3Start())) {
+            return "\u7b2c\u4e09\u8f6e\u9009\u8bfe\u7533\u8bf7\u5c1a\u672a\u5f00\u59cb";
+        }
+        if (event.getRound3End() == null || !now.isBefore(event.getRound3End())) {
+            return "\u7b2c\u4e09\u8f6e\u9009\u8bfe\u7533\u8bf7\u5df2\u7ed3\u675f";
+        }
+        return null;
+    }
+
     // ===== 选课主页 =====
 
     @GetMapping("/courses")
@@ -70,6 +99,8 @@ public class StudentCourseController {
         model.addAttribute("inRound1", false);
         model.addAttribute("inRound2", false);
         model.addAttribute("inRound3", false);
+        model.addAttribute("round3NotStarted", false);
+        model.addAttribute("round3Ended", false);
         model.addAttribute("hasConfirmed", false);
         model.addAttribute("hasPref1", false);
         model.addAttribute("hasPref2", false);
@@ -94,10 +125,13 @@ public class StudentCourseController {
                             .toList();
                     Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(requestableCourses);
                     Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
+                    boolean inRound3 = eventService.isInRound3(closedEvent);
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
-                    model.addAttribute("inRound3", true);
+                    model.addAttribute("inRound3", inRound3);
+                    model.addAttribute("round3NotStarted", !inRound3 && isRound3NotStarted(closedEvent));
+                    model.addAttribute("round3Ended", !inRound3 && isRound3Ended(closedEvent));
                     model.addAttribute("confirmedCountMap", confirmedCountMap);
                     model.addAttribute("round3RequestMap", round3RequestMap);
                     model.addAttribute("unreadCount",
@@ -132,6 +166,8 @@ public class StudentCourseController {
         model.addAttribute("inRound1", eventService.isInRound1(event));
         model.addAttribute("inRound2", eventService.isInRound2(event));
         model.addAttribute("inRound3", false);
+        model.addAttribute("round3NotStarted", false);
+        model.addAttribute("round3Ended", false);
         model.addAttribute("hasConfirmed", hasConfirmed);
         model.addAttribute("hasPref1", hasPref1);
         model.addAttribute("hasPref2", hasPref2);
@@ -281,20 +317,28 @@ public class StudentCourseController {
                                     RedirectAttributes ra) {
         try {
             Student student = currentUserService.getCurrentStudent();
-            // 校验：只能对最新关闭活动的课程申请，且学生尚无确认选课
             SelectionEvent closedEvent = findLatestClosedEvent(student);
-            if (closedEvent == null) throw new RuntimeException("当前没有可申请的选课活动");
+            if (closedEvent == null) {
+                throw new RuntimeException("\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8");
+            }
+            String round3WindowError = validateRound3Window(closedEvent);
+            if (round3WindowError != null) {
+                throw new RuntimeException(round3WindowError);
+            }
             boolean hasConfirmed = courseService.findMySelections(student, closedEvent)
-                    .stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
-            if (hasConfirmed) throw new RuntimeException("您已有确认的选课，无需申请");
+                    .stream()
+                    .anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
+            if (hasConfirmed) {
+                throw new RuntimeException("\u60a8\u5df2\u6709\u786e\u8ba4\u8bfe\u7a0b\uff0c\u65e0\u9700\u518d\u7533\u8bf7");
+            }
             Course course = courseService.findById(courseId);
             if (!course.getEvent().getId().equals(closedEvent.getId())) {
-                throw new RuntimeException("该课程不属于当前活动");
+                throw new RuntimeException("\u8be5\u8bfe\u7a0b\u4e0d\u5c5e\u4e8e\u5f53\u524d\u6d3b\u52a8");
             }
             messageService.sendCourseRequest(student, course, content);
-            ra.addFlashAttribute("success", "申请已发送，请等待教师处理");
+            ra.addFlashAttribute("success", "\u7533\u8bf7\u5df2\u53d1\u9001\uff0c\u8bf7\u7b49\u5f85\u6559\u5e08\u5904\u7406");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -307,7 +351,11 @@ public class StudentCourseController {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent closedEvent = findLatestClosedEvent(student);
             if (closedEvent == null) {
-                return ApiResponse.error(400, "当前没有可申请的选课活动");
+                return ApiResponse.error(400, "\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8");
+            }
+            String round3WindowError = validateRound3Window(closedEvent);
+            if (round3WindowError != null) {
+                return ApiResponse.error(400, round3WindowError);
             }
             boolean hasConfirmed = courseService.findMySelections(student, closedEvent)
                     .stream()

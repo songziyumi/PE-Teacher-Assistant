@@ -89,6 +89,12 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("没有可申请的选课活动")) {
             return "当前暂无可申请的选课活动";
         }
+        if (message.contains("第三轮选课申请尚未开始")) {
+            return "第三轮选课申请尚未开始";
+        }
+        if (message.contains("第三轮选课申请已结束")) {
+            return "第三轮选课申请已结束";
+        }
         if (message.contains("已有确认的选课") || message.contains("已有确认的选课记录")) {
             return "您已有已确认课程，无需重复申请";
         }

@@ -4,6 +4,7 @@ import com.pe.assistant.entity.InternalMessage;
 import com.pe.assistant.entity.School;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface InternalMessageRepository extends JpaRepository<InternalMessage, Long> {
@@ -42,4 +43,6 @@ public interface InternalMessageRepository extends JpaRepository<InternalMessage
 
     /** 全校某类型消息（用于管理员导出） */
     List<InternalMessage> findBySchoolAndTypeOrderBySentAtDesc(School school, String type);
+
+    List<InternalMessage> findByTypeAndRelatedCourseIdInOrderBySentAtDesc(String type, Collection<Long> relatedCourseIds);
 }
