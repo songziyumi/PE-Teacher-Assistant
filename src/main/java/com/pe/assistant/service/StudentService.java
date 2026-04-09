@@ -50,6 +50,7 @@ public class StudentService {
     private final CourseClassCapacityRepository courseClassCapacityRepository;
     private final StudentAccountRepository studentAccountRepository;
     private final StudentReferenceCleanupService studentReferenceCleanupService;
+    private final TeacherPermissionService teacherPermissionService;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassIdOrderByStudentNo(classId);
@@ -74,7 +75,7 @@ public class StudentService {
     }
 
     public Student findById(Long id) {
-        return studentRepository.findById(id).orElseThrow();
+        return requireStudent(id);
     }
 
     public Optional<Student> findByIdOptional(Long id) {
@@ -203,13 +204,16 @@ public class StudentService {
 
     public List<Student> filterVisibleForTeacher(School school, List<Student> students) {
         if (students == null || students.isEmpty()) return students;
-        boolean showSuspended = school == null || !Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage());
-        boolean showOutgoingBorrow = school == null || !Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage());
+        TeacherPermission permission = school != null ? teacherPermissionService.getOrCreate(school) : null;
+        boolean showSuspended = permission == null || permission.isShowSuspendedOnTeacherPage();
+        boolean showOutgoingBorrow = permission == null || permission.isShowOutgoingBorrowOnTeacherPage();
+        boolean showLongLeave = permission == null || permission.isShowLongLeaveOnTeacherPage();
         List<Student> result = new ArrayList<>();
         for (Student student : students) {
             String status = normalizeStatusForDisplay(student.getStudentStatus());
-            if (!showSuspended && "休学".equals(status)) continue;
-            if (!showOutgoingBorrow && "在外借读".equals(status)) continue;
+            if (!showSuspended && "\u4f11\u5b66".equals(status)) continue;
+            if (!showOutgoingBorrow && "\u5728\u5916\u501f\u8bfb".equals(status)) continue;
+            if (!showLongLeave && "\u957f\u5047".equals(status)) continue;
             result.add(student);
         }
         return result;
@@ -303,7 +307,7 @@ public class StudentService {
     @Transactional
     public Student update(Long id, String name, String gender, String studentNo,
             String idCard, String electiveClass, Long classId, String studentStatus, Long expectedVersion) {
-        Student s = studentRepository.findById(id).orElseThrow();
+        Student s = requireStudent(id);
         ensureVersionMatch(s, expectedVersion);
         String normalizedName = normalizeStudentName(name);
         String normalizedStudentNo = normalizeStudentNo(studentNo);
@@ -321,7 +325,7 @@ public class StudentService {
             s.setStudentStatus("在籍");
         }
         if (classId != null) {
-            SchoolClass sc = classRepository.findById(classId).orElseThrow();
+            SchoolClass sc = requireClass(classId);
             s.setSchoolClass(sc);
             if (s.getSchool() == null) {
                 s.setSchool(sc.getSchool());
@@ -755,7 +759,7 @@ public class StudentService {
 
     private School resolveStudentSchool(Student student, Long classId) {
         if (classId != null) {
-            SchoolClass sc = classRepository.findById(classId).orElseThrow();
+            SchoolClass sc = requireClass(classId);
             return sc.getSchool();
         }
         if (student.getSchool() != null) {
@@ -791,6 +795,16 @@ public class StudentService {
         if (!Objects.equals(currentVersion, expectedVersion)) {
             throw new IllegalStateException("该学生已被其他设备修改，请刷新后重试");
         }
+    }
+
+    private Student requireStudent(Long id) {
+        return studentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("\u5b66\u751f\u4e0d\u5b58\u5728"));
+    }
+
+    private SchoolClass requireClass(Long classId) {
+        return classRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("\u73ed\u7ea7\u4e0d\u5b58\u5728"));
     }
 
     private Student saveStudentWithDuplicateGuard(Student student) {

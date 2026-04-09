@@ -195,19 +195,7 @@
         <h2>学生管理</h2>
     </div>
 
-    <form th:action="@{/admin/students/teacher-visibility}" method="post" class="setting-card">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <span class="setting-title">教师页面学生显示设置</span>
-        <label class="setting-item">
-            <input type="checkbox" name="showSuspendedOnTeacherPage" th:checked="${showSuspendedOnTeacherPage}">
-            显示休学学生
-        </label>
-        <label class="setting-item">
-            <input type="checkbox" name="showOutgoingBorrowOnTeacherPage" th:checked="${showOutgoingBorrowOnTeacherPage}">
-            显示在外借读学生
-        </label>
-        <button type="submit" class="btn btn-outline">保存设置</button>
-    </form>
+    
 
     <form method="get" th:action="@{/admin/students}" class="search-bar">
         <select name="gradeId" id="gradeSelect">
