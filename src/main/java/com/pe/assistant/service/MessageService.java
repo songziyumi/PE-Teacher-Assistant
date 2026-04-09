@@ -12,7 +12,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -76,7 +78,7 @@ public class MessageService {
         msg.setRecipientId(teacher.getId());
         msg.setRecipientName(teacher.getName());
         msg.setSubject("第三轮选课申请：" + course.getName());
-        msg.setContent(content);
+        msg.setContent(normalizeRequestContent(content));
         msg.setType("COURSE_REQUEST");
         msg.setRelatedCourseId(course.getId());
         msg.setRelatedCourseName(course.getName());
@@ -106,6 +108,7 @@ public class MessageService {
         }
         // 找到申请人和对应活动（通过课程关联）
         Course course = courseService.findById(msg.getRelatedCourseId());
+        validateTeacherOwnsCourseRequest(course, teacher);
         // 复用 adminEnroll 逻辑（内部处理容量检查和记录创建）
         courseService.adminEnroll(course.getId(), msg.getSenderId(), course.getEvent().getId());
         String beforeStatus = msg.getStatus();
@@ -152,6 +155,8 @@ public class MessageService {
         if (!teacher.getId().equals(msg.getRecipientId())) {
             throw new RuntimeException("无权处理他人的申请");
         }
+        Course course = courseService.findById(msg.getRelatedCourseId());
+        validateTeacherOwnsCourseRequest(course, teacher);
         String beforeStatus = msg.getStatus();
         String normalizedRemark = normalizeRemark(remark);
         LocalDateTime handledAt = LocalDateTime.now();
@@ -247,6 +252,31 @@ public class MessageService {
 
     public List<InternalMessage> getStudentInbox(Student student) {
         return messageRepo.findByRecipientTypeAndRecipientIdOrderBySentAtDesc("STUDENT", student.getId());
+    }
+
+    public Map<Long, InternalMessage> getLatestStudentCourseRequests(Student student, SelectionEvent event) {
+        if (student == null || student.getId() == null || event == null) {
+            return Map.of();
+        }
+        Set<Long> eventCourseIds = courseService.findByEvent(event).stream()
+                .map(Course::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (eventCourseIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, InternalMessage> latestRequestMap = new LinkedHashMap<>();
+        List<InternalMessage> requests = messageRepo.findByTypeAndSenderIdAndSenderTypeOrderBySentAtDesc(
+                "COURSE_REQUEST", student.getId(), "STUDENT");
+        for (InternalMessage request : requests) {
+            Long courseId = request.getRelatedCourseId();
+            if (courseId == null || !eventCourseIds.contains(courseId) || latestRequestMap.containsKey(courseId)) {
+                continue;
+            }
+            latestRequestMap.put(courseId, request);
+        }
+        return latestRequestMap;
     }
 
     public InternalMessage getStudentMessageById(Student student, Long messageId) {
@@ -401,6 +431,20 @@ public class MessageService {
         return trimmed.length() <= 500 ? trimmed : trimmed.substring(0, 500);
     }
 
+    private String normalizeRequestContent(String content) {
+        if (content == null) {
+            return "";
+        }
+        String trimmed = content.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        if (trimmed.length() > 200) {
+            throw new RuntimeException("申请理由不能超过200字");
+        }
+        return trimmed;
+    }
+
     private void saveRequestAudit(
             InternalMessage msg,
             Teacher teacher,
@@ -434,7 +478,16 @@ public class MessageService {
         if (courseNames == null || courseNames.isEmpty()) {
             return teacher.getName();
         }
-        return teacher.getName() + "（" + String.join("、", courseNames) + "）";
+        return teacher.getName() + "\uFF08" + String.join("\u3001", courseNames) + "\uFF09";
+    }
+
+    private void validateTeacherOwnsCourseRequest(Course course, Teacher teacher) {
+        if (course.getTeacher() == null || course.getTeacher().getId() == null) {
+            throw new RuntimeException("UNAUTHORIZED_COURSE_REQUEST");
+        }
+        if (!teacher.getId().equals(course.getTeacher().getId())) {
+            throw new RuntimeException("UNAUTHORIZED_COURSE_REQUEST");
+        }
     }
 
     public static final class TeacherMessageRecipient {

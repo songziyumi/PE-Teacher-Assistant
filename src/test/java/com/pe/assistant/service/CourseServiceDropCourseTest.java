@@ -84,7 +84,7 @@ class CourseServiceDropCourseTest {
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> courseService.dropCourse(student, selection.getId()));
 
-        assertEquals("当前仅支持第一轮已确认课程在第二轮期间退课", exception.getMessage());
+        assertEquals("\u5f53\u524d\u4ec5\u652f\u6301\u7b2c\u4e00\u8f6e\u5df2\u786e\u8ba4\u8bfe\u7a0b\u5728\u7b2c\u4e8c\u8f6e\u671f\u95f4\u9000\u8bfe", exception.getMessage());
         verify(selectionRepo, never()).save(any(CourseSelection.class));
         verify(courseRepo, never()).save(any(Course.class));
         verify(studentNotificationService, never()).notifyDropSuccess(any(Student.class), any(Course.class), any(SelectionEvent.class));

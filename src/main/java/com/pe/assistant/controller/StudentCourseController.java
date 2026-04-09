@@ -1,20 +1,26 @@
 package com.pe.assistant.controller;
 
 import com.pe.assistant.dto.ApiResponse;
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.SelectionEventRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/student")
+@Slf4j
 @RequiredArgsConstructor
 public class StudentCourseController {
 
@@ -33,6 +39,7 @@ public class StudentCourseController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> !"CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
                 .findFirst().orElse(null);
     }
 
@@ -42,7 +49,45 @@ public class StudentCourseController {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
                 .stream()
                 .filter(e -> "CLOSED".equals(e.getStatus()))
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
                 .findFirst().orElse(null);
+    }
+
+    private SelectionEvent findLatestEventWithSelections(Student student) {
+        if (student.getSchool() == null) return null;
+        return eventRepo.findBySchoolOrderByCreatedAtDesc(student.getSchool())
+                .stream()
+                .filter(e -> eventService.canStudentAccessEvent(e, student))
+                .filter(e -> !courseService.findMySelections(student, e).isEmpty())
+                .findFirst().orElse(null);
+    }
+
+    private boolean isRound3NotStarted(SelectionEvent event) {
+        return event != null
+                && "CLOSED".equals(event.getStatus())
+                && event.getRound3Start() != null
+                && LocalDateTime.now().isBefore(event.getRound3Start());
+    }
+
+    private boolean isRound3Ended(SelectionEvent event) {
+        return event != null
+                && "CLOSED".equals(event.getStatus())
+                && event.getRound3End() != null
+                && !LocalDateTime.now().isBefore(event.getRound3End());
+    }
+
+    private String validateRound3Window(SelectionEvent event) {
+        if (event == null) {
+            return "\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8";
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (event.getRound3Start() == null || now.isBefore(event.getRound3Start())) {
+            return "\u7b2c\u4e09\u8f6e\u9009\u8bfe\u7533\u8bf7\u5c1a\u672a\u5f00\u59cb";
+        }
+        if (event.getRound3End() == null || !now.isBefore(event.getRound3End())) {
+            return "\u7b2c\u4e09\u8f6e\u9009\u8bfe\u7533\u8bf7\u5df2\u7ed3\u675f";
+        }
+        return null;
     }
 
     // ===== 选课主页 =====
@@ -50,7 +95,20 @@ public class StudentCourseController {
     @GetMapping("/courses")
     public String courses(Model model) {
         Student student = currentUserService.getCurrentStudent();
-        SelectionEvent event = findActiveEvent(student);
+        model.addAttribute("student", student);
+        model.addAttribute("inRound1", false);
+        model.addAttribute("inRound2", false);
+        model.addAttribute("inRound3", false);
+        model.addAttribute("round3NotStarted", false);
+        model.addAttribute("round3Ended", false);
+        model.addAttribute("hasConfirmed", false);
+        model.addAttribute("hasPref1", false);
+        model.addAttribute("hasPref2", false);
+        model.addAttribute("round1SubmissionConfirmed", false);
+        model.addAttribute("mySelections", List.of());
+        model.addAttribute("courses", List.of());
+        try {
+            SelectionEvent event = findActiveEvent(student);
 
         // 如果无进行中活动，检查是否有关闭的活动（用于第三轮）
         if (event == null) {
@@ -62,15 +120,24 @@ public class StudentCourseController {
                 if (!hasConfirmed) {
                     // 展示第三轮申请页面
                     List<Course> allCourses = courseService.findByEvent(closedEvent);
+                    List<Course> requestableCourses = allCourses.stream()
+                            .filter(course -> course.getTeacher() != null)
+                            .toList();
+                    Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(requestableCourses);
+                    Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
+                    boolean inRound3 = eventService.isInRound3(closedEvent);
                     model.addAttribute("event", closedEvent);
-                    model.addAttribute("courses", allCourses);
+                    model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
-                    model.addAttribute("student", student);
-                    model.addAttribute("inRound3", true);
+                    model.addAttribute("inRound3", inRound3);
+                    model.addAttribute("round3NotStarted", !inRound3 && isRound3NotStarted(closedEvent));
+                    model.addAttribute("round3Ended", !inRound3 && isRound3Ended(closedEvent));
+                    model.addAttribute("confirmedCountMap", confirmedCountMap);
+                    model.addAttribute("round3RequestMap", round3RequestMap);
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
                     model.addAttribute("remainingMap",
-                            allCourses.stream().collect(java.util.stream.Collectors.toMap(
+                            requestableCourses.stream().collect(java.util.stream.Collectors.toMap(
                                     Course::getId,
                                     c -> courseService.getRemainingCapacity(c, student))));
                     return "student/courses";
@@ -81,6 +148,7 @@ public class StudentCourseController {
         }
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
+        Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(courses);
         List<CourseSelection> mySelections = courseService.findMySelections(student, event);
         boolean hasConfirmed = mySelections.stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
         boolean hasPref1 = mySelections.stream()
@@ -98,17 +166,29 @@ public class StudentCourseController {
         model.addAttribute("inRound1", eventService.isInRound1(event));
         model.addAttribute("inRound2", eventService.isInRound2(event));
         model.addAttribute("inRound3", false);
+        model.addAttribute("round3NotStarted", false);
+        model.addAttribute("round3Ended", false);
         model.addAttribute("hasConfirmed", hasConfirmed);
         model.addAttribute("hasPref1", hasPref1);
         model.addAttribute("hasPref2", hasPref2);
         model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
-        model.addAttribute("student", student);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
+        model.addAttribute("confirmedCountMap", confirmedCountMap);
         model.addAttribute("remainingMap",
                 courses.stream().collect(java.util.stream.Collectors.toMap(
                         Course::getId,
                         c -> courseService.getRemainingCapacity(c, student))));
         return "student/courses";
+        } catch (Exception ex) {
+            log.error("student.courses.render.failed studentId={} schoolId={} message={}",
+                    student != null ? student.getId() : null,
+                    student != null && student.getSchool() != null ? student.getSchool().getId() : null,
+                    ex.getMessage(),
+                    ex);
+            model.addAttribute("noEvent", true);
+            model.addAttribute("error", "课程页加载失败，请刷新后重试");
+            return "student/courses";
+        }
     }
 
     // ===== 第一轮提交志愿 =====
@@ -124,7 +204,7 @@ public class StudentCourseController {
             courseService.submitPreference(student, event.getId(), courseId, preference);
             ra.addFlashAttribute("success", "志愿提交成功");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -140,7 +220,7 @@ public class StudentCourseController {
             courseService.saveRound1Draft(student, event.getId());
             ra.addFlashAttribute("success", "草稿已保存");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -154,7 +234,7 @@ public class StudentCourseController {
             courseService.confirmRound1Selections(student, event.getId());
             ra.addFlashAttribute("success", "志愿已确认提交，系统将按已确认志愿参与第一轮抽签");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -164,11 +244,11 @@ public class StudentCourseController {
         try {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent event = findActiveEvent(student);
-            if (event == null) throw new RuntimeException("当前没有进行中的选课活动");
+            if (event == null) throw new RuntimeException("\u5f53\u524d\u6ca1\u6709\u8fdb\u884c\u4e2d\u7684\u9009\u8bfe\u6d3b\u52a8");
             courseService.selectRound2(student, event.getId(), courseId);
-            ra.addFlashAttribute("success", "抢课成功！");
+            ra.addFlashAttribute("success", "\u62a2\u8bfe\u6210\u529f\uff01");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
     }
@@ -180,12 +260,12 @@ public class StudentCourseController {
             Student student = currentUserService.getCurrentStudent();
             SelectionEvent event = findActiveEvent(student);
             if (event == null) {
-                return ApiResponse.error(400, "当前没有进行中的选课活动");
+                return ApiResponse.error(400, "\u5f53\u524d\u6ca1\u6709\u8fdb\u884c\u4e2d\u7684\u9009\u8bfe\u6d3b\u52a8");
             }
             courseService.selectRound2(student, event.getId(), courseId);
-            return ApiResponse.ok("抢课成功！");
+            return ApiResponse.ok("\u62a2\u8bfe\u6210\u529f\uff01");
         } catch (Exception e) {
-            return ApiResponse.error(400, e.getMessage());
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
     }
 
@@ -194,7 +274,10 @@ public class StudentCourseController {
     @GetMapping("/my-courses")
     public String myCourses(Model model) {
         Student student = currentUserService.getCurrentStudent();
-        SelectionEvent event = findActiveEvent(student);
+        SelectionEvent event = findLatestEventWithSelections(student);
+        if (event == null) {
+            event = findActiveEvent(student);
+        }
         // 若无进行中活动，尝试取最近的关闭活动（展示历史选课结果）
         if (event == null) {
             event = findLatestClosedEvent(student);
@@ -219,9 +302,9 @@ public class StudentCourseController {
         try {
             Student student = currentUserService.getCurrentStudent();
             courseService.dropCourse(student, selectionId);
-            ra.addFlashAttribute("success", "退课成功");
+            ra.addFlashAttribute("success", "\u9000\u8bfe\u6210\u529f");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/my-courses";
     }
@@ -234,21 +317,72 @@ public class StudentCourseController {
                                     RedirectAttributes ra) {
         try {
             Student student = currentUserService.getCurrentStudent();
-            // 校验：只能对最新关闭活动的课程申请，且学生尚无确认选课
             SelectionEvent closedEvent = findLatestClosedEvent(student);
-            if (closedEvent == null) throw new RuntimeException("当前没有可申请的选课活动");
+            if (closedEvent == null) {
+                throw new RuntimeException("\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8");
+            }
+            String round3WindowError = validateRound3Window(closedEvent);
+            if (round3WindowError != null) {
+                throw new RuntimeException(round3WindowError);
+            }
             boolean hasConfirmed = courseService.findMySelections(student, closedEvent)
-                    .stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
-            if (hasConfirmed) throw new RuntimeException("您已有确认的选课，无需申请");
+                    .stream()
+                    .anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
+            if (hasConfirmed) {
+                throw new RuntimeException("\u60a8\u5df2\u6709\u786e\u8ba4\u8bfe\u7a0b\uff0c\u65e0\u9700\u518d\u7533\u8bf7");
+            }
             Course course = courseService.findById(courseId);
             if (!course.getEvent().getId().equals(closedEvent.getId())) {
-                throw new RuntimeException("该课程不属于当前活动");
+                throw new RuntimeException("\u8be5\u8bfe\u7a0b\u4e0d\u5c5e\u4e8e\u5f53\u524d\u6d3b\u52a8");
             }
             messageService.sendCourseRequest(student, course, content);
-            ra.addFlashAttribute("success", "申请已发送，请等待教师处理");
+            ra.addFlashAttribute("success", "\u7533\u8bf7\u5df2\u53d1\u9001\uff0c\u8bf7\u7b49\u5f85\u6559\u5e08\u5904\u7406");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
         return "redirect:/student/courses";
+    }
+
+    @PostMapping("/courses/{courseId}/request-ajax")
+    @ResponseBody
+    public ApiResponse<String> sendCourseRequestAjax(@PathVariable Long courseId,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Student student = currentUserService.getCurrentStudent();
+            SelectionEvent closedEvent = findLatestClosedEvent(student);
+            if (closedEvent == null) {
+                return ApiResponse.error(400, "\u5f53\u524d\u6ca1\u6709\u53ef\u7533\u8bf7\u7684\u9009\u8bfe\u6d3b\u52a8");
+            }
+            String round3WindowError = validateRound3Window(closedEvent);
+            if (round3WindowError != null) {
+                return ApiResponse.error(400, round3WindowError);
+            }
+            boolean hasConfirmed = courseService.findMySelections(student, closedEvent)
+                    .stream()
+                    .anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
+            if (hasConfirmed) {
+                return ApiResponse.error(400, "您已有确认的选课，无需申请");
+            }
+            Course course = courseService.findById(courseId);
+            if (course.getEvent() == null || !course.getEvent().getId().equals(closedEvent.getId())) {
+                return ApiResponse.error(400, "该课程不属于当前活动");
+            }
+
+            String content = body != null && body.get("content") != null
+                    ? String.valueOf(body.get("content"))
+                    : "";
+            messageService.sendCourseRequest(student, course, content);
+            return ApiResponse.ok("申请已发送，请等待教师处理");
+        } catch (Exception e) {
+            return ApiResponse.error(400, CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
+        }
+    }
+
+    private Map<Long, Integer> buildConfirmedCountMap(List<Course> courses) {
+        Map<Long, Integer> confirmedCountMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            confirmedCountMap.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
+        }
+        return confirmedCountMap;
     }
 }

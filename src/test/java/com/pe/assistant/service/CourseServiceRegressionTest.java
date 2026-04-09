@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -305,6 +306,157 @@ class CourseServiceRegressionTest {
     }
 
     @Test
+    void selectRound2ShouldFailWhenRound2NotStarted() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+        event.setRound2Start(LocalDateTime.now().plusMinutes(1));
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u7b2c\u4e8c\u8f6e\u9009\u8bfe\u5c1a\u672a\u5f00\u59cb", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+        verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenStudentNotInEventParticipantList() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
+        when(eventStudentRepo.existsByEventAndStudent(event, student)).thenReturn(false);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u60a8\u4e0d\u5728\u672c\u6b21\u9009\u8bfe\u6d3b\u52a8\u7684\u53c2\u4e0e\u540d\u5355\u4e2d", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+        verify(courseRepo, never()).incrementCurrentCountIfAvailable(any(Long.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenStudentAlreadyHasConfirmedSelection() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(true);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u60a8\u5df2\u6210\u529f\u9009\u8bfe\uff0c\u65e0\u9700\u518d\u6b21\u62a2\u8bfe", ex.getMessage());
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassCourseStudentHasNoAdministrativeClass() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        Student student = buildStudent(100L);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u60a8\u672a\u5206\u914d\u884c\u653f\u73ed\uff0c\u65e0\u6cd5\u53c2\u4e0e\u6309\u73ed\u540d\u989d\u7684\u8bfe\u7a0b", ex.getMessage());
+        verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassCapacityConfigMissing() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(20L);
+
+        Student student = buildStudent(100L);
+        student.setSchoolClass(schoolClass);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(capacityRepo.findByCourseAndSchoolClass(course, schoolClass)).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u60a8\u7684\u73ed\u7ea7\u6ca1\u6709\u8be5\u8bfe\u7a0b\u7684\u540d\u989d\u914d\u7f6e", ex.getMessage());
+        verify(capacityRepo, never()).incrementCurrentCountIfAvailable(any(Long.class), any(Long.class));
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
+    void selectRound2ShouldFailWhenPerClassAtomicReserveFails() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+        event.setStatus("ROUND2");
+
+        SchoolClass schoolClass = new SchoolClass();
+        schoolClass.setId(20L);
+
+        Student student = buildStudent(100L);
+        student.setSchoolClass(schoolClass);
+
+        Course course = new Course();
+        course.setId(10L);
+        course.setStatus("ACTIVE");
+        course.setCapacityMode("PER_CLASS");
+
+        CourseClassCapacity capacity = new CourseClassCapacity();
+        capacity.setCourse(course);
+        capacity.setSchoolClass(schoolClass);
+
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.existsByEvent(event)).thenReturn(false);
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(capacityRepo.findByCourseAndSchoolClass(course, schoolClass)).thenReturn(Optional.of(capacity));
+        when(capacityRepo.incrementCurrentCountIfAvailable(10L, 20L)).thenReturn(0);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.selectRound2(student, 1L, 10L));
+
+        assertEquals("\u60a8\u73ed\u7ea7\u7684\u8be5\u8bfe\u7a0b\u540d\u989d\u5df2\u6ee1\uff0c\u8bf7\u9009\u62e9\u5176\u4ed6\u8bfe\u7a0b", ex.getMessage());
+        verify(courseRepo, never()).incrementCurrentCount(10L);
+        verify(selectionRepo, never()).saveAndFlush(any(CourseSelection.class));
+    }
+
+    @Test
     void selectRound2ShouldUseAtomicGlobalReserveBeforeSavingSelection() {
         SelectionEvent event = new SelectionEvent();
         event.setId(1L);
@@ -450,6 +602,91 @@ class CourseServiceRegressionTest {
         assertEquals("CLOSED", event.getStatus());
         verify(studentService).syncElectiveClassesForEvent(event);
         verify(studentNotificationService).notifyRound2ClosedWithoutCourse(event, student);
+    }
+
+    @Test
+    void adminEnrollShouldNotifyStudentWhenForceOverflowEnabled() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+
+        Student student = buildStudent(100L);
+        Course course = new Course();
+        course.setId(10L);
+        course.setEvent(event);
+        course.setCapacityMode("GLOBAL");
+        course.setCurrentCount(56);
+        course.setTotalCapacity(56);
+
+        Course lockedCourse = new Course();
+        lockedCourse.setId(10L);
+        lockedCourse.setEvent(event);
+        lockedCourse.setCapacityMode("GLOBAL");
+        lockedCourse.setCurrentCount(56);
+        lockedCourse.setTotalCapacity(56);
+
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(studentRepo.findById(100L)).thenReturn(Optional.of(student));
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findByIdForUpdate(10L)).thenReturn(Optional.of(lockedCourse));
+
+        courseService.adminEnroll(10L, 100L, 1L, true);
+
+        assertEquals(57, lockedCourse.getCurrentCount());
+        verify(selectionRepo).save(any(CourseSelection.class));
+        verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(studentNotificationService).notifyAdminEnrollSuccess(student, course, event, true);
+    }
+
+    @Test
+    void adminEnrollShouldReuseCancelledAdminSelection() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(1L);
+
+        Student student = buildStudent(100L);
+        Course course = new Course();
+        course.setId(10L);
+        course.setEvent(event);
+        course.setCapacityMode("GLOBAL");
+        course.setCurrentCount(1);
+        course.setTotalCapacity(10);
+
+        Course lockedCourse = new Course();
+        lockedCourse.setId(10L);
+        lockedCourse.setEvent(event);
+        lockedCourse.setCapacityMode("GLOBAL");
+        lockedCourse.setCurrentCount(1);
+        lockedCourse.setTotalCapacity(10);
+
+        CourseSelection cancelledSelection = new CourseSelection();
+        cancelledSelection.setId(88L);
+        cancelledSelection.setEvent(event);
+        cancelledSelection.setStudent(student);
+        cancelledSelection.setCourse(course);
+        cancelledSelection.setPreference(0);
+        cancelledSelection.setRound(0);
+        cancelledSelection.setStatus("CANCELLED");
+
+        when(courseRepo.findById(10L)).thenReturn(Optional.of(course));
+        when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
+        when(studentRepo.findById(100L)).thenReturn(Optional.of(student));
+        when(selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")).thenReturn(false);
+        when(courseRepo.findByIdForUpdate(10L)).thenReturn(Optional.of(lockedCourse));
+        when(selectionRepo.findByEventAndStudentAndPreference(event, student, 0))
+                .thenReturn(Optional.of(cancelledSelection));
+
+        courseService.adminEnroll(10L, 100L, 1L, false);
+
+        assertSame(course, cancelledSelection.getCourse());
+        assertEquals("CONFIRMED", cancelledSelection.getStatus());
+        assertEquals(0, cancelledSelection.getPreference());
+        assertEquals(0, cancelledSelection.getRound());
+        assertNotNull(cancelledSelection.getSelectedAt());
+        assertNotNull(cancelledSelection.getConfirmedAt());
+        assertEquals(2, lockedCourse.getCurrentCount());
+        verify(selectionRepo).save(argThat(selection -> selection == cancelledSelection));
+        verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(studentNotificationService).notifyAdminEnrollSuccess(student, course, event, false);
     }
 
     private Student buildStudent(Long id) {

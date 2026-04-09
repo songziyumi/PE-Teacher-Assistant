@@ -14,7 +14,7 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">🏮 体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
         <span class="nav-user" th:text="${currentSchool?.name}"></span>
@@ -38,8 +38,10 @@
             <div>
                 <h3 style="margin:0 0 4px;font-size:1rem;" th:text="${event.name}"></h3>
                 <span style="font-size:.82rem;color:#888;">
-                    第一轮：<th:block th:text="${event.round1Start} ? ${#temporals.format(event.round1Start,'MM-dd HH:mm')} : '—'"></th:block>
-                    ～ <th:block th:text="${event.round1End} ? ${#temporals.format(event.round1End,'MM-dd HH:mm')} : '—'"></th:block>
+                    第一轮：
+                    <th:block th:text="${event.round1Start} ? ${#temporals.format(event.round1Start,'MM-dd HH:mm')} : '—'"></th:block>
+                    ~
+                    <th:block th:text="${event.round1End} ? ${#temporals.format(event.round1End,'MM-dd HH:mm')} : '—'"></th:block>
                 </span>
             </div>
             <span class="badge"
@@ -52,25 +54,24 @@
             </span>
         </div>
 
-        <!-- 该活动下本教师负责的课程 -->
         <div style="margin-top:12px;">
             <table class="table" style="margin:0;">
                 <thead>
-                    <tr><th>课程名称</th><th>总名额</th><th>已确认</th><th>操作</th></tr>
+                <tr><th>课程名称</th><th>总名额</th><th>已确认</th><th>操作</th></tr>
                 </thead>
                 <tbody>
-                    <tr th:each="c : ${coursesByEvent[event.id]}">
-                        <td th:text="${c.name}"></td>
-                        <td th:text="${c.totalCapacity}"></td>
-                        <td th:text="${c.currentCount}"></td>
-                        <td>
-                            <a th:href="@{/teacher/courses/{eid}/courses/{cid}/enrollments(eid=${event.id},cid=${c.id})}"
-                               class="btn btn-secondary btn-xs">查看名单</a>
-                        </td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(coursesByEvent[event.id])}">
-                        <td colspan="4" style="color:#aaa;font-size:.85rem;">本活动暂无您负责的课程</td>
-                    </tr>
+                <tr th:each="c : ${coursesByEvent[event.id]}">
+                    <td th:text="${c.name}"></td>
+                    <td th:text="${c.totalCapacity}"></td>
+                    <td th:text="${confirmedCountByCourse[c.id]}"></td>
+                    <td>
+                        <a th:href="@{/teacher/courses/{eid}/courses/{cid}/enrollments(eid=${event.id},cid=${c.id})}"
+                           class="btn btn-secondary btn-xs">查看名单</a>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(coursesByEvent[event.id])}">
+                    <td colspan="4" style="color:#aaa;font-size:.85rem;">本活动暂无您负责的课程</td>
+                </tr>
                 </tbody>
             </table>
         </div>
