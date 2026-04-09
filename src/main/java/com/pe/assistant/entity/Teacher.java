@@ -51,6 +51,10 @@ public class Teacher {
     @JoinColumn(name = "school_id")
     private School school;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "managed_org_id")
+    private Organization managedOrg;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 

@@ -1,10 +1,13 @@
 package com.pe.assistant.service;
 
+import com.pe.assistant.entity.Organization;
 import com.pe.assistant.entity.OrganizationAdminType;
+import com.pe.assistant.entity.OrganizationType;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.entity.TeacherAccountType;
 import com.pe.assistant.repository.SchoolClassRepository;
+import com.pe.assistant.repository.SchoolRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +27,7 @@ public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
     private final SchoolClassRepository classRepository;
+    private final SchoolRepository schoolRepository;
 
     public List<Teacher> findAll(School school) {
         return teacherRepository.findBySchool(school);
@@ -69,6 +73,15 @@ public class TeacherService {
 
     public Teacher findByUsername(String username) {
         return teacherRepository.findByUsername(username).orElse(null);
+    }
+
+    public Teacher findOrgAdminByManagedOrg(Long managedOrgId) {
+        if (managedOrgId == null) {
+            return null;
+        }
+        return teacherRepository.findByManagedOrgId(managedOrgId).stream()
+                .findFirst()
+                .orElse(null);
     }
 
     public boolean canManageTeacher(Teacher operator, Teacher target) {
@@ -143,6 +156,42 @@ public class TeacherService {
         teacher.setPhone(phone);
         teacher.setSchool(school);
         return teacherRepository.save(teacher);
+    }
+
+    @Transactional
+    public Teacher createOrResetOrgAdmin(String username, String password, String name, String phone, Organization org) {
+        if (org == null || org.getId() == null) {
+            throw new IllegalArgumentException("组织节点不存在");
+        }
+        OrganizationAdminType orgAdminType = mapOrgAdminType(org.getType());
+        School school = org.getType() == OrganizationType.SCHOOL
+                ? schoolRepository.findByOrganizationId(org.getId()).orElse(null)
+                : null;
+        Teacher existing = teacherRepository.findByUsername(username).orElse(null);
+        if (existing != null) {
+            existing.setName(name == null || name.isBlank() ? org.getName() + "组织管理员" : name);
+            existing.setPhone(phone);
+            existing.setPassword(passwordEncoder.encode(password));
+            existing.setRole("ORG_ADMIN");
+            existing.setAccountType(TeacherAccountType.ORG_ADMIN);
+            existing.setOrgAdminType(orgAdminType);
+            existing.setManagedOrg(org);
+            existing.setSchool(school);
+            return teacherRepository.save(existing);
+        }
+        Teacher created = create(
+                username,
+                name == null || name.isBlank() ? org.getName() + "组织管理员" : name,
+                password,
+                "ORG_ADMIN",
+                phone,
+                school,
+                TeacherAccountType.ORG_ADMIN,
+                orgAdminType
+        );
+        created.setManagedOrg(org);
+        created.setSchool(school);
+        return teacherRepository.save(created);
     }
 
     @Transactional
@@ -229,5 +278,16 @@ public class TeacherService {
                     });
             teacherRepository.delete(t);
         });
+    }
+
+    private OrganizationAdminType mapOrgAdminType(OrganizationType organizationType) {
+        if (organizationType == null) {
+            throw new IllegalArgumentException("组织类型不能为空");
+        }
+        return switch (organizationType) {
+            case CITY -> OrganizationAdminType.CITY;
+            case DISTRICT -> OrganizationAdminType.DISTRICT;
+            case SCHOOL -> OrganizationAdminType.SCHOOL;
+        };
     }
 }
