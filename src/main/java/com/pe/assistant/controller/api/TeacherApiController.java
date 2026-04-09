@@ -990,6 +990,9 @@ public class TeacherApiController {
         m.put("physicalTestEdit", p.isPhysicalTestEdit());
         m.put("termGradeEdit", p.isTermGradeEdit());
         m.put("batchOperation", p.isBatchOperation());
+        m.put("showSuspendedOnTeacherPage", p.isShowSuspendedOnTeacherPage());
+        m.put("showOutgoingBorrowOnTeacherPage", p.isShowOutgoingBorrowOnTeacherPage());
+        m.put("showLongLeaveOnTeacherPage", p.isShowLongLeaveOnTeacherPage());
         return m;
     }
 
