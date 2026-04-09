@@ -52,6 +52,8 @@ class SelectionEventServiceRegressionTest {
     private StudentService studentService;
     @Mock
     private CourseService courseService;
+    @Mock
+    private ClassService classService;
 
     @InjectMocks
     private SelectionEventService selectionEventService;
@@ -98,6 +100,7 @@ class SelectionEventServiceRegressionTest {
 
         assertEquals("CLOSED", event.getStatus());
         verify(eventRepo).save(event);
+        verify(classService).syncElectiveClassesFromEvent(event);
         verify(studentService).syncElectiveClassesForEvent(event);
     }
 
