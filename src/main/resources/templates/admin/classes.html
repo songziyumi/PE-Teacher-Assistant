@@ -111,7 +111,7 @@
                 <td th:text="${c.name}"></td>
                 <td th:text="${c.teacher != null ? c.teacher.name : '未分配'}"></td>
                 <td>
-                    <a th:if="${c.type != '选修课'}" th:href="@{/admin/students/class/{id}(id=${c.id})}" class="btn btn-sm btn-primary">学生</a>
+                    <a th:href="@{/admin/students/class/{id}(id=${c.id})}" class="btn btn-sm btn-primary">学生</a>
                     <form th:action="@{/admin/classes/delete/{id}(id=${c.id})}" method="post" style="display:inline"
                           onsubmit="return confirm('确认删除？')">
                         <button type="submit" class="btn btn-sm btn-danger">删除</button>
