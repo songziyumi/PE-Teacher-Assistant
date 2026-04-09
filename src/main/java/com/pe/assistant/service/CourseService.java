@@ -32,6 +32,7 @@ public class CourseService {
     private final StudentRepository studentRepo;
     private final StudentNotificationService studentNotificationService;
     private final StudentService studentService;
+    private final ClassService classService;
 
     // ===== 课程 CRUD =====
 
@@ -327,6 +328,7 @@ public class CourseService {
                 ? "Round2 closed, auto-assigned " + assignedCount + " students"
                 : "Round2 closed");
         eventRepo.save(event);
+        classService.syncElectiveClassesFromEvent(event);
         studentService.syncElectiveClassesForEvent(event);
         int confirmedCount = selectionRepo.findByEventAndStatus(event, "CONFIRMED").size();
         log.info("courseSelection.round2.finalize.completed eventId={} assignedCount={} confirmedCount={} latencyMs={}",

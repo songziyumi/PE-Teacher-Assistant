@@ -7,11 +7,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class ClassService {
+
+    private static final String ELECTIVE_CLASS_TYPE = "\u9009\u4fee\u8bfe";
 
     private final SchoolClassRepository classRepository;
     private final GradeRepository gradeRepository;
@@ -88,6 +93,65 @@ public class ClassService {
     }
 
     @Transactional
+    public int syncElectiveClassesFromEvent(SelectionEvent event) {
+        if (event == null || event.getSchool() == null) {
+            return 0;
+        }
+
+        Map<String, SchoolClass> electiveClassesByStoredName = new LinkedHashMap<>();
+        for (SchoolClass schoolClass : classRepository.findBySchool(event.getSchool())) {
+            if (!isElectiveType(schoolClass.getType())) {
+                continue;
+            }
+            String storedName = normalizeName(storedElectiveClassName(schoolClass));
+            if (storedName != null) {
+                electiveClassesByStoredName.putIfAbsent(storedName, schoolClass);
+            }
+        }
+
+        int updated = 0;
+        for (Course course : courseRepository.findByEventOrderByNameAsc(event)) {
+            String electiveClassName = normalizeName(course != null ? course.getName() : null);
+            Teacher teacher = course != null ? course.getTeacher() : null;
+            if (electiveClassName == null || teacher == null || teacher.getId() == null) {
+                continue;
+            }
+
+            SchoolClass schoolClass = electiveClassesByStoredName.get(electiveClassName);
+            if (schoolClass == null) {
+                SchoolClass created = new SchoolClass();
+                created.setName(electiveClassName);
+                created.setType(ELECTIVE_CLASS_TYPE);
+                created.setSchool(event.getSchool());
+                created.setTeacher(teacher);
+                classRepository.save(created);
+                electiveClassesByStoredName.put(electiveClassName, created);
+                updated++;
+                continue;
+            }
+
+            boolean changed = false;
+            if (!sameTeacher(schoolClass.getTeacher(), teacher)) {
+                schoolClass.setTeacher(teacher);
+                changed = true;
+            }
+            if (!Objects.equals(normalizeName(schoolClass.getName()), electiveClassName)) {
+                schoolClass.setName(electiveClassName);
+                changed = true;
+            }
+            if (!isElectiveType(schoolClass.getType())) {
+                schoolClass.setType(ELECTIVE_CLASS_TYPE);
+                changed = true;
+            }
+            if (changed) {
+                classRepository.save(schoolClass);
+                updated++;
+            }
+        }
+        return updated;
+    }
+
+    @Transactional
     public void delete(Long id) {
         SchoolClass schoolClass = classRepository.findById(id).orElseThrow();
         cleanupClassCapacityReferences(schoolClass);
@@ -114,5 +178,43 @@ public class ClassService {
             }
             courseClassCapacityRepository.delete(capacity);
         }
+    }
+
+    private boolean sameTeacher(Teacher current, Teacher target) {
+        if (current == target) {
+            return true;
+        }
+        if (current == null || target == null) {
+            return false;
+        }
+        return Objects.equals(current.getId(), target.getId());
+    }
+
+    private boolean isElectiveType(String type) {
+        if (type == null) {
+            return false;
+        }
+        String value = type.trim();
+        return ELECTIVE_CLASS_TYPE.equals(value)
+                || value.contains("\u9009\u4fee")
+                || value.contains("elective");
+    }
+
+    private String storedElectiveClassName(SchoolClass schoolClass) {
+        if (schoolClass == null || schoolClass.getName() == null || schoolClass.getName().isBlank()) {
+            return null;
+        }
+        if (schoolClass.getGrade() == null || schoolClass.getGrade().getName() == null || schoolClass.getGrade().getName().isBlank()) {
+            return schoolClass.getName();
+        }
+        return schoolClass.getGrade().getName() + "/" + schoolClass.getName();
+    }
+
+    private String normalizeName(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
     }
 }
