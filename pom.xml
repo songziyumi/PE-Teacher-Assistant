@@ -13,7 +13,7 @@
 
     <groupId>com.pe</groupId>
     <artifactId>pe-teacher-assistant</artifactId>
-    <version>1.0.0</version>
+    <version>4.0.0</version>
     <name>PE_TEACHER_ASSISTANT_JAVA</name>
     <description>体育教师助手 - Web版</description>
 
