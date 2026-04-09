@@ -309,7 +309,6 @@ public class ClassService {
         }
         return null;
     }
-
     private boolean isElectiveType(String type) {
         if (type == null) {
             return false;
