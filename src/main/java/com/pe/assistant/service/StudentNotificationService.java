@@ -68,6 +68,18 @@ public class StudentNotificationService {
     }
 
     @Transactional
+    public InternalMessage notifyAdminEnrollSuccess(Student student, Course course, SelectionEvent event, boolean forceOverflow) {
+        String courseName = course != null ? course.getName() : "课程";
+        String subject = forceOverflow
+                ? "选课成功提醒：已强制超编加入《" + courseName + "》"
+                : "选课成功提醒：已加入《" + courseName + "》";
+        String content = forceOverflow
+                ? "管理员已为您强制超编加入《" + courseName + "》，请及时查看我的选课。"
+                : "管理员已为您加入《" + courseName + "》，请及时查看我的选课。";
+        return sendSystemMessage(resolveSchool(student, event), student, subject, content);
+    }
+
+    @Transactional
     public InternalMessage sendSystemMessage(School school, Student student, String subject, String content) {
         InternalMessage msg = new InternalMessage();
         msg.setSchool(school);

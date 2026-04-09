@@ -31,6 +31,12 @@ public class SelectionEvent {
     @Column(name = "round2_end")
     private LocalDateTime round2End;
 
+    @Column(name = "round3_start")
+    private LocalDateTime round3Start;
+
+    @Column(name = "round3_end")
+    private LocalDateTime round3End;
+
     /** DRAFT / ROUND1 / PROCESSING / ROUND2 / CLOSED */
     @Column(nullable = false, length = 20)
     private String status = "DRAFT";

@@ -31,14 +31,19 @@ public class TeacherCourseController {
         List<SelectionEvent> events = eventService.findBySchool(school);
         // 每个活动下本教师负责的课程
         Map<Long, List<Course>> coursesByEvent = new java.util.LinkedHashMap<>();
+        Map<Long, Integer> confirmedCountByCourse = new java.util.LinkedHashMap<>();
         for (SelectionEvent ev : events) {
             List<Course> myCourses = courseService.findByEvent(ev).stream()
                     .filter(c -> c.getTeacher() != null && c.getTeacher().getId().equals(teacher.getId()))
                     .toList();
             coursesByEvent.put(ev.getId(), myCourses);
+            for (Course course : myCourses) {
+                confirmedCountByCourse.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
+            }
         }
         model.addAttribute("events", events);
         model.addAttribute("coursesByEvent", coursesByEvent);
+        model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
         model.addAttribute("teacher", teacher);
         return "teacher/courses";
     }
@@ -49,9 +54,13 @@ public class TeacherCourseController {
                               Model model) {
         SelectionEvent event = eventService.findById(eventId);
         Course course = courseService.findById(courseId);
+        int confirmedEnrollmentCount = courseService.countConfirmedUniqueEnrollments(course);
         model.addAttribute("event", event);
         model.addAttribute("course", course);
         model.addAttribute("enrollments", courseService.findConfirmedUniqueEnrollments(course));
+        model.addAttribute("confirmedEnrollmentCount", confirmedEnrollmentCount);
+        model.addAttribute("remainingEnrollmentCapacity", Math.max(0, course.getTotalCapacity() - confirmedEnrollmentCount));
+        model.addAttribute("overflowEnrollmentCount", Math.max(0, confirmedEnrollmentCount - course.getTotalCapacity()));
         return "teacher/course-enrollments";
     }
 }

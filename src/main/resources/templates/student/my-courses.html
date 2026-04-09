@@ -17,6 +17,11 @@
         .sel-course { font-weight: 600; font-size: .95rem; }
         .sel-meta { font-size: .82rem; color: #777; }
         .status { font-size: .82rem; color: #555; }
+        .drop-tip { font-size: .8rem; color:#7a7a7a; margin-top:6px; }
+        .btn-danger.btn-loading,
+        .btn-danger:disabled { opacity: .7; cursor: not-allowed; }
+        .ajax-feedback { display:none; margin-bottom:16px; }
+        .ajax-feedback.show { display:block; }
     </style>
 </head>
 <body>
@@ -37,6 +42,7 @@
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+    <div id="dropAjaxFeedback" class="ajax-feedback"></div>
 
     <div th:if="${event == null or mySelections == null or #lists.isEmpty(mySelections)}" class="card" style="text-align:center;color:#999;">
         <p>暂无选课记录</p>
@@ -69,11 +75,17 @@
 
             <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
                   th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
+                  th:attr="data-course-name=${sel.course.name}"
+                  class="drop-selection-form"
                   method="post"
                   onsubmit="return confirm('确认退课？退课后将失去当前录取结果，并按第二轮规则重新抢课。')">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                <button type="submit" class="btn btn-danger btn-xs">退课</button>
+                <button type="submit"
+                        class="btn btn-danger btn-xs drop-selection-button"
+                        data-default-text="退课"
+                        data-loading-text="退课处理中...">退课</button>
             </form>
+            <div class="drop-tip" th:if="${#lists.contains(droppableSelectionIds, sel.id)}">退课后名额会回流到第二轮，请尽快重新抢课。</div>
         </div>
     </div>
 
@@ -82,5 +94,54 @@
         <span th:text="${' · 状态：' + event.status}"></span>
     </div>
 </div>
+<script>
+const dropAjaxFeedback = document.getElementById('dropAjaxFeedback');
+const dropSelectionForms = Array.from(document.querySelectorAll('.drop-selection-form'));
+
+function showDropFeedback(type, message) {
+    if (!dropAjaxFeedback) {
+        return;
+    }
+    dropAjaxFeedback.className = `ajax-feedback alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
+    dropAjaxFeedback.textContent = message;
+    dropAjaxFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+if (dropSelectionForms.length > 0) {
+    const dropSubmitLocks = new Set();
+
+    dropSelectionForms.forEach(form => {
+        form.addEventListener('submit', event => {
+            const submitButton = form.querySelector('.drop-selection-button');
+            const courseName = form.dataset.courseName || '当前课程';
+            const scope = form.action;
+            if (dropSubmitLocks.has(scope)) {
+                event.preventDefault();
+                return;
+            }
+            dropSubmitLocks.add(scope);
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('btn-loading');
+                submitButton.textContent = submitButton.dataset.loadingText || '退课处理中...';
+            }
+            showDropFeedback('success', `正在提交《${courseName}》退课请求，请稍候...`);
+        });
+    });
+
+    window.addEventListener('pageshow', () => {
+        dropSubmitLocks.clear();
+        dropSelectionForms.forEach(form => {
+            const submitButton = form.querySelector('.drop-selection-button');
+            if (!submitButton) {
+                return;
+            }
+            submitButton.disabled = false;
+            submitButton.classList.remove('btn-loading');
+            submitButton.textContent = submitButton.dataset.defaultText || '退课';
+        });
+    });
+}
+</script>
 </body>
 </html>

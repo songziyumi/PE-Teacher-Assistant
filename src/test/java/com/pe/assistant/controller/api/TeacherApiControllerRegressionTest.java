@@ -16,6 +16,8 @@ import com.pe.assistant.service.GradeService;
 import com.pe.assistant.service.MessageService;
 import com.pe.assistant.service.PhysicalTestService;
 import com.pe.assistant.service.StudentService;
+import com.pe.assistant.service.TeacherOperationLogService;
+import com.pe.assistant.service.TeacherPermissionService;
 import com.pe.assistant.service.TermGradeService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -60,7 +62,9 @@ class TeacherApiControllerRegressionTest {
     private static final String STATUS_OUTGOING_BORROW = "\u5728\u5916\u501f\u8bfb";
     private static final String LEGACY_STATUS_OUTGOING_BORROW = "\u5916\u51fa\u501f\u8bfb";
     private static final String MSG_ALREADY_HANDLED = "\u8bf7\u6c42\u5df2\u5904\u7406\uff0c\u65e0\u6cd5\u91cd\u590d\u64cd\u4f5c";
+    private static final String MSG_ALREADY_HANDLED_PROMPT = "\u8be5\u7533\u8bf7\u5df2\u88ab\u5904\u7406\uff0c\u8bf7\u5237\u65b0\u5ba1\u6279\u5217\u8868\u540e\u518d\u8bd5";
     private static final String MSG_NOT_OWNER = "\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7";
+    private static final String MSG_NOT_OWNER_PROMPT = "\u8be5\u7533\u8bf7\u4e0d\u5c5e\u4e8e\u60a8\u8d1f\u8d23\u7684\u8bfe\u7a0b\uff0c\u65e0\u6cd5\u5904\u7406";
     private static final String MSG_STUDENT_NO_DUPLICATED = "\u5b66\u53f7\u5df2\u5b58\u5728";
     private static final String MSG_NAME_BLANK = "\u5b66\u751f\u59d3\u540d\u4e0d\u80fd\u4e3a\u7a7a";
     private static final String MSG_STUDENT_NO_BLANK = "\u5b66\u53f7\u4e0d\u80fd\u4e3a\u7a7a";
@@ -93,6 +97,16 @@ class TeacherApiControllerRegressionTest {
     @MockBean
     private TeacherRepository teacherRepository;
     @MockBean
+    private com.pe.assistant.repository.AttendanceRepository attendanceRepository;
+    @MockBean
+    private com.pe.assistant.repository.CourseRequestAuditRepository courseRequestAuditRepository;
+    @MockBean
+    private com.pe.assistant.repository.TeacherOperationLogRepository teacherOperationLogRepository;
+    @MockBean
+    private TeacherOperationLogService teacherOperationLogService;
+    @MockBean
+    private TeacherPermissionService teacherPermissionService;
+    @MockBean
     private PasswordEncoder passwordEncoder;
 
     @Test
@@ -103,11 +117,11 @@ class TeacherApiControllerRegressionTest {
                 .when(messageService).approveRequest(eq(1L), eq(teacher), any());
 
         mockMvc.perform(post("/api/teacher/course-requests/1/approve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value(MSG_ALREADY_HANDLED));
+                .andExpect(jsonPath("$.message").value(MSG_ALREADY_HANDLED_PROMPT));
     }
 
     @Test
@@ -118,11 +132,11 @@ class TeacherApiControllerRegressionTest {
                 .when(messageService).approveRequest(eq(2L), eq(teacher), any());
 
         mockMvc.perform(post("/api/teacher/course-requests/2/approve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value(MSG_NOT_OWNER));
+                .andExpect(jsonPath("$.message").value(MSG_NOT_OWNER_PROMPT));
     }
 
     @Test
@@ -496,14 +510,14 @@ class TeacherApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data.failedItems", hasSize(4)))
                 .andExpect(jsonPath("$.data.failedItems[0].messageId").value(32))
                 .andExpect(jsonPath("$.data.failedItems[0].reason")
-                        .value("\u7533\u8bf7\u5df2\u5904\u7406\uff0c\u65e0\u6cd5\u91cd\u590d\u64cd\u4f5c"))
+                        .value(MSG_ALREADY_HANDLED_PROMPT))
                 .andExpect(jsonPath("$.data.failedItems[1].messageId").value(33))
                 .andExpect(jsonPath("$.data.failedItems[1].reason")
-                        .value("\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7"))
+                        .value(MSG_NOT_OWNER_PROMPT))
                 .andExpect(jsonPath("$.data.failedItems[2].messageId").value(34))
-                .andExpect(jsonPath("$.data.failedItems[2].reason").value("\u6d88\u606f\u4e0d\u5b58\u5728"))
+                .andExpect(jsonPath("$.data.failedItems[2].reason").value("\u5ba1\u6279\u8bb0\u5f55\u4e0d\u5b58\u5728\u6216\u5df2\u88ab\u5220\u9664\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5"))
                 .andExpect(jsonPath("$.data.failedItems[3].messageId").value(35))
-                .andExpect(jsonPath("$.data.failedItems[3].reason").value("\u8be5\u6d88\u606f\u4e0d\u662f\u9009\u8bfe\u7533\u8bf7"));
+                .andExpect(jsonPath("$.data.failedItems[3].reason").value("\u5f53\u524d\u8bb0\u5f55\u4e0d\u662f\u9009\u8bfe\u7533\u8bf7\uff0c\u65e0\u6cd5\u5904\u7406"));
     }
 
     @Test

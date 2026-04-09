@@ -15,7 +15,7 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">🏮 体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/teacher/courses}">← 选课活动</a>
         <span class="nav-user" th:text="${currentSchool?.name}"></span>
@@ -29,45 +29,49 @@
     <div class="page-header">
         <h2>
             <span th:text="${course.name}"></span>
-            <span style="font-size:.85rem;font-weight:400;color:#888;"> — 已确认学生名单</span>
+            <span style="font-size:.85rem;font-weight:400;color:#888;"> · 已确认学生名单</span>
         </h2>
     </div>
 
     <div style="background:#f8f9fa;border-radius:8px;padding:12px 18px;margin-bottom:18px;font-size:.88rem;color:#666;">
         总名额 <strong th:text="${course.totalCapacity}"></strong>
-        &nbsp;·&nbsp; 已确认 <strong th:text="${course.currentCount}"></strong>
+        &nbsp;·&nbsp; 已确认 <strong th:text="${confirmedEnrollmentCount}"></strong>
+        &nbsp;·&nbsp; 剩余 <strong th:text="${remainingEnrollmentCapacity}"></strong>
+        <th:block th:if="${overflowEnrollmentCount > 0}">
+            &nbsp;·&nbsp; 超编 <strong th:text="${overflowEnrollmentCount}"></strong>
+        </th:block>
         &nbsp;·&nbsp; 活动：<span th:text="${event.name}"></span>
     </div>
 
     <table class="table">
         <thead>
-            <tr><th>姓名</th><th>学号</th><th>班级</th><th>志愿/轮次</th><th>状态</th><th>确认时间</th></tr>
+        <tr><th>姓名</th><th>学号</th><th>班级</th><th>志愿/轮次</th><th>状态</th><th>确认时间</th></tr>
         </thead>
         <tbody>
-            <tr th:if="${#lists.isEmpty(enrollments)}">
-                <td colspan="6" style="text-align:center;color:#aaa;">暂无报名记录</td>
-            </tr>
-            <tr th:each="sel : ${enrollments}">
-                <td th:text="${sel.student.name}"></td>
-                <td th:text="${sel.student.studentNo}"></td>
-                <td th:text="${sel.student.schoolClass?.name ?: '—'}"></td>
-                <td>
-                    <span th:if="${sel.round == 1}" th:text="${sel.preference} + '志愿'"></span>
-                    <span th:if="${sel.round == 2}">第二轮</span>
-                    <span th:if="${sel.round == 0}">手动</span>
-                </td>
-                <td>
-                    <span class="badge"
-                          th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
-                                          (${sel.status == 'PENDING'} ? 'badge-pending' :
-                                          (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                          th:text="${sel.status == 'CONFIRMED'} ? '已确认' :
-                                    (${sel.status == 'PENDING'} ? '待结算' :
-                                    (${sel.status == 'LOTTERY_FAIL'} ? '未中签' : '已取消'))">
-                    </span>
-                </td>
-                <td th:text="${sel.confirmedAt} ? ${#temporals.format(sel.confirmedAt,'MM-dd HH:mm')} : '—'"></td>
-            </tr>
+        <tr th:if="${#lists.isEmpty(enrollments)}">
+            <td colspan="6" style="text-align:center;color:#aaa;">暂无报名记录</td>
+        </tr>
+        <tr th:each="sel : ${enrollments}">
+            <td th:text="${sel.student.name}"></td>
+            <td th:text="${sel.student.studentNo}"></td>
+            <td th:text="${sel.student.schoolClass?.name ?: '—'}"></td>
+            <td>
+                <span th:if="${sel.round == 1}" th:text="${sel.preference} + '志愿'"></span>
+                <span th:if="${sel.round == 2}">第二轮</span>
+                <span th:if="${sel.round == 0}">手动</span>
+            </td>
+            <td>
+                <span class="badge"
+                      th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
+                                      (${sel.status == 'PENDING'} ? 'badge-pending' :
+                                      (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
+                      th:text="${sel.status == 'CONFIRMED'} ? '已确认' :
+                                (${sel.status == 'PENDING'} ? '待结算' :
+                                (${sel.status == 'LOTTERY_FAIL'} ? '未中签' : '已取消'))">
+                </span>
+            </td>
+            <td th:text="${sel.confirmedAt} ? ${#temporals.format(sel.confirmedAt,'MM-dd HH:mm')} : '—'"></td>
+        </tr>
         </tbody>
     </table>
 </div>

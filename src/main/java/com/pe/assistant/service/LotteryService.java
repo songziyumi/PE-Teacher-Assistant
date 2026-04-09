@@ -46,10 +46,18 @@ public class LotteryService {
 
     @Async
     public void runLottery(Long eventId) {
+        long startedAtNanos = System.nanoTime();
+        log.info("courseSelection.round1.lottery.started eventId={}", eventId);
         try {
             doRunLottery(eventId);
+            log.info("courseSelection.round1.lottery.completed eventId={} latencyMs={}",
+                    eventId,
+                    Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L));
         } catch (Exception e) {
-            log.error("抽签过程异常，eventId={}", eventId, e);
+            log.error("courseSelection.round1.lottery.failed eventId={} latencyMs={}",
+                    eventId,
+                    Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L),
+                    e);
             try {
                 SelectionEvent event = eventRepo.findById(eventId).orElse(null);
                 if (event != null && "PROCESSING".equals(event.getStatus())) {
@@ -88,6 +96,7 @@ public class LotteryService {
                                           Set<Long> confirmedStudentIds) {
         int total = courses.size();
         String phaseLabel = preference == 1 ? "第一志愿" : "第二志愿";
+        int confirmedBeforePhase = confirmedStudentIds.size();
 
         for (int i = 0; i < total; i++) {
             Course course = courses.get(i);
@@ -98,7 +107,22 @@ public class LotteryService {
                     ? settleGlobalPreference(course, preference, confirmedStudentIds)
                     : settlePerClassPreference(course, preference, confirmedStudentIds);
             confirmedStudentIds.addAll(newlyConfirmedStudentIds);
+            log.info("courseSelection.round1.phase.course eventId={} preference={} courseId={} courseName={} capacityMode={} confirmedAdded={} confirmedTotal={}",
+                    event.getId(),
+                    preference,
+                    course.getId(),
+                    course.getName(),
+                    course.getCapacityMode(),
+                    newlyConfirmedStudentIds.size(),
+                    confirmedStudentIds.size());
         }
+        log.info("courseSelection.round1.phase.completed eventId={} preference={} phaseLabel={} courses={} confirmedAdded={} confirmedTotal={}",
+                event.getId(),
+                preference,
+                phaseLabel,
+                total,
+                Math.max(0, confirmedStudentIds.size() - confirmedBeforePhase),
+                confirmedStudentIds.size());
     }
 
     private Set<Long> settleGlobalPreference(Course course,
