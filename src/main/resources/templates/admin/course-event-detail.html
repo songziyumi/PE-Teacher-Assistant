@@ -39,6 +39,16 @@
         .summary-card strong { display:block; font-size:1.2rem; margin-bottom:4px; }
         .summary-card span { font-size:.84rem; color:#666; }
         .summary-card small { display:block; margin-top:4px; color:#94a3b8; font-size:.78rem; }
+        .collapsible-panel { margin:18px 0 20px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; overflow:hidden; }
+        .collapsible-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border:none; background:#fff; cursor:pointer; text-align:left; }
+        .collapsible-toggle:hover { background:#f8fafc; }
+        .collapsible-title { display:flex; flex-direction:column; gap:6px; }
+        .collapsible-title h3 { margin:0; font-size:1.05rem; color:#1f2937; }
+        .collapsible-title p { margin:0; font-size:.84rem; color:#64748b; }
+        .collapsible-icon { font-size:1rem; color:#64748b; transition:transform .2s ease; }
+        .collapsible-panel.expanded .collapsible-icon { transform:rotate(180deg); }
+        .collapsible-content { display:none; padding:0 18px 18px; }
+        .collapsible-panel.expanded .collapsible-content { display:block; }
         .review-panel { margin:18px 0 20px; padding:18px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; }
         .review-panel h3 { margin:0 0 8px; font-size:1.05rem; color:#1f2937; }
         .review-panel p { margin:0 0 14px; font-size:.84rem; color:#64748b; }
@@ -145,113 +155,137 @@
         </div>
     </div>
 
-    <div class="summary-grid">
-        <div class="summary-card">
-            <strong th:text="${#lists.size(participatingStudents)}">0</strong>
-            <span>当前参与学生</span>
-        </div>
-        <div class="summary-card">
-            <strong th:text="${#lists.size(participatingClasses)}">0</strong>
-            <span>参与班级</span>
-        </div>
-        <div class="summary-card">
-            <strong th:text="${#lists.size(courses)}">0</strong>
-            <span>已配置课程</span>
+    <div class="collapsible-panel" id="detailStatsPanel">
+        <button type="button"
+                class="collapsible-toggle"
+                onclick="toggleCollapsible('detailStatsPanel', this)"
+                aria-expanded="false">
+            <span class="collapsible-title">
+                <h3>活动详情统计</h3>
+                <p>查看参与学生、参与班级、课程配置和第一轮抽签汇总。</p>
+            </span>
+            <span class="collapsible-icon">▼</span>
+        </button>
+        <div class="collapsible-content">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <strong th:text="${#lists.size(participatingStudents)}">0</strong>
+                    <span>当前参与学生</span>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${#lists.size(participatingClasses)}">0</strong>
+                    <span>参与班级</span>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${#lists.size(courses)}">0</strong>
+                    <span>已配置课程</span>
+                </div>
+            </div>
+
+            <div class="summary-grid" th:if="${round1ResultAvailable}">
+                <div class="summary-card">
+                    <strong th:text="${round1Summary.firstChoiceConfirmedCount}">0</strong>
+                    <span>第一志愿中签人数</span>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${round1Summary.secondChoiceConfirmedCount}">0</strong>
+                    <span>第二志愿中签人数</span>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${round1Summary.unsuccessfulCount}">0</strong>
+                    <span>第一、第二志愿都未中签人数</span>
+                </div>
+            </div>
+            <p class="section-tip" th:if="${round1ResultAvailable}">
+                统计口径：已确认参加第一轮抽签的学生，共
+                <strong th:text="${round1Summary.submittedStudentCount}">0</strong>
+                人。
+            </p>
         </div>
     </div>
 
-    <div class="summary-grid" th:if="${round1ResultAvailable}">
-        <div class="summary-card">
-            <strong th:text="${round1Summary.firstChoiceConfirmedCount}">0</strong>
-            <span>第一志愿中签人数</span>
-        </div>
-        <div class="summary-card">
-            <strong th:text="${round1Summary.secondChoiceConfirmedCount}">0</strong>
-            <span>第二志愿中签人数</span>
-        </div>
-        <div class="summary-card">
-            <strong th:text="${round1Summary.unsuccessfulCount}">0</strong>
-            <span>第一、第二志愿都未中签人数</span>
-        </div>
-    </div>
-    <p class="section-tip" th:if="${round1ResultAvailable}">
-        统计口径：已确认参加第一轮抽签的学生，共
-        <strong th:text="${round1Summary.submittedStudentCount}">0</strong>
-        人。
-    </p>
-
-    <div class="review-panel">
-        <h3>活动复盘统计</h3>
-        <p>汇总第二轮抢课、第三轮申请与管理员干预情况，便于在选课管理面板直接复盘本次活动。</p>
-        <div class="summary-grid">
-            <div class="summary-card">
-                <strong th:text="${reviewStats.round2ConfirmedCount}">0</strong>
-                <span>第二轮抢课成功人数</span>
-                <small>按 `round = 2` 且已确认统计</small>
+    <div class="collapsible-panel" id="reviewStatsPanel">
+        <button type="button"
+                class="collapsible-toggle"
+                onclick="toggleCollapsible('reviewStatsPanel', this)"
+                aria-expanded="false">
+            <span class="collapsible-title">
+                <h3>活动复盘统计</h3>
+                <p>汇总第二轮抢课、第三轮申请与管理员干预情况。</p>
+            </span>
+            <span class="collapsible-icon">▼</span>
+        </button>
+        <div class="collapsible-content">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <strong th:text="${reviewStats.round2ConfirmedCount}">0</strong>
+                    <span>第二轮抢课成功人数</span>
+                    <small>按 `round = 2` 且已确认统计</small>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${reviewStats.round3RequestCount}">0</strong>
+                    <span>第三轮申请总数</span>
+                    <small>
+                        待审批
+                        <th:block th:text="${reviewStats.round3PendingCount}">0</th:block>
+                        条
+                    </small>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${reviewStats.round3ApprovedCount}">0</strong>
+                    <span>第三轮审批通过</span>
+                    <small>
+                        拒绝
+                        <th:block th:text="${reviewStats.round3RejectedCount}">0</th:block>
+                        条
+                    </small>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${reviewStats.adminInterventionCount}">0</strong>
+                    <span>管理员干预人数</span>
+                    <small>当前活动内手动加人的在册人数</small>
+                </div>
+                <div class="summary-card">
+                    <strong th:text="${reviewStats.forcedOverflowCount}">0</strong>
+                    <span>管理员强制加人</span>
+                    <small>按强制超编审计记录统计</small>
+                </div>
             </div>
-            <div class="summary-card">
-                <strong th:text="${reviewStats.round3RequestCount}">0</strong>
-                <span>第三轮申请总数</span>
-                <small>
-                    待审批
-                    <th:block th:text="${reviewStats.round3PendingCount}">0</th:block>
-                    条
-                </small>
+            <div class="review-table-wrap">
+                <table class="review-table">
+                    <thead>
+                    <tr>
+                        <th>课程</th>
+                        <th>教师</th>
+                        <th>名额模式</th>
+                        <th>第二轮成功</th>
+                        <th>第三轮申请</th>
+                        <th>待审批</th>
+                        <th>通过</th>
+                        <th>拒绝</th>
+                        <th>管理员干预</th>
+                        <th>强制加人</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(reviewStats.courseStats)}">
+                        <td colspan="10" class="muted">暂无可复盘的课程统计。</td>
+                    </tr>
+                    <tr th:each="item : ${reviewStats.courseStats}">
+                        <td th:text="${item.courseName}">课程</td>
+                        <td th:text="${item.teacherName}">教师</td>
+                        <td th:text="${item.capacityMode}">全局名额</td>
+                        <td th:text="${item.round2ConfirmedCount}">0</td>
+                        <td th:text="${item.round3RequestCount}">0</td>
+                        <td th:text="${item.round3PendingCount}">0</td>
+                        <td th:text="${item.round3ApprovedCount}">0</td>
+                        <td th:text="${item.round3RejectedCount}">0</td>
+                        <td th:text="${item.adminInterventionCount}">0</td>
+                        <td th:text="${item.forcedOverflowCount}">0</td>
+                    </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="summary-card">
-                <strong th:text="${reviewStats.round3ApprovedCount}">0</strong>
-                <span>第三轮审批通过</span>
-                <small>
-                    拒绝
-                    <th:block th:text="${reviewStats.round3RejectedCount}">0</th:block>
-                    条
-                </small>
-            </div>
-            <div class="summary-card">
-                <strong th:text="${reviewStats.adminInterventionCount}">0</strong>
-                <span>管理员干预人数</span>
-                <small>当前活动内手动加人的在册人数</small>
-            </div>
-            <div class="summary-card">
-                <strong th:text="${reviewStats.forcedOverflowCount}">0</strong>
-                <span>管理员强制加人</span>
-                <small>按强制超编审计记录统计</small>
-            </div>
-        </div>
-        <div class="review-table-wrap">
-            <table class="review-table">
-                <thead>
-                <tr>
-                    <th>课程</th>
-                    <th>教师</th>
-                    <th>名额模式</th>
-                    <th>第二轮成功</th>
-                    <th>第三轮申请</th>
-                    <th>待审批</th>
-                    <th>通过</th>
-                    <th>拒绝</th>
-                    <th>管理员干预</th>
-                    <th>强制加人</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:if="${#lists.isEmpty(reviewStats.courseStats)}">
-                    <td colspan="10" class="muted">暂无可复盘的课程统计。</td>
-                </tr>
-                <tr th:each="item : ${reviewStats.courseStats}">
-                    <td th:text="${item.courseName}">课程</td>
-                    <td th:text="${item.teacherName}">教师</td>
-                    <td th:text="${item.capacityMode}">全局名额</td>
-                    <td th:text="${item.round2ConfirmedCount}">0</td>
-                    <td th:text="${item.round3RequestCount}">0</td>
-                    <td th:text="${item.round3PendingCount}">0</td>
-                    <td th:text="${item.round3ApprovedCount}">0</td>
-                    <td th:text="${item.round3RejectedCount}">0</td>
-                    <td th:text="${item.adminInterventionCount}">0</td>
-                    <td th:text="${item.forcedOverflowCount}">0</td>
-                </tr>
-                </tbody>
-            </table>
         </div>
     </div>
 
@@ -500,6 +534,17 @@ function switchTab(tabId, btn) {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', nextTab);
     window.history.replaceState({}, '', url);
+}
+
+function toggleCollapsible(panelId, button) {
+    const panel = document.getElementById(panelId);
+    if (!panel) {
+        return;
+    }
+    const expanded = panel.classList.toggle('expanded');
+    if (button) {
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
 }
 
 function toggleCapacityMode(select, globalRowId, perClassId) {
