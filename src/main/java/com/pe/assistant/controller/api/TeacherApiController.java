@@ -1,8 +1,10 @@
 package com.pe.assistant.controller.api;
 
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.AttendanceRepository;
+import com.pe.assistant.repository.CourseOverflowAuditRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
 import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.repository.TeacherRepository;
@@ -47,6 +49,7 @@ public class TeacherApiController {
     private final TeacherRepository teacherRepository;
     private final AttendanceRepository attendanceRepository;
     private final CourseRequestAuditRepository courseRequestAuditRepository;
+    private final CourseOverflowAuditRepository courseOverflowAuditRepository;
     private final TeacherOperationLogRepository teacherOperationLogRepository;
     private final TeacherOperationLogService teacherOperationLogService;
     private final PasswordEncoder passwordEncoder;
@@ -326,7 +329,7 @@ public class TeacherApiController {
             messageService.approveRequest(id, teacher, remark);
             return ResponseEntity.ok(ApiResponse.ok("已同意申请", null));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, CourseSelectionPromptHelper.normalizeTeacherPrompt(e.getMessage())));
         }
     }
 
@@ -342,7 +345,7 @@ public class TeacherApiController {
             messageService.rejectRequest(id, teacher, remark);
             return ResponseEntity.ok(ApiResponse.ok("已拒绝申请", null));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, CourseSelectionPromptHelper.normalizeTeacherPrompt(e.getMessage())));
         }
     }
 
@@ -385,7 +388,7 @@ public class TeacherApiController {
                     Map<String, Object> failed = new LinkedHashMap<>();
                     failed.put("id", messageId);
                     failed.put("messageId", messageId);
-                    failed.put("reason", ex.getMessage() == null ? "处理失败" : ex.getMessage());
+                    failed.put("reason", CourseSelectionPromptHelper.normalizeTeacherPrompt(ex.getMessage()));
                     failedItems.add(failed);
                 }
             }
@@ -405,7 +408,7 @@ public class TeacherApiController {
             }
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, CourseSelectionPromptHelper.normalizeTeacherPrompt(e.getMessage())));
         }
     }
 
@@ -1053,12 +1056,15 @@ public class TeacherApiController {
                 teacherOperationLogRepository.findTop100ByTeacherIdOrderByOperatedAtDesc(teacher.getId());
         List<CourseRequestAudit> audits =
                 courseRequestAuditRepository.findTop100ByOperatorTeacherIdOrderByHandledAtDesc(teacher.getId());
+        List<CourseOverflowAudit> overflowAudits =
+                courseOverflowAuditRepository.findTop100ByOperatorTeacherIdOrderByCreatedAtDesc(teacher.getId());
 
         List<Map<String, Object>> entries = new ArrayList<>();
 
         for (TeacherOperationLog log : opLogs) {
             Map<String, Object> e = new LinkedHashMap<>();
             e.put("id", "op_" + log.getId());
+            e.put("source", "teacher_operation_log");
             e.put("action", log.getAction());
             e.put("title", actionToTitle(log.getAction()));
             e.put("description", log.getDescription());
@@ -1071,6 +1077,7 @@ public class TeacherApiController {
             boolean approved = "APPROVE".equals(audit.getAction());
             Map<String, Object> e = new LinkedHashMap<>();
             e.put("id", "audit_" + audit.getId());
+            e.put("source", "course_request_audit");
             e.put("action", approved ? "APPROVE" : "REJECT");
             e.put("title", approved ? "同意选课申请" : "拒绝选课申请");
             String coursePart = audit.getRelatedCourseName() != null ? audit.getRelatedCourseName() : "未知课程";
@@ -1078,6 +1085,22 @@ public class TeacherApiController {
             e.put("description", coursePart + senderPart);
             e.put("targetCount", 1);
             e.put("operatedAt", audit.getHandledAt().toString());
+            entries.add(e);
+        }
+
+        for (CourseOverflowAudit audit : overflowAudits) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", "overflow_" + audit.getId());
+            e.put("source", "course_overflow_audit");
+            e.put("action", "FORCED_OVERFLOW");
+            e.put("title", actionToTitle("FORCED_OVERFLOW"));
+            String coursePart = audit.getCourseName() != null ? audit.getCourseName() : "未知课程";
+            String studentPart = audit.getStudentName() != null ? "，学生：" + audit.getStudentName() : "";
+            String reasonPart = audit.getReason() != null && !audit.getReason().isBlank() ? "，原因：" + audit.getReason() : "";
+            e.put("description", coursePart + studentPart + reasonPart);
+            e.put("targetCount", 1);
+            e.put("teacherName", audit.getOperatorTeacherName());
+            e.put("operatedAt", audit.getCreatedAt().toString());
             entries.add(e);
         }
 
@@ -1111,6 +1134,7 @@ public class TeacherApiController {
             case "STUDENT_BATCH_ELECTIVE" -> "批量修改选修班";
             case "BATCH_APPROVE"       -> "批量同意申请";
             case "BATCH_REJECT"        -> "批量拒绝申请";
+            case "FORCED_OVERFLOW"     -> "强制超编录入";
             default -> action;
         };
     }

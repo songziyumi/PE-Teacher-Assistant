@@ -162,6 +162,9 @@ class _StudentHomeState extends State<StudentHome> {
   }
 
   Future<void> _sendRequest(StudentRequestCourse course) async {
+    if (!course.teacherAssigned || course.hasPendingRequest) {
+      return;
+    }
     final contentCtrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -755,6 +758,15 @@ class _StudentHomeState extends State<StudentHome> {
 
   Widget _buildRequestableCourseCard(StudentRequestCourse course) {
     final bool submitting = _submittingCourseIds.contains(course.id);
+    final bool canSubmit =
+        _canRequest && course.teacherAssigned && !course.hasPendingRequest && !submitting;
+    final String buttonText = !course.teacherAssigned
+        ? '未分配授课教师'
+        : course.hasPendingRequest
+        ? '已提交，待处理'
+        : submitting
+        ? '发送中...'
+        : '发送申请';
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
@@ -772,6 +784,14 @@ class _StudentHomeState extends State<StudentHome> {
             const SizedBox(height: 4),
             Text('教师：${course.teacherName ?? '-'}'),
             Text('人数：${course.currentCount}/${course.totalCapacity}（剩余${course.remaining}）'),
+            if (!course.teacherAssigned)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  '当前课程未分配授课教师，暂不能提交申请',
+                  style: TextStyle(color: Colors.orange),
+                ),
+              ),
             if ((course.description ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -784,9 +804,7 @@ class _StudentHomeState extends State<StudentHome> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: (!_canRequest || submitting)
-                    ? null
-                    : () => _sendRequest(course),
+                onPressed: canSubmit ? () => _sendRequest(course) : null,
                 icon: submitting
                     ? const SizedBox(
                         width: 14,
@@ -794,7 +812,7 @@ class _StudentHomeState extends State<StudentHome> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.send),
-                label: Text(submitting ? '发送中...' : '发送申请'),
+                label: Text(buttonText),
               ),
             ),
           ],

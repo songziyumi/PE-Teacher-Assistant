@@ -177,7 +177,7 @@ public class StudentAccountService {
             throw new IllegalArgumentException("\u65e7\u5bc6\u7801\u548c\u65b0\u5bc6\u7801\u4e0d\u80fd\u4e3a\u7a7a");
         }
         if (!passwordEncoder.matches(oldPassword, account.getPasswordHash())) {
-            throw new IllegalArgumentException("鏃у瘑鐮佷笉姝ｇ‘");
+            throw new IllegalArgumentException("旧密码错误");
         }
         validatePassword(newPassword);
         if (passwordEncoder.matches(newPassword, account.getPasswordHash())) {

@@ -1,5 +1,6 @@
 package com.pe.assistant.controller;
 
+import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.service.CurrentUserService;
@@ -42,7 +43,7 @@ public class MessageController {
             messageService.approveRequest(id, teacher);
             ra.addFlashAttribute("success", "已同意申请，学生已加入课程");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeTeacherPrompt(e.getMessage()));
         }
         return "redirect:/teacher/messages";
     }
@@ -54,7 +55,7 @@ public class MessageController {
             messageService.rejectRequest(id, teacher);
             ra.addFlashAttribute("success", "已拒绝申请");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeTeacherPrompt(e.getMessage()));
         }
         return "redirect:/teacher/messages";
     }

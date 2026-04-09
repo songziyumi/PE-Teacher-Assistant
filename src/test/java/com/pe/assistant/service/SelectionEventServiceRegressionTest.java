@@ -1,6 +1,7 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.EventStudent;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
@@ -20,7 +21,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +50,8 @@ class SelectionEventServiceRegressionTest {
     private LotteryService lotteryService;
     @Mock
     private StudentService studentService;
+    @Mock
+    private CourseService courseService;
 
     @InjectMocks
     private SelectionEventService selectionEventService;
@@ -92,6 +99,61 @@ class SelectionEventServiceRegressionTest {
         assertEquals("CLOSED", event.getStatus());
         verify(eventRepo).save(event);
         verify(studentService).syncElectiveClassesForEvent(event);
+    }
+
+    @Test
+    void deleteShouldRemoveNonDraftEventAndRefreshAffectedStudents() {
+        SelectionEvent event = new SelectionEvent();
+        event.setId(6L);
+        event.setStatus("CLOSED");
+
+        Student student = buildStudent(201L);
+        CourseSelection selection = new CourseSelection();
+        selection.setEvent(event);
+        selection.setStudent(student);
+
+        when(eventRepo.findById(6L)).thenReturn(Optional.of(event));
+        when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
+        when(selectionRepo.findByEvent(event)).thenReturn(List.of(selection));
+        when(courseRepo.findByEventOrderByNameAsc(event)).thenReturn(List.of());
+
+        selectionEventService.delete(6L);
+
+        verify(selectionRepo).delete(selection);
+        verify(eventStudentRepo).deleteByEvent(event);
+        verify(eventRepo).delete(event);
+        verify(studentService).refreshElectiveClassFromConfirmedSelections(student);
+    }
+
+    @Test
+    void processRound1AutomaticallyShouldStartLotteryWhenEventStillInRound1() {
+        when(eventRepo.markProcessingIfRound1(3L, "第一轮结束满5分钟，系统自动启动抽签")).thenReturn(1);
+
+        boolean started = selectionEventService.processRound1Automatically(3L);
+
+        assertTrue(started);
+        verify(lotteryService).runLottery(3L);
+    }
+
+    @Test
+    void processRound1AutomaticallyShouldSkipWhenEventAlreadyMovedOutOfRound1() {
+        when(eventRepo.markProcessingIfRound1(4L, "第一轮结束满5分钟，系统自动启动抽签")).thenReturn(0);
+
+        boolean started = selectionEventService.processRound1Automatically(4L);
+
+        assertFalse(started);
+        verify(lotteryService, never()).runLottery(4L);
+    }
+
+    @Test
+    void processRound1ShouldThrowWhenEventCannotEnterProcessing() {
+        when(eventRepo.markProcessingIfRound1(5L, "抽签即将开始")).thenReturn(0);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> selectionEventService.processRound1(5L));
+
+        assertEquals("活动当前状态不允许执行抽签", ex.getMessage());
+        verify(lotteryService, never()).runLottery(5L);
     }
 
     private Student buildStudent(Long id) {
