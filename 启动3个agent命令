@@ -3,11 +3,11 @@
   $codex = "C:\Users\28970\AppData\Roaming\npm\codex.ps1"                                                
                                                                                                          
   Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='students';    
-  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_students'; & '$codex'"  
+  Set-Location 'D:\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_students'; & '$codex'"  
   Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='approval';    
-  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_approval'; & '$codex'"  
+  Set-Location 'D:\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_approval'; & '$codex'"  
   Start-Process powershell -ArgumentList '-NoExit','-Command',"$Host.UI.RawUI.WindowTitle='messages';    
-  Set-Location 'C:\Users\28970\Desktop\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_messages'; & '$codex'" 
+  Set-Location 'D:\code\PE_TEACHER_ASSISTANT_JAVA_wt_teacher_messages'; & '$codex'" 
 
   1. 不要让他们互相改范围外文件。                          
   2. 要求每个 Agent 完成第一批后只汇报三样东西：           

@@ -6,16 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>首页 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
-        <span sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin}">管理后台</a></span>
+        <span sec:authorize="hasAnyRole('ADMIN','ORG_ADMIN')"><a th:href="@{/admin}">管理后台</a></span>
         <a th:href="@{/teacher/profile}">个人主页</a>
         <a th:href="@{/teacher/messages}">消息</a>
-        <span class="nav-user">👤 <span th:text="${teacher.name}"></span>
+        <span class="nav-user"><span th:text="${teacher.name}"></span>
             <span th:if="${teacher.school != null}"> | <span th:text="${teacher.school.name}"></span></span>
         </span>
         <form th:action="@{/logout}" method="post" style="display:inline">
@@ -24,14 +23,11 @@
     </div>
 </nav>
 <div class="container">
-    
-
     <div class="page-header">
         <h2>我的班级</h2>
         <p th:text="'欢迎，' + ${teacher.name}"></p>
     </div>
 
-    <!-- 行政班 -->
     <h3 class="section-title">行政班</h3>
     <div th:if="${#lists.isEmpty(classes)}" class="empty-state">
         <p>暂无分配的班级</p>
@@ -55,7 +51,6 @@
         </div>
     </div>
 
-    <!-- 选修课班级 -->
     <h3 class="section-title" style="margin-top:2rem">选修课班级</h3>
     <div th:if="${#lists.isEmpty(electiveClasses)}" class="empty-state">
         <p>暂无选修课班级</p>
@@ -78,7 +73,7 @@
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>
-    <span>© 2026 陈胜松 版权所有</span>
+    <span>&copy; 2026 体育教师助手</span>
 </footer>
 </body>
 </html>

@@ -36,10 +36,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final UserDetailsServiceImpl userDetailsService;
-    private final LoginAttemptService loginAttemptService;
-    private final JwtUtil jwtUtil;
-    private final StudentAccountService studentAccountService;
+    private final com.pe.assistant.security.UserDetailsServiceImpl userDetailsService;
+    private final com.pe.assistant.security.LoginAttemptService loginAttemptService;
+    private final com.pe.assistant.security.JwtUtil jwtUtil;
+    private final com.pe.assistant.service.StudentAccountService studentAccountService;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -53,14 +53,14 @@ public class SecurityConfig {
                 .securityMatcher("/api/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
-                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthFilter(jwtUtil, userDetailsService),
+                .addFilterBefore(new com.pe.assistant.security.JwtAuthFilter(jwtUtil, userDetailsService),
                         UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) -> {
@@ -96,10 +96,10 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/manifest.json", "/sw.js",
                                 "/offline.html", "/uploads/**").permitAll()
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
-                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
+                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")
@@ -150,6 +150,10 @@ public class SecurityConfig {
                     .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
             boolean isStudent = authentication.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+            boolean isOrgAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ORG_ADMIN"));
+            boolean isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
             if (isSuperAdmin) {
                 response.sendRedirect("/super-admin/schools");
                 return;
@@ -161,7 +165,15 @@ public class SecurityConfig {
                 response.sendRedirect(forcePasswordChange ? "/student/password?force=true" : "/student/courses");
                 return;
             }
-            response.sendRedirect("/dashboard");
+            if (isOrgAdmin) {
+                response.sendRedirect("/admin/competitions");
+                return;
+            }
+            if (isAdmin) {
+                response.sendRedirect("/admin");
+                return;
+            }
+            response.sendRedirect("/teacher/profile");
         };
     }
 }

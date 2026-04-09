@@ -2,6 +2,7 @@ package com.pe.assistant.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.LocalDateTime;
 
 @Data
@@ -17,6 +18,10 @@ public class School {
 
     @Column(unique = true, nullable = false, length = 50)
     private String code;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "org_id")
+    private Organization organization;
 
     @Column(length = 200)
     private String address;
