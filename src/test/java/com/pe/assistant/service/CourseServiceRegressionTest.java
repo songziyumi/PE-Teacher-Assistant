@@ -52,6 +52,8 @@ class CourseServiceRegressionTest {
     private StudentNotificationService studentNotificationService;
     @Mock
     private StudentService studentService;
+    @Mock
+    private ClassService classService;
 
     @InjectMocks
     private CourseService courseService;
@@ -565,6 +567,7 @@ class CourseServiceRegressionTest {
         assertTrue(event.getLotteryNote().contains("auto-assigned 1"));
         assertEquals(0, course.getCurrentCount());
         verify(studentService).assignElectiveClassFromCourse(student, course);
+        verify(classService).syncElectiveClassesFromEvent(event);
         verify(studentService).syncElectiveClassesForEvent(event);
         verify(selectionRepo).saveAndFlush(argThat(selection ->
                 selection.getEvent() == event
@@ -600,6 +603,7 @@ class CourseServiceRegressionTest {
 
         assertEquals(0, assigned);
         assertEquals("CLOSED", event.getStatus());
+        verify(classService).syncElectiveClassesFromEvent(event);
         verify(studentService).syncElectiveClassesForEvent(event);
         verify(studentNotificationService).notifyRound2ClosedWithoutCourse(event, student);
     }
