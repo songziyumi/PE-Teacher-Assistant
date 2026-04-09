@@ -149,6 +149,37 @@
                 </div>
             </div>
 
+                        <div class="perm-section">
+                <h4>&#25945;&#24072;&#39029;&#38754;&#23398;&#29983;&#26174;&#31034;</h4>
+                <div class="perm-row">
+                    <span class="perm-label">&#26174;&#31034;&#20241;&#23398;&#23398;&#29983;</span>
+                    <span class="perm-desc">&#25511;&#21046;&#25945;&#24072;&#31471;&#23398;&#29983;&#39029;&#38754;&#26159;&#21542;&#26174;&#31034;&#23398;&#31821;&#29366;&#24577;&#20026;&#20241;&#23398;&#30340;&#23398;&#29983;</span>
+                    <label class="switch">
+                        <input type="checkbox" name="showSuspendedOnTeacherPage" value="true"
+                               th:checked="${perm.showSuspendedOnTeacherPage}">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="perm-row">
+                    <span class="perm-label">&#26174;&#31034;&#22312;&#22806;&#20511;&#35835;&#23398;&#29983;</span>
+                    <span class="perm-desc">&#25511;&#21046;&#25945;&#24072;&#31471;&#23398;&#29983;&#39029;&#38754;&#26159;&#21542;&#26174;&#31034;&#23398;&#31821;&#29366;&#24577;&#20026;&#22312;&#22806;&#20511;&#35835;&#30340;&#23398;&#29983;</span>
+                    <label class="switch">
+                        <input type="checkbox" name="showOutgoingBorrowOnTeacherPage" value="true"
+                               th:checked="${perm.showOutgoingBorrowOnTeacherPage}">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="perm-row">
+                    <span class="perm-label">&#26174;&#31034;&#38271;&#20551;&#23398;&#29983;</span>
+                    <span class="perm-desc">&#25511;&#21046;&#25945;&#24072;&#31471;&#23398;&#29983;&#39029;&#38754;&#26159;&#21542;&#26174;&#31034;&#23398;&#31821;&#29366;&#24577;&#20026;&#38271;&#20551;&#30340;&#23398;&#29983;</span>
+                    <label class="switch">
+                        <input type="checkbox" name="showLongLeaveOnTeacherPage" value="true"
+                               th:checked="${perm.showLongLeaveOnTeacherPage}">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;">
                 保存设置
             </button>

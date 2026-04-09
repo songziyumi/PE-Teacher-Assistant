@@ -95,13 +95,17 @@ public class AdminController {
             @RequestParam(defaultValue = "false") boolean physicalTestEdit,
             @RequestParam(defaultValue = "false") boolean termGradeEdit,
             @RequestParam(defaultValue = "false") boolean batchOperation,
+            @RequestParam(defaultValue = "false") boolean showSuspendedOnTeacherPage,
+            @RequestParam(defaultValue = "false") boolean showOutgoingBorrowOnTeacherPage,
+            @RequestParam(defaultValue = "false") boolean showLongLeaveOnTeacherPage,
             RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
         teacherPermissionService.updateFromForm(school,
                 editStudentName, editStudentGender, editStudentNo, editStudentStatus,
                 editStudentClass, editStudentElectiveClass,
-                attendanceEdit, physicalTestEdit, termGradeEdit, batchOperation);
-        ra.addFlashAttribute("successMsg", "权限设置已保存");
+                attendanceEdit, physicalTestEdit, termGradeEdit, batchOperation,
+                showSuspendedOnTeacherPage, showOutgoingBorrowOnTeacherPage, showLongLeaveOnTeacherPage);
+        ra.addFlashAttribute("successMsg", "\u6743\u9650\u8bbe\u7f6e\u5df2\u4fdd\u5b58");
         return "redirect:/admin/teacher-permissions";
     }
 
@@ -332,8 +336,6 @@ public class AdminController {
         model.addAttribute("studentStatuses", studentService.getAvailableStatuses());
         model.addAttribute("electiveClassOptions", studentService.findAllElectiveClassNames(school));
         model.addAttribute("size", pageSize);
-        model.addAttribute("showSuspendedOnTeacherPage", !Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage()));
-        model.addAttribute("showOutgoingBorrowOnTeacherPage", !Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage()));
         model.addAttribute("electiveClasses", classService.findAll(school).stream()
             .filter(c -> "选修课".equals(c.getType())).toList());
         String deleteAllCode = generateDeleteAllStudentsCode();
@@ -402,17 +404,6 @@ public class AdminController {
         return "redirect:/admin/students";
     }
 
-    @PostMapping("/students/teacher-visibility")
-    public String updateTeacherVisibility(@RequestParam(defaultValue = "false") boolean showSuspendedOnTeacherPage,
-                                          @RequestParam(defaultValue = "false") boolean showOutgoingBorrowOnTeacherPage,
-                                          RedirectAttributes ra) {
-        School school = currentUserService.getCurrentSchool();
-        schoolService.updateTeacherStudentVisibility(school.getId(),
-                showSuspendedOnTeacherPage, showOutgoingBorrowOnTeacherPage);
-        ra.addFlashAttribute("success", "教师端学生显示设置已更新");
-        return "redirect:/admin/students";
-    }
-
     @PostMapping("/students/add")
     public String addStudent(@RequestParam String name, @RequestParam String gender,
                              @RequestParam String studentNo, @RequestParam String idCard,
@@ -427,9 +418,9 @@ public class AdminController {
 
     @PostMapping("/students/edit/{id}")
     public String editStudent(@PathVariable Long id, @RequestParam String name,
-                              @RequestParam String gender, @RequestParam String studentNo,
-                              @RequestParam String idCard, @RequestParam String electiveClass,
-                              @RequestParam Long classId,
+                              @RequestParam(required = false) String gender, @RequestParam String studentNo,
+                              @RequestParam(required = false) String idCard, @RequestParam(required = false) String electiveClass,
+                              @RequestParam(required = false) Long classId,
                               @RequestParam(defaultValue = "在籍") String studentStatus,
                               RedirectAttributes ra) {
         studentService.update(id, name, gender, studentNo, idCard, electiveClass, classId, studentStatus);
