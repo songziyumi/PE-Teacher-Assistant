@@ -51,6 +51,7 @@ public class StudentService {
     private final StudentAccountRepository studentAccountRepository;
     private final StudentReferenceCleanupService studentReferenceCleanupService;
     private final TeacherPermissionService teacherPermissionService;
+    private final ElectiveClassResolver electiveClassResolver;
 
     public List<Student> findByClassId(Long classId) {
         return studentRepository.findBySchoolClassIdOrderByStudentNo(classId);
@@ -474,10 +475,7 @@ public class StudentService {
     }
 
     private String buildElectiveClassName(Course course) {
-        if (course == null || course.getName() == null || course.getName().isBlank()) {
-            return null;
-        }
-        return course.getName().trim();
+        return electiveClassResolver.buildStoredName(course);
     }
 
     private boolean hasEnabledAccount(StudentAccount account) {

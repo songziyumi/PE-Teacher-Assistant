@@ -45,6 +45,26 @@ public class SelectionEventService {
         return eventRepo.findBySchoolOrderByCreatedAtDesc(school);
     }
 
+    @Transactional
+    public ElectiveClassRepairResult repairClosedEventElectiveClasses(School school) {
+        if (school == null) {
+            return new ElectiveClassRepairResult(0, 0, 0);
+        }
+
+        int processedEvents = 0;
+        int updatedClasses = 0;
+        int updatedStudents = 0;
+        for (SelectionEvent event : findBySchool(school)) {
+            if (!"CLOSED".equals(event.getStatus())) {
+                continue;
+            }
+            processedEvents++;
+            updatedClasses += classService.syncElectiveClassesFromEvent(event);
+            updatedStudents += studentService.syncElectiveClassesForEvent(event);
+        }
+        return new ElectiveClassRepairResult(processedEvents, updatedClasses, updatedStudents);
+    }
+
     public SelectionEvent findById(Long id) {
         return eventRepo.findById(id).orElseThrow(() -> new RuntimeException("活动不存在"));
     }
@@ -252,5 +272,8 @@ public class SelectionEventService {
                 && event.getRound3End() != null
                 && !now.isBefore(event.getRound3Start())
                 && now.isBefore(event.getRound3End());
+    }
+
+    public record ElectiveClassRepairResult(int processedEvents, int updatedClasses, int updatedStudents) {
     }
 }

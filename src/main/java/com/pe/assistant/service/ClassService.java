@@ -7,9 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -26,6 +25,7 @@ public class ClassService {
     private final CourseClassCapacityRepository courseClassCapacityRepository;
     private final CourseRepository courseRepository;
     private final StudentService studentService;
+    private final ElectiveClassResolver electiveClassResolver;
 
     public List<SchoolClass> findAll(School school) {
         return classRepository.findBySchool(school);
@@ -98,34 +98,56 @@ public class ClassService {
             return 0;
         }
 
-        Map<String, SchoolClass> electiveClassesByStoredName = new LinkedHashMap<>();
+        List<SchoolClass> electiveClasses = new ArrayList<>();
         for (SchoolClass schoolClass : classRepository.findBySchool(event.getSchool())) {
             if (!isElectiveType(schoolClass.getType())) {
                 continue;
             }
-            String storedName = normalizeName(storedElectiveClassName(schoolClass));
-            if (storedName != null) {
-                electiveClassesByStoredName.putIfAbsent(storedName, schoolClass);
-            }
+            electiveClasses.add(schoolClass);
         }
+        electiveClasses.sort((left, right) -> {
+            String leftName = normalizeName(left.getName());
+            String rightName = normalizeName(right.getName());
+            if (leftName == null && rightName != null) {
+                return 1;
+            }
+            if (leftName != null && rightName == null) {
+                return -1;
+            }
+            if (leftName != null && rightName != null) {
+                int nameCompare = leftName.compareTo(rightName);
+                if (nameCompare != 0) {
+                    return nameCompare;
+                }
+            }
+            Long leftGradeId = left.getGrade() != null && left.getGrade().getId() != null
+                    ? left.getGrade().getId() : Long.MIN_VALUE;
+            Long rightGradeId = right.getGrade() != null && right.getGrade().getId() != null
+                    ? right.getGrade().getId() : Long.MIN_VALUE;
+            return leftGradeId.compareTo(rightGradeId);
+        });
 
         int updated = 0;
         for (Course course : courseRepository.findByEventOrderByNameAsc(event)) {
-            String electiveClassName = normalizeName(course != null ? course.getName() : null);
+            ElectiveClassResolver.ElectiveClassResolution resolution = electiveClassResolver.resolve(course);
+            String electiveClassName = resolution.baseName();
             Teacher teacher = course != null ? course.getTeacher() : null;
             if (electiveClassName == null || teacher == null || teacher.getId() == null) {
                 continue;
             }
 
-            SchoolClass schoolClass = electiveClassesByStoredName.get(electiveClassName);
+            SchoolClass schoolClass = findMatchingElectiveClass(electiveClasses, resolution, teacher);
             if (schoolClass == null) {
                 SchoolClass created = new SchoolClass();
                 created.setName(electiveClassName);
                 created.setType(ELECTIVE_CLASS_TYPE);
                 created.setSchool(event.getSchool());
                 created.setTeacher(teacher);
+                if (resolution.hasSingleGrade()) {
+                    created.setGrade(resolution.grade());
+                }
                 classRepository.save(created);
-                electiveClassesByStoredName.put(electiveClassName, created);
+                electiveClasses.add(created);
                 updated++;
                 continue;
             }
@@ -141,6 +163,10 @@ public class ClassService {
             }
             if (!isElectiveType(schoolClass.getType())) {
                 schoolClass.setType(ELECTIVE_CLASS_TYPE);
+                changed = true;
+            }
+            if (resolution.gradeResolved() && !sameGrade(schoolClass.getGrade(), resolution.grade())) {
+                schoolClass.setGrade(resolution.grade());
                 changed = true;
             }
             if (changed) {
@@ -190,6 +216,100 @@ public class ClassService {
         return Objects.equals(current.getId(), target.getId());
     }
 
+    private boolean sameGrade(Grade current, Grade target) {
+        if (current == target) {
+            return true;
+        }
+        if (current == null || target == null) {
+            return current == null && target == null;
+        }
+        return Objects.equals(current.getId(), target.getId());
+    }
+
+    private SchoolClass findMatchingElectiveClass(List<SchoolClass> electiveClasses,
+                                                  ElectiveClassResolver.ElectiveClassResolution resolution,
+                                                  Teacher teacher) {
+        List<SchoolClass> sameNameCandidates = new ArrayList<>();
+        for (SchoolClass schoolClass : electiveClasses) {
+            if (Objects.equals(normalizeName(schoolClass.getName()), resolution.baseName())) {
+                sameNameCandidates.add(schoolClass);
+            }
+        }
+        if (sameNameCandidates.isEmpty()) {
+            return null;
+        }
+
+        if (resolution.hasSingleGrade()) {
+            SchoolClass exactGradeMatch = pickCandidate(sameNameCandidates, teacher, resolution.grade(), false);
+            if (exactGradeMatch != null) {
+                return exactGradeMatch;
+            }
+            SchoolClass emptyGradeMatch = pickCandidate(sameNameCandidates, teacher, null, true);
+            if (emptyGradeMatch != null) {
+                return emptyGradeMatch;
+            }
+        } else if (resolution.crossGrade()) {
+            SchoolClass emptyGradeMatch = pickCandidate(sameNameCandidates, teacher, null, true);
+            if (emptyGradeMatch != null) {
+                return emptyGradeMatch;
+            }
+        }
+
+        SchoolClass teacherMatch = pickCandidate(sameNameCandidates, teacher, null, false);
+        if (teacherMatch != null) {
+            return teacherMatch;
+        }
+        if (sameNameCandidates.size() == 1) {
+            return sameNameCandidates.get(0);
+        }
+
+        if (resolution.hasSingleGrade()) {
+            for (SchoolClass candidate : sameNameCandidates) {
+                if (sameGrade(candidate.getGrade(), resolution.grade())) {
+                    return candidate;
+                }
+            }
+        }
+        for (SchoolClass candidate : sameNameCandidates) {
+            if (candidate.getGrade() == null) {
+                return candidate;
+            }
+        }
+        return sameNameCandidates.get(0);
+    }
+
+    private SchoolClass pickCandidate(List<SchoolClass> candidates, Teacher teacher, Grade grade, boolean requireGradeMatchOnly) {
+        for (SchoolClass candidate : candidates) {
+            if (!sameTeacher(candidate.getTeacher(), teacher)) {
+                continue;
+            }
+            if (requireGradeMatchOnly) {
+                if (grade == null && candidate.getGrade() == null) {
+                    return candidate;
+                }
+                if (grade != null && sameGrade(candidate.getGrade(), grade)) {
+                    return candidate;
+                }
+                continue;
+            }
+            if (grade == null || sameGrade(candidate.getGrade(), grade)) {
+                return candidate;
+            }
+        }
+        if (requireGradeMatchOnly) {
+            for (SchoolClass candidate : candidates) {
+                if (grade == null && candidate.getGrade() == null) {
+                    return candidate;
+                }
+                if (grade != null && sameGrade(candidate.getGrade(), grade)) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+        return null;
+    }
+
     private boolean isElectiveType(String type) {
         if (type == null) {
             return false;
@@ -201,13 +321,7 @@ public class ClassService {
     }
 
     private String storedElectiveClassName(SchoolClass schoolClass) {
-        if (schoolClass == null || schoolClass.getName() == null || schoolClass.getName().isBlank()) {
-            return null;
-        }
-        if (schoolClass.getGrade() == null || schoolClass.getGrade().getName() == null || schoolClass.getGrade().getName().isBlank()) {
-            return schoolClass.getName();
-        }
-        return schoolClass.getGrade().getName() + "/" + schoolClass.getName();
+        return electiveClassResolver.buildStoredName(schoolClass);
     }
 
     private String normalizeName(String value) {
