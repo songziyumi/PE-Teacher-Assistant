@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班级管理 - 体育教师助手</title>
+    <title>年级班级管理 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         .modal-overlay {
@@ -57,6 +57,31 @@
         .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
         .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
         .pagination .disabled { color: #bbb; pointer-events: none; }
+        .management-panel { padding: 0; overflow: hidden; }
+        .fold-section + .fold-section { border-top: 1px solid #eee; }
+        .fold-section summary {
+            list-style: none; cursor: pointer; padding: 16px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 16px; font-weight: 600; color: #333;
+        }
+        .fold-section summary::-webkit-details-marker { display: none; }
+        .fold-section summary::after { content: '展开'; color: #4a90e2; font-size: 13px; font-weight: 500; }
+        .fold-section[open] summary::after { content: '收起'; }
+        .fold-body { padding: 0 20px 20px; }
+        .class-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+        .class-search-form, .class-danger-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; }
+        .class-search-form { flex: 1; min-width: 0; }
+        .class-search-form select { width: 112px; flex: 0 0 112px; }
+        .class-search-form input[name="name"] { width: 138px; flex: 0 0 138px; }
+        .class-danger-form input[name="verifyCode"] {
+            width: 92px; flex: 0 0 92px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;
+        }
+        .verify-code-tag {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 72px; padding: 8px 10px; border-radius: 6px;
+            background: #f5f7fb; border: 1px dashed #b8c4d6; color: #2d4c7c;
+            font-weight: 700; letter-spacing: 1px; font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -75,75 +100,134 @@
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <div class="page-header">
-        <h2>班级管理</h2>
+        <h2>年级班级管理</h2>
     </div>
-    <!-- 搜索框 -->
-    <form method="get" th:action="@{/admin/classes}" class="search-bar">
-        <select name="type">
-            <option value="" th:selected="${type == ''}">全部类型</option>
-            <option value="行政班" th:selected="${type == '行政班'}">行政班</option>
-            <option value="选修课" th:selected="${type == '选修课'}">选修课</option>
-        </select>
-        <select name="gradeId">
-            <option value="" th:selected="${gradeId == null}">全部年级</option>
-            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
-                    th:selected="${gradeId != null && gradeId == g.id}"></option>
-        </select>
-        <input type="text" name="name" th:value="${name}" placeholder="班级名称">
-        <button type="submit" class="btn btn-secondary">搜索</button>
-        <a th:href="@{/admin/classes}" class="btn btn-outline">重置</a>
-        <button type="button" class="btn btn-primary" onclick="openModal()">＋ 添加班级</button>
-    </form>
-    <form th:action="@{/admin/classes/delete-all}" method="post" style="display:inline"
-          onsubmit="return confirm('确认删除全部班级数据？此操作不可恢复！')">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <button type="submit" class="btn btn-danger">删除全部</button>
-    </form>
-    <table class="table">
-        <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>操作</th></tr></thead>
-        <tbody>
-            <tr th:each="c : ${classPage.content}">
-                <td>
-                    <span th:if="${c.type == '选修课'}" class="badge badge-elective">选修课</span>
-                    <span th:unless="${c.type == '选修课'}" class="badge badge-admin">行政班</span>
-                </td>
-                <td th:text="${c.grade != null ? c.grade.name : '-'}"></td>
-                <td th:text="${c.name}"></td>
-                <td th:text="${c.teacher != null ? c.teacher.name : '未分配'}"></td>
-                <td>
-                    <a th:href="@{/admin/students/class/{id}(id=${c.id})}" class="btn btn-sm btn-primary">学生</a>
-                    <form th:action="@{/admin/classes/delete/{id}(id=${c.id})}" method="post" style="display:inline"
-                          onsubmit="return confirm('确认删除？')">
-                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
+
+    <div class="card management-panel" style="margin-bottom:16px;">
+        <details class="fold-section">
+            <summary>年级管理</summary>
+            <div class="fold-body">
+                <form th:action="@{/admin/grades/add}" method="post" class="search-bar" style="margin-bottom:12px;">
+                    <input type="text" name="name" placeholder="年级名称（如：高一）" required>
+                    <button type="submit" class="btn btn-primary">添加年级</button>
+                </form>
+                <table class="table" style="margin-bottom:0;">
+                    <thead><tr><th style="width:90px;">ID</th><th>年级名称</th><th style="width:180px;">操作</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(grades)}">
+                        <td colspan="3" style="text-align:center;color:#888;">暂无年级数据</td>
+                    </tr>
+                    <tr th:each="g : ${grades}">
+                        <td th:text="${g.id}"></td>
+                        <td>
+                            <form th:action="@{/admin/grades/edit/{id}(id=${g.id})}" method="post" class="search-bar" style="margin-bottom:0;">
+                                <input type="text" name="name" th:value="${g.name}" required>
+                                <button type="submit" class="btn btn-sm btn-secondary">保存</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form th:action="@{/admin/grades/delete/{id}(id=${g.id})}" method="post"
+                                  th:data-grade-name="${g.name}"
+                                  onsubmit="return confirmDeleteGrade(this)">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+
+        <details class="fold-section" open>
+            <summary>班级管理</summary>
+            <div class="fold-body">
+                <div class="class-toolbar">
+                    <form method="get" th:action="@{/admin/classes}" class="class-search-form">
+                        <select name="type">
+                            <option value="" th:selected="${type == ''}">全部类型</option>
+                            <option value="行政班" th:selected="${type == '行政班'}">行政班</option>
+                            <option value="选修课" th:selected="${type == '选修课'}">选修课</option>
+                        </select>
+                        <select name="gradeId">
+                            <option value="" th:selected="${gradeId == null}">全部年级</option>
+                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
+                                    th:selected="${gradeId != null && gradeId == g.id}"></option>
+                        </select>
+                        <input type="text" name="name" th:value="${name}" placeholder="班级名称">
+                        <button type="submit" class="btn btn-secondary">搜索</button>
+                        <a th:href="@{/admin/classes}" class="btn btn-outline">重置</a>
+                        <button type="button" class="btn btn-primary" onclick="openModal()">＋ 添加班级</button>
                     </form>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <!-- 分页参数（供JS读取） -->
-    <input type="hidden" id="pg-current"  th:value="${classPage.number}">
-    <input type="hidden" id="pg-total"    th:value="${classPage.totalPages}">
-    <input type="hidden" id="pg-type"     th:value="${type}">
-    <input type="hidden" id="pg-gradeId"  th:value="${gradeId}">
-    <input type="hidden" id="pg-name"     th:value="${name}">
-    <!-- 分页控件 -->
-    <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${classPage.totalPages > 0}">
-        <span style="font-size:13px;color:#555;white-space:nowrap"
-              th:text="'共 ' + ${classPage.totalElements} + ' 个班级，共 ' + ${classPage.totalPages} + ' 页'"></span>
-        <div class="pagination" id="pagination" th:if="${classPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
-            <a id="pg-prev">上一页</a>
-            <span id="pg-numbers"></span>
-            <a id="pg-next">下一页</a>
-        </div>
-        <span style="font-size:13px;color:#555;white-space:nowrap;margin-left:auto" th:if="${classPage.totalPages > 1}">跳转到
-            <input type="number" id="pg-jump" min="1" th:max="${classPage.totalPages}"
-                   style="width:52px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px" placeholder="页">
-            <button onclick="jumpPage()" class="btn btn-sm btn-outline" style="padding:4px 10px">GO</button>
-        </span>
+                    <form th:action="@{/admin/classes/delete-all}" method="post" class="class-danger-form"
+                          onsubmit="return confirm('确认删除全部班级数据？此操作不可恢复！')">
+                        <span class="verify-code-tag" th:text="${deleteAllClassesCode}"></span>
+                        <input type="text" name="verifyCode" inputmode="numeric" maxlength="5" placeholder="验证码">
+                        <input type="hidden" name="returnType" th:value="${type}">
+                        <input type="hidden" name="returnGradeId" th:value="${gradeId}">
+                        <input type="hidden" name="returnName" th:value="${name}">
+                        <input type="hidden" name="returnPage" th:value="${classPage.number}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button type="submit" class="btn btn-danger">删除全部</button>
+                    </form>
+                </div>
+
+                <table class="table">
+                    <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>操作</th></tr></thead>
+                    <tbody>
+                        <tr th:each="c : ${classPage.content}">
+                            <td>
+                                <span th:if="${c.type == '选修课'}" class="badge badge-elective">选修课</span>
+                                <span th:unless="${c.type == '选修课'}" class="badge badge-admin">行政班</span>
+                            </td>
+                            <td th:text="${c.grade != null ? c.grade.name : '-'}"></td>
+                            <td th:text="${c.name}"></td>
+                            <td th:text="${c.teacher != null ? c.teacher.name : '未分配'}"></td>
+                            <td>
+                                <a th:href="@{/admin/students/class/{id}(id=${c.id})}" class="btn btn-sm btn-primary">学生</a>
+                                <form th:action="@{/admin/classes/delete/{id}(id=${c.id})}" method="post" style="display:inline"
+                                      onsubmit="return confirm('确认删除？')">
+                                    <input type="hidden" name="returnType" th:value="${type}">
+                                    <input type="hidden" name="returnGradeId" th:value="${gradeId}">
+                                    <input type="hidden" name="returnName" th:value="${name}">
+                                    <input type="hidden" name="returnPage" th:value="${classPage.number}">
+                                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <input type="hidden" id="pg-current"  th:value="${classPage.number}">
+                <input type="hidden" id="pg-total"    th:value="${classPage.totalPages}">
+                <input type="hidden" id="pg-type"     th:value="${type}">
+                <input type="hidden" id="pg-gradeId"  th:value="${gradeId}">
+                <input type="hidden" id="pg-name"     th:value="${name}">
+                <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${classPage.totalPages > 0}">
+                    <span style="font-size:13px;color:#555;white-space:nowrap"
+                          th:text="'共 ' + ${classPage.totalElements} + ' 个班级，共 ' + ${classPage.totalPages} + ' 页'"></span>
+                    <div class="pagination" id="pagination" th:if="${classPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
+                        <a id="pg-prev">上一页</a>
+                        <span id="pg-numbers"></span>
+                        <a id="pg-next">下一页</a>
+                    </div>
+                    <span style="font-size:13px;color:#555;white-space:nowrap;margin-left:auto" th:if="${classPage.totalPages > 1}">跳转到
+                        <input type="number" id="pg-jump" min="1" th:max="${classPage.totalPages}"
+                               style="width:52px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px" placeholder="页">
+                        <button onclick="jumpPage()" class="btn btn-sm btn-outline" style="padding:4px 10px">GO</button>
+                    </span>
+                </div>
+            </div>
+        </details>
     </div>
 </div>
 
 <script>
+function confirmDeleteGrade(form) {
+    var name = form.dataset.gradeName;
+    return confirm('确认删除年级「' + name + '」？\n该年级下的所有班级、学生及考勤记录将一并删除，此操作不可恢复！');
+}
+
 (function() {
     const pg = document.getElementById('pagination');
     if (!pg) return;
@@ -197,7 +281,6 @@ function jumpPage() {
 }
 </script>
 
-<!-- 添加班级弹窗 -->
 <div class="modal-overlay" id="addModal">
     <div class="modal">
         <div class="modal-header">
@@ -205,6 +288,10 @@ function jumpPage() {
             <button class="modal-close" onclick="closeModal()">×</button>
         </div>
         <form th:action="@{/admin/classes/add}" method="post">
+            <input type="hidden" name="returnType" th:value="${type}">
+            <input type="hidden" name="returnGradeId" th:value="${gradeId}">
+            <input type="hidden" name="returnName" th:value="${name}">
+            <input type="hidden" name="returnPage" th:value="${classPage.number}">
             <div class="modal-body">
                 <div class="form-group">
                     <label>班级类型 <span style="color:#e74c3c">*</span></label>

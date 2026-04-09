@@ -29,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AdminController {
 
     private static final String DELETE_ALL_STUDENTS_CODE_KEY = "deleteAllStudentsCode";
+    private static final String DELETE_ALL_CLASSES_CODE_KEY = "deleteAllClassesCode";
 
     private final TeacherService teacherService;
     private final ClassService classService;
@@ -107,10 +108,8 @@ public class AdminController {
 
     // ===== 年级管理 =====
     @GetMapping("/grades")
-    public String grades(Model model, HttpSession session) {
-        School school = currentUserService.getCurrentSchool();
-        model.addAttribute("grades", gradeService.findAll(school));
-        return "admin/grades";
+    public String grades() {
+        return "redirect:/admin/classes";
     }
 
     @PostMapping("/grades/add")
@@ -118,21 +117,21 @@ public class AdminController {
         School school = currentUserService.getCurrentSchool();
         try { gradeService.create(name, school); ra.addFlashAttribute("success", "年级添加成功"); }
         catch (Exception e) { ra.addFlashAttribute("error", e.getMessage()); }
-        return "redirect:/admin/grades";
+        return "redirect:/admin/classes";
     }
 
     @PostMapping("/grades/edit/{id}")
     public String editGrade(@PathVariable Long id, @RequestParam String name, RedirectAttributes ra) {
         gradeService.update(id, name);
         ra.addFlashAttribute("success", "修改成功");
-        return "redirect:/admin/grades";
+        return "redirect:/admin/classes";
     }
 
     @PostMapping("/grades/delete/{id}")
     public String deleteGrade(@PathVariable Long id, RedirectAttributes ra) {
         gradeService.delete(id);
         ra.addFlashAttribute("success", "删除成功");
-        return "redirect:/admin/grades";
+        return "redirect:/admin/classes";
     }
 
     // ===== 班级管理 =====
@@ -144,17 +143,27 @@ public class AdminController {
                           Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         Page<SchoolClass> classPage = classService.findByFilters(school, type, gradeId, name, page, 15);
+        String deleteAllCode = generateDeleteAllClassesCode();
+        if (session != null) {
+            session.setAttribute(DELETE_ALL_CLASSES_CODE_KEY, deleteAllCode);
+        }
         model.addAttribute("classPage", classPage);
         model.addAttribute("type", type);
         model.addAttribute("gradeId", gradeId);
         model.addAttribute("name", name);
         model.addAttribute("grades", gradeService.findAll(school));
+        model.addAttribute("deleteAllClassesCode", deleteAllCode);
         return "admin/classes";
     }
 
     @PostMapping("/classes/add")
     public String addClass(@RequestParam String name, @RequestParam String type,
-                           @RequestParam(required = false) Long gradeId, RedirectAttributes ra) {
+                           @RequestParam(required = false) Long gradeId,
+                           @RequestParam(defaultValue = "") String returnType,
+                           @RequestParam(required = false) Long returnGradeId,
+                           @RequestParam(defaultValue = "") String returnName,
+                           @RequestParam(defaultValue = "0") int returnPage,
+                           RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
         try {
             if ("选修课".equals(type)) {
@@ -165,7 +174,7 @@ public class AdminController {
             }
             ra.addFlashAttribute("success", "班级添加成功");
         } catch (Exception e) { ra.addFlashAttribute("error", e.getMessage()); }
-        return "redirect:/admin/classes";
+        return redirectToClasses(returnType, returnGradeId, returnName, returnPage);
     }
 
     @PostMapping("/classes/assign/{id}")
@@ -176,18 +185,34 @@ public class AdminController {
     }
 
     @PostMapping("/classes/delete/{id}")
-    public String deleteClass(@PathVariable Long id, RedirectAttributes ra) {
+    public String deleteClass(@PathVariable Long id,
+                              @RequestParam(defaultValue = "") String returnType,
+                              @RequestParam(required = false) Long returnGradeId,
+                              @RequestParam(defaultValue = "") String returnName,
+                              @RequestParam(defaultValue = "0") int returnPage,
+                              RedirectAttributes ra) {
         classService.delete(id);
         ra.addFlashAttribute("success", "删除成功");
-        return "redirect:/admin/classes";
+        return redirectToClasses(returnType, returnGradeId, returnName, returnPage);
     }
 
     @PostMapping("/classes/delete-all")
-    public String deleteAllClasses(RedirectAttributes ra) {
+    public String deleteAllClasses(@RequestParam String verifyCode,
+                                   @RequestParam(defaultValue = "") String returnType,
+                                   @RequestParam(required = false) Long returnGradeId,
+                                   @RequestParam(defaultValue = "") String returnName,
+                                   @RequestParam(defaultValue = "0") int returnPage,
+                                   HttpSession session,
+                                   RedirectAttributes ra) {
+        String expectedCode = session == null ? null : (String) session.getAttribute(DELETE_ALL_CLASSES_CODE_KEY);
+        if (expectedCode == null || !expectedCode.equals(safeTrim(verifyCode))) {
+            ra.addFlashAttribute("error", "验证码错误");
+            return redirectToClasses(returnType, returnGradeId, returnName, returnPage);
+        }
         School school = currentUserService.getCurrentSchool();
         classService.deleteAll(school);
         ra.addFlashAttribute("success", "已删除全部班级数据");
-        return "redirect:/admin/classes";
+        return redirectToClasses(returnType, returnGradeId, returnName, returnPage);
     }
 
     // ===== 教师管理 =====
@@ -935,6 +960,36 @@ public class AdminController {
         int code = ThreadLocalRandom.current().nextInt(10000, 100000);
         return String.valueOf(code);
     }
+
+    private String generateDeleteAllClassesCode() {
+        return generateDeleteAllStudentsCode();
+    }
+
+    private String redirectToClasses(String type, Long gradeId, String name, int page) {
+        StringBuilder url = new StringBuilder("redirect:/admin/classes");
+        List<String> params = new ArrayList<>();
+        if (!safeTrim(type).isEmpty()) {
+            params.add("type=" + encodeQueryParam(type));
+        }
+        if (gradeId != null) {
+            params.add("gradeId=" + gradeId);
+        }
+        if (!safeTrim(name).isEmpty()) {
+            params.add("name=" + encodeQueryParam(name));
+        }
+        if (page > 0) {
+            params.add("page=" + page);
+        }
+        if (!params.isEmpty()) {
+            url.append("?").append(String.join("&", params));
+        }
+        return url.toString();
+    }
+
+    private String encodeQueryParam(String value) {
+        return java.net.URLEncoder.encode(safeTrim(value), StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
     private int normalizePageSize(int size) {
         List<Integer> allowed = List.of(10, 15, 30, 50);
         return allowed.contains(size) ? size : 15;
