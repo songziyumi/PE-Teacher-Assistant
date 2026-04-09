@@ -25,13 +25,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StudentController {
 
-    private static final List<String> STUDENT_STATUSES = List.of(
-            "\u5728\u7c4d",
-            "\u4f11\u5b66",
-            "\u6bd5\u4e1a",
-            "\u5728\u5916\u501f\u8bfb",
-            "\u501f\u8bfb");
-
     private final StudentService studentService;
     private final ClassService classService;
     private final GradeService gradeService;
@@ -69,7 +62,7 @@ public class StudentController {
         model.addAttribute("withElectiveCount", (int) withElective);
         model.addAttribute("noElectiveCount", students.size() - (int) withElective);
         model.addAttribute("grades", gradeService.findAll(school));
-        model.addAttribute("studentStatuses", STUDENT_STATUSES);
+        model.addAttribute("studentStatuses", studentService.getAvailableStatuses());
         return "teacher/students";
     }
 
