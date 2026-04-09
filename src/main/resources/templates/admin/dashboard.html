@@ -20,13 +20,9 @@
 <div class="container">
     <div class="page-header"><h2>管理后台</h2></div>
     <div class="admin-grid">
-        <a th:href="@{/admin/grades}" class="admin-card">
-            <div class="admin-card-icon">年</div>
-            <div class="admin-card-title">年级管理</div>
-        </a>
         <a th:href="@{/admin/classes}" class="admin-card">
             <div class="admin-card-icon">班</div>
-            <div class="admin-card-title">班级管理</div>
+            <div class="admin-card-title">年级班级管理</div>
         </a>
         <a th:href="@{/admin/teachers}" class="admin-card">
             <div class="admin-card-icon">师</div>
@@ -60,13 +56,9 @@
             <div class="admin-card-icon">课</div>
             <div class="admin-card-title">学生选课管理</div>
         </a>
-        <a th:href="@{/admin/competitions}" class="admin-card">
-            <div class="admin-card-icon">??/div>
-            <div class="admin-card-title">??????</div>
-        </a>
         <a th:href="@{/admin/course-selection-diagnostics}" class="admin-card">
-            <div class="admin-card-icon">??</div>
-            <div class="admin-card-title">?????????</div>
+            <div class="admin-card-icon">📊</div>
+            <div class="admin-card-title">抢课诊断面板</div>
         </a>
         <a th:href="@{/admin/teacher-permissions}" class="admin-card">
             <div class="admin-card-icon">权</div>
