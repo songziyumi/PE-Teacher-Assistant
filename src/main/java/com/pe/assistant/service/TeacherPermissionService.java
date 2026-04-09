@@ -21,6 +21,10 @@ public class TeacherPermissionService {
         return repo.findBySchool(school).orElseGet(() -> {
             TeacherPermission p = new TeacherPermission();
             p.setSchool(school);
+            if (school != null) {
+                p.setShowSuspendedOnTeacherPage(!Boolean.FALSE.equals(school.getShowSuspendedOnTeacherPage()));
+                p.setShowOutgoingBorrowOnTeacherPage(!Boolean.FALSE.equals(school.getShowOutgoingBorrowOnTeacherPage()));
+            }
             return repo.save(p);
         });
     }
@@ -39,6 +43,15 @@ public class TeacherPermissionService {
         if (config.containsKey("physicalTestEdit"))     p.setPhysicalTestEdit(config.get("physicalTestEdit"));
         if (config.containsKey("termGradeEdit"))        p.setTermGradeEdit(config.get("termGradeEdit"));
         if (config.containsKey("batchOperation"))       p.setBatchOperation(config.get("batchOperation"));
+        if (config.containsKey("showSuspendedOnTeacherPage")) {
+            p.setShowSuspendedOnTeacherPage(Boolean.TRUE.equals(config.get("showSuspendedOnTeacherPage")));
+        }
+        if (config.containsKey("showOutgoingBorrowOnTeacherPage")) {
+            p.setShowOutgoingBorrowOnTeacherPage(Boolean.TRUE.equals(config.get("showOutgoingBorrowOnTeacherPage")));
+        }
+        if (config.containsKey("showLongLeaveOnTeacherPage")) {
+            p.setShowLongLeaveOnTeacherPage(Boolean.TRUE.equals(config.get("showLongLeaveOnTeacherPage")));
+        }
         return repo.save(p);
     }
 
@@ -49,7 +62,9 @@ public class TeacherPermissionService {
             boolean editStudentNo, boolean editStudentStatus,
             boolean editStudentClass, boolean editStudentElectiveClass,
             boolean attendanceEdit, boolean physicalTestEdit,
-            boolean termGradeEdit, boolean batchOperation) {
+            boolean termGradeEdit, boolean batchOperation,
+            boolean showSuspendedOnTeacherPage, boolean showOutgoingBorrowOnTeacherPage,
+            boolean showLongLeaveOnTeacherPage) {
         TeacherPermission p = getOrCreate(school);
         p.setEditStudentName(editStudentName);
         p.setEditStudentGender(editStudentGender);
@@ -61,6 +76,9 @@ public class TeacherPermissionService {
         p.setPhysicalTestEdit(physicalTestEdit);
         p.setTermGradeEdit(termGradeEdit);
         p.setBatchOperation(batchOperation);
+        p.setShowSuspendedOnTeacherPage(showSuspendedOnTeacherPage);
+        p.setShowOutgoingBorrowOnTeacherPage(showOutgoingBorrowOnTeacherPage);
+        p.setShowLongLeaveOnTeacherPage(showLongLeaveOnTeacherPage);
         return repo.save(p);
     }
 }

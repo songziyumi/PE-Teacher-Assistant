@@ -51,4 +51,13 @@ public class TeacherPermission {
 
     @Column(nullable = false)
     private boolean batchOperation = true;
+
+    @Column(nullable = false)
+    private boolean showSuspendedOnTeacherPage = true;
+
+    @Column(nullable = false)
+    private boolean showOutgoingBorrowOnTeacherPage = true;
+
+    @Column(nullable = false)
+    private boolean showLongLeaveOnTeacherPage = true;
 }
