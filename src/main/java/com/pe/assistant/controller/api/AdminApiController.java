@@ -173,7 +173,7 @@ public class AdminApiController {
             @RequestParam(defaultValue = "20") int size) {
         School school = currentUserService.getCurrentSchool();
         String kw = keyword.isBlank() ? null : keyword;
-        Page<Student> studentPage = studentService.findWithFilters(school, classId, gradeId, kw, kw, null, null, page, size);
+        Page<Student> studentPage = studentService.findWithKeyword(school, classId, gradeId, kw, page, size);
         studentService.syncElectiveClassesForStudents(studentPage.getContent());
         return ApiResponse.ok(PageDto.of(studentPage));
     }
