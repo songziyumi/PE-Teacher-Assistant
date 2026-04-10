@@ -52,6 +52,22 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             @Param("studentStatus") String studentStatus,
             Pageable pageable);
 
+    @Query(value = "SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+            "s.school = :school AND " +
+            "(:classId IS NULL OR sc.id = :classId) AND " +
+            "(:gradeId IS NULL OR g.id = :gradeId) AND " +
+            "(:keyword IS NULL OR :keyword = '' OR s.name LIKE CONCAT('%', :keyword, '%') OR s.studentNo LIKE CONCAT('%', :keyword, '%'))",
+            countQuery = "SELECT COUNT(DISTINCT s) FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
+                    "s.school = :school AND " +
+                    "(:classId IS NULL OR sc.id = :classId) AND " +
+                    "(:gradeId IS NULL OR g.id = :gradeId) AND " +
+                    "(:keyword IS NULL OR :keyword = '' OR s.name LIKE CONCAT('%', :keyword, '%') OR s.studentNo LIKE CONCAT('%', :keyword, '%'))")
+    Page<Student> findWithKeyword(@Param("school") School school,
+            @Param("classId") Long classId,
+            @Param("gradeId") Long gradeId,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
     @Query("SELECT DISTINCT s FROM Student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g WHERE " +
             "s.school = :school AND " +
             "(:classId IS NULL OR sc.id = :classId) AND " +
