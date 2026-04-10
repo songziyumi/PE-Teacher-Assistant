@@ -25,12 +25,16 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   static const Color _classGroupColorA = Color(0xFFDDEEFF);
   static const Color _classGroupColorB = Color(0xFFFFE2C2);
+  static const String _presentStatus = '出勤';
+  static const String _absentStatus = '缺勤';
+  static const String _leaveStatus = '请假';
 
   List<Student> _students = [];
   Map<int, String> _statusMap = {};
   DateTime _date = DateTime.now();
   bool _loading = true;
   bool _saving = false;
+  String? _selectedStatusFilter;
 
   @override
   void initState() {
@@ -45,13 +49,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     try {
       _students = await TeacherService.getStudents(widget.classId);
       _sortStudentsForGroupedAttendance();
-      final existing = await TeacherService.getAttendance(widget.classId, _dateStr);
-      _statusMap = {for (final s in _students) s.id: existing[s.id] ?? '出勤'};
+      final existing = await TeacherService.getAttendance(
+        widget.classId,
+        _dateStr,
+      );
+      _statusMap = {
+        for (final student in _students)
+          student.id: existing[student.id] ?? _presentStatus,
+      };
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('加载失败: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -121,11 +131,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _queueAttendance() => OfflineQueueService.enqueueAttendance(
-        classId: widget.classId,
-        className: widget.className,
-        date: _dateStr,
-        statusMap: _statusMap,
-      );
+    classId: widget.classId,
+    className: widget.className,
+    date: _dateStr,
+    statusMap: _statusMap,
+  );
 
   void _sortStudentsForGroupedAttendance() {
     final distinctClasses = _students
@@ -141,7 +151,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (classCompare != 0) {
         return classCompare;
       }
-      final studentNoCompare = (left.studentNo ?? '').compareTo(right.studentNo ?? '');
+      final studentNoCompare = (left.studentNo ?? '').compareTo(
+        right.studentNo ?? '',
+      );
       if (studentNoCompare != 0) {
         return studentNoCompare;
       }
@@ -151,12 +163,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   String _classLabel(Student student) => student.displayClass.trim();
 
-  Map<int, Color> _buildRowColors() {
+  List<Student> _buildVisibleStudents() {
+    if (_selectedStatusFilter == null) {
+      return _students;
+    }
+    return _students
+        .where((student) => _statusMap[student.id] == _selectedStatusFilter)
+        .toList();
+  }
+
+  Map<int, Color> _buildRowColors(List<Student> students) {
     final colors = <int, Color>{};
     String? previousClass;
     bool useFirst = true;
 
-    for (final student in _students) {
+    for (final student in students) {
       final currentClass = _classLabel(student);
       if (currentClass != previousClass) {
         if (previousClass != null) {
@@ -169,10 +190,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return colors;
   }
 
+  void _toggleStatusFilter(String status) {
+    setState(() {
+      _selectedStatusFilter = _selectedStatusFilter == status ? null : status;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final canEdit = PermissionCache.current.attendanceEdit;
-    final rowColors = _buildRowColors();
+    final visibleStudents = _buildVisibleStudents();
+    final rowColors = _buildRowColors(visibleStudents);
+
     return Scaffold(
       appBar: AppBar(
         title: Text('考勤 - ${widget.className}'),
@@ -230,15 +259,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
+                : visibleStudents.isEmpty
+                ? Center(
+                    child: Text(
+                      _selectedStatusFilter == null
+                          ? '暂无学生'
+                          : '暂无${_selectedStatusFilter!}学生',
+                    ),
+                  )
                 : ListView.builder(
-                    itemCount: _students.length,
+                    itemCount: visibleStudents.length,
                     itemBuilder: (_, i) {
-                      final student = _students[i];
+                      final student = visibleStudents[i];
                       return _StudentAttendanceRow(
                         student: student,
-                        status: _statusMap[student.id] ?? '出勤',
-                        backgroundColor: rowColors[student.id] ?? _classGroupColorA,
-                        onChanged: (value) => setState(() => _statusMap[student.id] = value),
+                        status: _statusMap[student.id] ?? _presentStatus,
+                        backgroundColor:
+                            rowColors[student.id] ?? _classGroupColorA,
+                        onChanged: (value) => setState(() {
+                          _statusMap[student.id] = value;
+                        }),
                       );
                     },
                   ),
@@ -249,17 +289,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildStats() {
-    final present = _statusMap.values.where((v) => v == '出勤').length;
-    final absent = _statusMap.values.where((v) => v == '缺勤').length;
-    final leave = _statusMap.values.where((v) => v == '请假').length;
+    final present = _statusMap.values.where((v) => v == _presentStatus).length;
+    final absent = _statusMap.values.where((v) => v == _absentStatus).length;
+    final leave = _statusMap.values.where((v) => v == _leaveStatus).length;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _StatChip('出勤', present, const Color(0xFF27ae60)),
-          _StatChip('缺勤', absent, const Color(0xFFe74c3c)),
-          _StatChip('请假', leave, const Color(0xFF2980b9)),
+          _StatChip(
+            _presentStatus,
+            present,
+            const Color(0xFF27ae60),
+            selected: _selectedStatusFilter == _presentStatus,
+            onTap: () => _toggleStatusFilter(_presentStatus),
+          ),
+          _StatChip(
+            _absentStatus,
+            absent,
+            const Color(0xFFe74c3c),
+            selected: _selectedStatusFilter == _absentStatus,
+            onTap: () => _toggleStatusFilter(_absentStatus),
+          ),
+          _StatChip(
+            _leaveStatus,
+            leave,
+            const Color(0xFF2980b9),
+            selected: _selectedStatusFilter == _leaveStatus,
+            onTap: () => _toggleStatusFilter(_leaveStatus),
+          ),
         ],
       ),
     );
@@ -270,24 +329,45 @@ class _StatChip extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _StatChip(this.label, this.count, this.color);
+  const _StatChip(
+    this.label,
+    this.count,
+    this.color, {
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: selected ? color : Colors.transparent),
         ),
-        const SizedBox(width: 4),
-        Text(
-          '$label $count',
-          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$label $count',
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -332,13 +412,19 @@ class _StudentAttendanceRow extends StatelessWidget {
                   children: [
                     Text(
                       student.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
                     ),
                     if ((student.gender ?? '').trim().isNotEmpty) ...[
                       const SizedBox(width: 6),
                       Text(
                         student.gender!,
-                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ],
@@ -360,7 +446,10 @@ class _StudentAttendanceRow extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   margin: const EdgeInsets.only(left: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: selected ? color : Colors.transparent,
                     border: Border.all(color: color),
