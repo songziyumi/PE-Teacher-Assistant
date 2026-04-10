@@ -47,6 +47,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadMeta() async {
     try {
       final results = await Future.wait([
@@ -827,37 +833,69 @@ class _StudentListScreenState extends State<StudentListScreen> {
           // 搜索栏
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: const InputDecoration(
-                      hintText: '搜索姓名/学号',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchCtrl,
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: '搜索姓名或学号',
+                          prefixIcon: const Icon(Icons.search),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: _searchCtrl.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: '清空',
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    setState(() {});
+                                    _load();
+                                  },
+                                ),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _load(),
+                      ),
                     ),
-                    onSubmitted: (_) => _load(),
-                  ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: _load,
+                        child: const Text('搜索'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                DropdownButton<int?>(
-                  value: _selectedClassId,
-                  hint: const Text('全部班级'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int?>(
+                  initialValue: _selectedClassId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: '班级',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('全部')),
-                    ..._classes.map((c) => DropdownMenuItem(
-                        value: c.id, child: Text(c.displayName))),
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('全部班级'),
+                    ),
+                    ..._classes.map((c) => DropdownMenuItem<int?>(
+                          value: c.id,
+                          child: Text(c.displayName),
+                        )),
                   ],
                   onChanged: (v) {
                     setState(() => _selectedClassId = v);
                     _load();
                   },
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                    onPressed: () => _load(), child: const Text('搜索')),
               ],
             ),
           ),
