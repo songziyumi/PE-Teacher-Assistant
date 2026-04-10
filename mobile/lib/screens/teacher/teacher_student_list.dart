@@ -1596,6 +1596,10 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
   Widget build(BuildContext context) {
     final displayStudents = _buildDisplayStudents();
     final classGroupColors = _buildClassGroupColors(displayStudents);
+    final maleCount = displayStudents.where((student) => student.isMale).length;
+    final femaleCount = displayStudents
+        .where((student) => student.isFemale)
+        .length;
     final perm = PermissionCache.current;
 
     return Scaffold(
@@ -1606,7 +1610,7 @@ class _TeacherStudentListScreenState extends State<TeacherStudentListScreen> {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '共 ${displayStudents.length} 名学生',
+              '共 ${displayStudents.length} 名学生（男 $maleCount 人，女 $femaleCount 人）',
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
