@@ -69,6 +69,16 @@ public class StudentService {
                 electiveClass, studentStatus, PageRequest.of(page, size, Sort.by("studentNo")));
     }
 
+    public Page<Student> findWithKeyword(School school, Long classId, Long gradeId, String keyword,
+            int page, int size) {
+        return studentRepository.findWithKeyword(
+                school,
+                classId,
+                gradeId,
+                keyword,
+                PageRequest.of(page, size, Sort.by("studentNo")));
+    }
+
     public List<Student> findListWithFilters(School school, Long classId, Long gradeId, String name,
             String studentNo, String idCard, String electiveClass, String studentStatus) {
         return studentRepository.findListWithFilters(school, classId, gradeId, name, studentNo, idCard,
