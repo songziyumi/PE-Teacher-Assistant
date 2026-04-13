@@ -6,9 +6,9 @@ import com.pe.assistant.dto.LoginResponse;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
-import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.security.JwtUtil;
 import com.pe.assistant.security.LoginAttemptService;
+import com.pe.assistant.security.LoginPrincipalResolver;
 import com.pe.assistant.service.CurrentUserService;
 import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
@@ -31,21 +31,22 @@ public class AuthApiController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final CurrentUserService currentUserService;
-    private final TeacherRepository teacherRepository;
     private final StudentAccountService studentAccountService;
     private final LoginAttemptService loginAttemptService;
+    private final LoginPrincipalResolver loginPrincipalResolver;
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest req) {
         String loginInput = req.getUsername() != null ? req.getUsername().trim() : "";
+        String attemptKey = loginPrincipalResolver.resolveAttemptKey(loginInput);
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
-            if (!loginInput.isBlank()) {
-                loginAttemptService.loginSucceeded(loginInput);
+            if (!attemptKey.isBlank()) {
+                loginAttemptService.loginSucceeded(attemptKey);
             }
 
-            Teacher teacher = teacherRepository.findByUsername(auth.getName()).orElse(null);
+            Teacher teacher = loginPrincipalResolver.findTeacher(auth.getName()).orElse(null);
             if (teacher != null) {
                 Long schoolId = teacher.getSchool() != null ? teacher.getSchool().getId() : null;
                 String schoolName = teacher.getSchool() != null ? teacher.getSchool().getName() : null;
@@ -53,6 +54,7 @@ public class AuthApiController {
                 return ApiResponse.ok(new LoginResponse(
                         token,
                         teacher.getUsername(),
+                        null,
                         teacher.getName(),
                         teacher.getRole(),
                         schoolId,
@@ -69,6 +71,7 @@ public class AuthApiController {
             return ApiResponse.ok(new LoginResponse(
                     token,
                     account.getLoginId(),
+                    account.getLoginAlias(),
                     student.getName(),
                     "STUDENT",
                     schoolId,
@@ -77,8 +80,8 @@ public class AuthApiController {
         } catch (LockedException e) {
             return ApiResponse.error(401, e.getMessage());
         } catch (BadCredentialsException e) {
-            if (!loginInput.isBlank()) {
-                loginAttemptService.loginFailed(loginInput);
+            if (!attemptKey.isBlank()) {
+                loginAttemptService.loginFailed(attemptKey);
             }
             return ApiResponse.error(401, "账号或密码错误");
         } catch (Exception e) {
@@ -95,6 +98,7 @@ public class AuthApiController {
             return ApiResponse.ok(new LoginResponse(
                     null,
                     teacher.getUsername(),
+                    null,
                     teacher.getName(),
                     teacher.getRole(),
                     schoolId,
@@ -108,6 +112,7 @@ public class AuthApiController {
             return ApiResponse.ok(new LoginResponse(
                     null,
                     account != null ? account.getLoginId() : null,
+                    account != null ? account.getLoginAlias() : null,
                     student.getName(),
                     "STUDENT",
                     schoolId,

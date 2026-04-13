@@ -244,6 +244,7 @@ public class AdminStudentAccountApiController {
         row.put("gradeName", gradeName);
         row.put("className", className);
         row.put("loginId", account != null ? account.getLoginId() : "");
+        row.put("loginAlias", account != null ? account.getLoginAlias() : "");
         row.put("status", studentAccountService.resolveStatus(account));
         row.put("activated", account != null && Boolean.TRUE.equals(account.getActivated()));
         row.put("passwordChanged", passwordChanged);
@@ -320,7 +321,7 @@ public class AdminStudentAccountApiController {
             font.setBold(true);
             headerStyle.setFont(font);
 
-            String[] headers = {"姓名", "学号", "年级", "班级", "账号", "初始密码", "账号状态"};
+            String[] headers = {"姓名", "学号", "年级", "班级", "系统账号", "便捷账号", "初始密码", "账号状态"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
@@ -338,8 +339,9 @@ public class AdminStudentAccountApiController {
                         : "");
                 row.createCell(3).setCellValue(student.getSchoolClass() != null ? student.getSchoolClass().getName() : "");
                 row.createCell(4).setCellValue(account != null && account.getLoginId() != null ? account.getLoginId() : "");
-                row.createCell(5).setCellValue(account != null && account.getIssuedPassword() != null ? account.getIssuedPassword() : "");
-                row.createCell(6).setCellValue(studentAccountService.resolveStatus(account));
+                row.createCell(5).setCellValue(account != null && account.getLoginAlias() != null ? account.getLoginAlias() : "");
+                row.createCell(6).setCellValue(account != null && account.getIssuedPassword() != null ? account.getIssuedPassword() : "");
+                row.createCell(7).setCellValue(studentAccountService.resolveStatus(account));
             }
 
             for (int i = 0; i < headers.length; i++) {

@@ -2,7 +2,6 @@ package com.pe.assistant.security;
 
 import com.pe.assistant.entity.StudentAccount;
 import com.pe.assistant.entity.Teacher;
-import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.StudentAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.LockedException;
@@ -18,17 +17,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    private final TeacherRepository teacherRepository;
+    private final LoginPrincipalResolver loginPrincipalResolver;
     private final StudentAccountService studentAccountService;
     private final LoginAttemptService loginAttemptService;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        if (!isInternalStudentPrincipal(username) && loginAttemptService.isBlocked(username)) {
+        String attemptKey = username;
+        if (!isInternalStudentPrincipal(username)) {
+            attemptKey = loginPrincipalResolver.resolveAttemptKey(username);
+        }
+        if (attemptKey != null && !attemptKey.isBlank() && loginAttemptService.isBlocked(attemptKey)) {
             throw new LockedException("账号已被锁定，请 15 分钟后再试");
         }
 
-        Teacher teacher = teacherRepository.findByUsername(username).orElse(null);
+        Teacher teacher = loginPrincipalResolver.findTeacher(username).orElse(null);
         if (teacher != null) {
             return new org.springframework.security.core.userdetails.User(
                     teacher.getUsername(),

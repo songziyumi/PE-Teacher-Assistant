@@ -54,6 +54,7 @@ public class TeacherApiController {
     private final TeacherOperationLogService teacherOperationLogService;
     private final PasswordEncoder passwordEncoder;
     private final TeacherPermissionService teacherPermissionService;
+    private final AccountEmailService accountEmailService;
 
     @Value("${app.upload-dir:${user.home}/.pe-teacher-assistant/uploads}")
     private String uploadDir;
@@ -79,6 +80,8 @@ public class TeacherApiController {
         m.put("birthDate", teacher.getBirthDate());
         m.put("specialty", teacher.getSpecialty());
         m.put("email", teacher.getEmail());
+        m.put("emailVerified", Boolean.TRUE.equals(teacher.getEmailVerified()));
+        m.put("emailNotifyEnabled", !Boolean.FALSE.equals(teacher.getEmailNotifyEnabled()));
         m.put("photoUrl", teacher.getPhotoUrl());
         m.put("bio", teacher.getBio());
         m.put("schoolName", teacher.getSchool() != null ? teacher.getSchool().getName() : null);
@@ -130,9 +133,6 @@ public class TeacherApiController {
             if (body.containsKey("specialty")) {
                 teacher.setSpecialty(body.get("specialty") == null ? null : String.valueOf(body.get("specialty")));
             }
-            if (body.containsKey("email")) {
-                teacher.setEmail(body.get("email") == null ? null : String.valueOf(body.get("email")));
-            }
             if (body.containsKey("bio")) {
                 teacher.setBio(body.get("bio") == null ? null : String.valueOf(body.get("bio")));
             }
@@ -144,7 +144,13 @@ public class TeacherApiController {
                     teacher.setBirthDate(LocalDate.parse(String.valueOf(value)));
                 }
             }
-            teacherRepository.save(teacher);
+            if (body.containsKey("email")) {
+                accountEmailService.updateTeacherEmailDraft(
+                        teacher,
+                        body.get("email") == null ? null : String.valueOf(body.get("email")));
+            } else {
+                teacherRepository.save(teacher);
+            }
             return ResponseEntity.ok(ApiResponse.ok("个人资料已更新", null));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));

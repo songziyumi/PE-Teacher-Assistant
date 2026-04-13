@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'providers/auth_provider.dart';
+import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/teacher/teacher_home.dart';
 import 'screens/teacher/attendance_screen.dart';
@@ -8,6 +9,7 @@ import 'screens/teacher/physical_entry.dart';
 import 'screens/teacher/grade_entry.dart';
 import 'screens/teacher/course_request_center.dart';
 import 'screens/teacher/course_request_detail.dart';
+import 'screens/teacher/teacher_account_security_screen.dart';
 import 'screens/teacher/teacher_message_center.dart';
 import 'screens/teacher/teacher_profile_screen.dart';
 import 'screens/teacher/attendance_export_screen.dart';
@@ -35,6 +37,7 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         final loggedIn = auth.isLoggedIn;
         final loc = state.matchedLocation;
         final onLogin = loc == '/login';
+        final onForgotPassword = loc == '/forgot-password';
         final onStudentPassword = loc == '/student/password';
         final mustForceStudentPassword =
             auth.isStudent && (auth.user?.mustChangePassword ?? false);
@@ -42,16 +45,20 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
             ? '/admin'
             : (auth.isStudent ? '/student' : '/teacher');
 
-        if (!loggedIn && !onLogin) return '/login';
-        if (loggedIn && onLogin) return home;
+        if (!loggedIn && !onLogin && !onForgotPassword) return '/login';
         if (loggedIn && mustForceStudentPassword && !onStudentPassword) {
           return '/student/password?force=true';
         }
+        if (loggedIn && (onLogin || onForgotPassword)) return home;
         if (loggedIn && loc == '/') return home;
         return null;
       },
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(
+          path: '/forgot-password',
+          builder: (_, __) => const ForgotPasswordScreen(),
+        ),
         GoRoute(path: '/student', builder: (_, __) => const StudentHome()),
         GoRoute(
           path: '/student/my-courses',
@@ -81,6 +88,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         GoRoute(
           path: '/teacher/messages',
           builder: (_, __) => const TeacherMessageCenterScreen(),
+        ),
+        GoRoute(
+          path: '/teacher/account-security',
+          builder: (_, __) => const TeacherAccountSecurityScreen(),
         ),
         GoRoute(
           path: '/teacher/profile',

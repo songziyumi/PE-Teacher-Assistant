@@ -287,7 +287,8 @@ class _StudentAccountScreenState extends State<StudentAccountScreen> {
               const SizedBox(height: 12),
               Text('学号：${item.studentNo?.isNotEmpty == true ? item.studentNo : '-'}'),
               Text('班级：${item.displayClass.isNotEmpty ? item.displayClass : '-'}'),
-              Text('账号：${item.hasAccount ? item.loginId : '-'}'),
+              Text('系统账号：${item.hasAccount ? item.loginId : '-'}'),
+              Text('便捷账号：${item.hasLoginAlias ? item.loginAlias : '-'}'),
               Text('状态：${item.status}'),
               Text('已激活：${item.activated ? '是' : '否'}'),
               Text('已改密：${item.passwordChanged ? '是' : '否'}'),
@@ -347,7 +348,7 @@ class _StudentAccountScreenState extends State<StudentAccountScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<int?>(
-                      value: _gradeId,
+                      initialValue: _gradeId,
                       decoration: const InputDecoration(
                         labelText: '年级',
                         border: OutlineInputBorder(),
@@ -370,7 +371,7 @@ class _StudentAccountScreenState extends State<StudentAccountScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<int?>(
-                      value: _classId,
+                      initialValue: _classId,
                       decoration: const InputDecoration(
                         labelText: '班级',
                         border: OutlineInputBorder(),
@@ -387,7 +388,7 @@ class _StudentAccountScreenState extends State<StudentAccountScreen> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: _accountStatus,
+                      initialValue: _accountStatus,
                       decoration: const InputDecoration(
                         labelText: '账号状态',
                         border: OutlineInputBorder(),
@@ -498,7 +499,8 @@ class _StudentAccountScreenState extends State<StudentAccountScreen> {
                                       Text(
                                         '${item.studentNo?.isNotEmpty == true ? item.studentNo : '-'} · ${item.displayClass.isNotEmpty ? item.displayClass : '-'}',
                                       ),
-                                      Text('账号：${item.hasAccount ? item.loginId : '未生成'}'),
+                                      Text('系统账号：${item.hasAccount ? item.loginId : '未生成'}'),
+                                      Text('便捷账号：${item.hasLoginAlias ? item.loginAlias : '未绑定'}'),
                                       Text('激活：${item.activated ? '是' : '否'}  改密：${item.passwordChanged ? '是' : '否'}'),
                                       Text('最后登录：${_formatDate(item.lastLoginAt)}'),
                                     ],
