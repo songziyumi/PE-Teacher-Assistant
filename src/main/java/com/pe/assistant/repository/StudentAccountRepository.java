@@ -14,6 +14,14 @@ public interface StudentAccountRepository extends JpaRepository<StudentAccount, 
 
     boolean existsByLoginIdIgnoreCase(String loginId);
 
+    Optional<StudentAccount> findByLoginAliasIgnoreCase(String loginAlias);
+
+    boolean existsByLoginAliasIgnoreCase(String loginAlias);
+
+    Optional<StudentAccount> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
+
     Optional<StudentAccount> findByStudent(Student student);
 
     Optional<StudentAccount> findByStudentId(Long studentId);

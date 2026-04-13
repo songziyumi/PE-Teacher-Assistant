@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -17,20 +19,16 @@ class AuthProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     _user = await AuthService.tryAutoLogin();
-    // 自动登录成功时也启动后台通知
-    if (_user != null && !(_user?.isAdmin ?? false)) {
-      NotificationService.start();
-    }
+    // 自动登录成功时为教师启动后台通知
+    _startTeacherNotifications();
     _loading = false;
     notifyListeners();
   }
 
   Future<void> login(String username, String password) async {
     _user = await AuthService.login(username, password);
-    // 教师角色登录后启动后台通知轮询（管理员暂不推送）
-    if (!(_user?.isAdmin ?? false)) {
-      NotificationService.start();
-    }
+    // 教师角色登录后启动后台通知轮询（学生/管理员暂不推送）
+    _startTeacherNotifications();
     notifyListeners();
   }
 
@@ -47,5 +45,12 @@ class AuthProvider extends ChangeNotifier {
     await NotificationService.stop();
     _user = null;
     notifyListeners();
+  }
+
+  void _startTeacherNotifications() {
+    if (!(_user?.isTeacher ?? false)) {
+      return;
+    }
+    unawaited(NotificationService.start().catchError((_) {}));
   }
 }

@@ -124,6 +124,15 @@ class _StudentHomeState extends State<StudentHome> {
   }
 
   Future<void> _load() async {
+    if (context.read<AuthProvider>().user?.mustChangePassword ?? false) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/student/password?force=true');
+      });
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
     setState(() => _loading = true);
     try {
       final results = await Future.wait<dynamic>([

@@ -1,0 +1,23 @@
+<div style="font-family:Arial,'PingFang SC','Microsoft YaHei',sans-serif;font-size:14px;line-height:1.8;color:#1f2937;">
+  <p>您好：</p>
+
+  <p>您正在为 <strong>{{productName}}</strong> 绑定邮箱，请点击下面的链接完成验证：</p>
+
+  <p>
+    <a href="https://jsqyty.com/email-verify?token={{verifyToken}}" style="display:inline-block;padding:10px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;">
+      立即验证邮箱
+    </a>
+  </p>
+
+  <p>如果按钮无法点击，请复制以下链接到浏览器打开：</p>
+  <p style="word-break:break-all;color:#2563eb;">https://jsqyty.com/email-verify?token={{verifyToken}}</p>
+
+  <p>该链接将在 <strong>{{expireMinutes}}</strong> 分钟后失效。</p>
+
+  <p>如果这不是您本人操作，请忽略本邮件。</p>
+
+  <p style="margin-top:24px;color:#6b7280;">
+    此邮件由系统自动发送，请勿直接回复。<br>
+    {{productName}}
+  </p>
+</div>

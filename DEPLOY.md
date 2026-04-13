@@ -68,10 +68,9 @@ systemctl start pe-assistant
 mvn clean package -DskipTests
 
 # 2. 上传新 JAR（本地执行）
-scp target/pe-teacher-assistant-1.0.0.jar root@175.24.131.74:/opt/pe-assistant/app.jar
+scp target/pe-teacher-assistant-4.0.0.jar root@175.24.131.74:/opt/pe-assistant/app.jar
 
 # 3. 服务器重启服务
-ssh root@175.24.131.74 "systemctl restart pe-assistant"
 ```
 
 ---
