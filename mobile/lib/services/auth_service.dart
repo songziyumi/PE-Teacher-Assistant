@@ -1,19 +1,13 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
 import '../models/user.dart';
 import 'api_service.dart';
 
 class AuthService {
   static Future<UserModel> login(String username, String password) async {
-    final res = await http.post(
-      Uri.parse(ApiConfig.loginUrl),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
-    final body = jsonDecode(utf8.decode(res.bodyBytes));
-    if (body['code'] != 200) throw ApiException(body['code'], body['message'] ?? '登录失败');
-    final user = UserModel.fromJson(body['data']);
+    final data = await ApiService.post('/auth/login', {
+      'username': username,
+      'password': password,
+    }) as Map;
+    final user = UserModel.fromJson(Map<String, dynamic>.from(data));
     await ApiService.saveToken(user.token);
     return user;
   }
@@ -28,6 +22,20 @@ class AuthService {
       await ApiService.clearToken();
       return null;
     }
+  }
+
+  static Future<String> requestPasswordReset({
+    required String account,
+    required String email,
+  }) async {
+    final data = await ApiService.post('/auth/password-reset/request', {
+      'account': account.trim(),
+      'email': email.trim(),
+    });
+    if (data is String && data.trim().isNotEmpty) {
+      return data;
+    }
+    return '如信息匹配，重置邮件已发送';
   }
 
   static Future<void> logout() => ApiService.clearToken();

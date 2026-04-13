@@ -54,8 +54,10 @@ class _TeacherHomeState extends State<TeacherHome> {
     try {
       final results = await Future.wait([
         TeacherService.getClasses(),
-        TeacherService.getCourseRequestSummary(),
-        TeacherService.getUnreadMessageCount(),
+        TeacherService.getCourseRequestSummary().catchError(
+          (_) => <String, int>{'pending': 0, 'approved': 0, 'rejected': 0},
+        ),
+        TeacherService.getUnreadMessageCount().catchError((_) => 0),
         TeacherService.getPermissions()
             .catchError((_) => TeacherPermission.defaultAll),
         OfflineQueueService.pendingCount(),
@@ -240,6 +242,10 @@ class _TeacherHomeState extends State<TeacherHome> {
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () => context.push('/teacher/profile'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.mark_email_unread_outlined),
+            onPressed: () => context.push('/teacher/account-security'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),

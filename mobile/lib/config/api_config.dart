@@ -8,4 +8,24 @@ class ApiConfig {
   static String get apiBase => '$baseUrl/api';
   static String get loginUrl => '$apiBase/auth/login';
   static String get meUrl => '$apiBase/auth/me';
+
+  static String normalizeBaseUrl(String raw) {
+    var normalized = raw.trim();
+    if (normalized.isEmpty) {
+      return normalized;
+    }
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    if (normalized.endsWith('/login')) {
+      normalized = normalized.substring(0, normalized.length - '/login'.length);
+    }
+    if (normalized.endsWith('/api')) {
+      normalized = normalized.substring(0, normalized.length - '/api'.length);
+    }
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
+  }
 }
