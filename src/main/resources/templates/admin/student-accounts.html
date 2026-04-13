@@ -146,7 +146,7 @@
             <button type="button" class="btn btn-secondary" onclick="submitBatch('/admin/student-accounts/enable')">批量启用</button>
             <button type="button" class="btn btn-danger" onclick="submitBatch('/admin/student-accounts/disable')">批量禁用</button>
             <button type="button" class="btn btn-outline" onclick="submitBatch('/admin/student-accounts/export', 'get')">导出账号</button>
-            <span class="subtext">导出内容包含初始密码，请妥善保管；学生首次登录后必须修改密码。</span>
+            <span class="subtext">导出内容包含系统账号、便捷账号和初始密码，请妥善保管。</span>
         </div>
 
         <table class="table">
@@ -156,9 +156,10 @@
                 <th>姓名</th>
                 <th>学号</th>
                 <th>班级</th>
-                <th>账号</th>
+                <th>系统账号</th>
+                <th>便捷账号</th>
                 <th>账号状态</th>
-                <th>激活</th>
+                <th>已激活</th>
                 <th>已改密</th>
                 <th>最后登录</th>
                 <th>最近重置</th>
@@ -167,7 +168,7 @@
             </thead>
             <tbody>
             <tr th:if="${#lists.isEmpty(rows)}">
-                <td colspan="11" style="text-align:center;color:#6b7280;">暂无学生账号数据</td>
+                <td colspan="12" style="text-align:center;color:#6b7280;">暂无学生账号数据</td>
             </tr>
             <tr th:each="row : ${rows}">
                 <td><input type="checkbox" name="studentIds" th:value="${row.studentId}"></td>
@@ -175,6 +176,7 @@
                 <td th:text="${row.studentNo != null && row.studentNo != '' ? row.studentNo : '-'}"></td>
                 <td th:text="${(row.gradeName != null ? row.gradeName : '') + ' ' + (row.className != null ? row.className : '')}"></td>
                 <td th:text="${row.loginId == '' ? '-' : row.loginId}"></td>
+                <td th:text="${row.loginAlias == '' ? '-' : row.loginAlias}"></td>
                 <td>
                     <span class="status-badge"
                           th:classappend="${row.status == '未生成'} ? ' status-unset' :

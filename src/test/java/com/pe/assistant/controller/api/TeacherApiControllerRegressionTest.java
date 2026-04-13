@@ -9,6 +9,7 @@ import com.pe.assistant.entity.SchoolClass;
 import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.TeacherRepository;
+import com.pe.assistant.service.AccountEmailService;
 import com.pe.assistant.service.AttendanceService;
 import com.pe.assistant.service.ClassService;
 import com.pe.assistant.service.CurrentUserService;
@@ -101,6 +102,8 @@ class TeacherApiControllerRegressionTest {
     @MockBean
     private com.pe.assistant.repository.CourseRequestAuditRepository courseRequestAuditRepository;
     @MockBean
+    private com.pe.assistant.repository.CourseOverflowAuditRepository courseOverflowAuditRepository;
+    @MockBean
     private com.pe.assistant.repository.TeacherOperationLogRepository teacherOperationLogRepository;
     @MockBean
     private TeacherOperationLogService teacherOperationLogService;
@@ -108,6 +111,8 @@ class TeacherApiControllerRegressionTest {
     private TeacherPermissionService teacherPermissionService;
     @MockBean
     private PasswordEncoder passwordEncoder;
+    @MockBean
+    private AccountEmailService accountEmailService;
 
     @Test
     void approveShouldFailWhenRequestAlreadyHandled() throws Exception {
@@ -304,6 +309,22 @@ class TeacherApiControllerRegressionTest {
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].id").value(21))
                 .andExpect(jsonPath("$.data[0].isRead").value(true));
+    }
+
+    @Test
+    void profileShouldExposeEmailSecurityFlags() throws Exception {
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        teacher.setEmail("teacher@example.com");
+        teacher.setEmailVerified(true);
+        teacher.setEmailNotifyEnabled(false);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
+
+        mockMvc.perform(get("/api/teacher/profile"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.email").value("teacher@example.com"))
+                .andExpect(jsonPath("$.data.emailVerified").value(true))
+                .andExpect(jsonPath("$.data.emailNotifyEnabled").value(false));
     }
 
     @Test
@@ -579,7 +600,9 @@ class TeacherApiControllerRegressionTest {
     void batchUpdateStudentStatusShouldDelegateToService() throws Exception {
         School school = new School();
         school.setId(1L);
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
         when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
 
         StudentService.BatchStudentOperationResult result =
                 new StudentService.BatchStudentOperationResult(List.of(101L, 102L));
@@ -605,7 +628,9 @@ class TeacherApiControllerRegressionTest {
     void batchUpdateStudentElectiveClassShouldAllowClearingElectiveClass() throws Exception {
         School school = new School();
         school.setId(1L);
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
         when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
 
         StudentService.BatchStudentOperationResult result =
                 new StudentService.BatchStudentOperationResult(List.of(101L));
@@ -643,7 +668,9 @@ class TeacherApiControllerRegressionTest {
     void batchUpdateStudentStatusShouldReportDeduplicatedIds() throws Exception {
         School school = new School();
         school.setId(1L);
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
         when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
 
         StudentService.BatchStudentOperationResult result =
                 new StudentService.BatchStudentOperationResult(List.of(101L, 101L, 102L));
@@ -670,7 +697,9 @@ class TeacherApiControllerRegressionTest {
     void batchUpdateStudentStatusShouldReportCrossSchoolRejection() throws Exception {
         School school = new School();
         school.setId(1L);
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
         when(currentUserService.getCurrentSchool()).thenReturn(school);
+        when(currentUserService.getCurrentTeacher()).thenReturn(teacher);
 
         StudentService.BatchStudentOperationResult result =
                 new StudentService.BatchStudentOperationResult(List.of(201L));

@@ -1,8 +1,8 @@
 package com.pe.assistant.config;
 
-import com.pe.assistant.security.JwtAuthFilter;
 import com.pe.assistant.security.JwtUtil;
 import com.pe.assistant.security.LoginAttemptService;
+import com.pe.assistant.security.LoginPrincipalResolver;
 import com.pe.assistant.security.UserDetailsServiceImpl;
 import com.pe.assistant.service.StudentAccountService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,10 +36,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final com.pe.assistant.security.UserDetailsServiceImpl userDetailsService;
-    private final com.pe.assistant.security.LoginAttemptService loginAttemptService;
-    private final com.pe.assistant.security.JwtUtil jwtUtil;
-    private final com.pe.assistant.service.StudentAccountService studentAccountService;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final LoginAttemptService loginAttemptService;
+    private final JwtUtil jwtUtil;
+    private final StudentAccountService studentAccountService;
+    private final LoginPrincipalResolver loginPrincipalResolver;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -95,6 +96,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/icons/**", "/manifest.json", "/sw.js",
                                 "/offline.html", "/uploads/**").permitAll()
+                        .requestMatchers("/forgot-password", "/reset-password", "/email-verify").permitAll()
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
@@ -123,12 +125,12 @@ public class SecurityConfig {
     private AuthenticationFailureHandler authenticationFailureHandler() {
         return (HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) -> {
             String username = request.getParameter("username");
-            if (username != null) {
-                username = username.trim();
+            String attemptKey = loginPrincipalResolver.resolveAttemptKey(username);
+            if (attemptKey != null && !attemptKey.isBlank()) {
                 if (!(exception instanceof LockedException || exception.getCause() instanceof LockedException)) {
-                    loginAttemptService.loginFailed(username);
+                    loginAttemptService.loginFailed(attemptKey);
                 }
-                if (loginAttemptService.isBlocked(username)) {
+                if (loginAttemptService.isBlocked(attemptKey)) {
                     request.getSession().setAttribute("LOCKED", true);
                     response.sendRedirect("/login");
                     return;
@@ -142,8 +144,9 @@ public class SecurityConfig {
     private AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (HttpServletRequest request, HttpServletResponse response, Authentication authentication) -> {
             String loginInput = request.getParameter("username");
-            if (loginInput != null && !loginInput.isBlank()) {
-                loginAttemptService.loginSucceeded(loginInput.trim());
+            String attemptKey = loginPrincipalResolver.resolveAttemptKey(loginInput);
+            if (attemptKey != null && !attemptKey.isBlank()) {
+                loginAttemptService.loginSucceeded(attemptKey);
             }
 
             boolean isSuperAdmin = authentication.getAuthorities().stream()

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../config/api_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -12,28 +15,71 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _serverPrefKey = 'mobile_server_base_url';
+
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _serverCtrl = TextEditingController(text: ApiConfig.baseUrl);
+
   bool _loading = false;
-  String? _error;
   bool _obscure = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedServer();
+  }
+
+  Future<void> _loadSavedServer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_serverPrefKey);
+    if (saved == null || saved.trim().isEmpty) {
+      return;
+    }
+    final normalized = ApiConfig.normalizeBaseUrl(saved);
+    ApiConfig.baseUrl = normalized;
+    if (mounted) {
+      setState(() => _serverCtrl.text = normalized);
+    } else {
+      _serverCtrl.text = normalized;
+    }
+  }
 
   Future<void> _login() async {
     setState(() {
       _loading = true;
       _error = null;
     });
-    ApiConfig.baseUrl = _serverCtrl.text.trim();
+
+    final normalizedBaseUrl = ApiConfig.normalizeBaseUrl(_serverCtrl.text);
+    if (normalizedBaseUrl.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = '请先填写服务器地址';
+      });
+      return;
+    }
+
+    ApiConfig.baseUrl = normalizedBaseUrl;
+    _serverCtrl.text = normalizedBaseUrl;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_serverPrefKey, normalizedBaseUrl);
+    if (!mounted) {
+      return;
+    }
+
     try {
       await context.read<AuthProvider>().login(
-        _usernameCtrl.text.trim(),
-        _passwordCtrl.text,
-      );
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
+            _usernameCtrl.text.trim(),
+            _passwordCtrl.text,
+          );
+    } on ApiException catch (error) {
+      setState(() => _error = error.message);
     } catch (_) {
-      setState(() => _error = '连接失败，请检查服务器地址');
+      setState(() {
+        _error = '连接失败，请检查服务器地址：${ApiConfig.baseUrl}';
+      });
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -82,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '学生请使用系统分配的账号登录',
+                      '学生可使用系统账号或便捷账号登录',
                       style: TextStyle(color: Colors.grey),
                     ),
                     const SizedBox(height: 24),
@@ -105,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _usernameCtrl,
                       decoration: const InputDecoration(
                         labelText: '账号',
-                        hintText: '请输入登录账号',
+                        hintText: '请输入系统账号或便捷账号',
                         prefixIcon: Icon(Icons.person),
                         border: OutlineInputBorder(),
                       ),
@@ -131,11 +177,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       onSubmitted: (_) => _login(),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading
+                            ? null
+                            : () => context.push('/forgot-password'),
+                        child: const Text('忘记密码？'),
+                      ),
+                    ),
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '账号和初始密码请向学校或老师领取，忘记密码请联系管理员。',
+                        '系统账号和初始密码请向学校或老师领取；首次登录后可绑定更好记的便捷账号。',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ),
@@ -179,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _serverCtrl,
                           decoration: const InputDecoration(
                             labelText: '服务器地址',
-                            hintText: 'http://192.168.1.x:8080',
+                            hintText: '例如 http://192.168.1.10:8080',
                             border: OutlineInputBorder(),
                             isDense: true,
                           ),
@@ -187,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          '手机和电脑需连接同一 Wi-Fi，填写电脑所在局域网 IP。',
+                          '不要填写 /login 或 /api；手机和电脑需连接同一 Wi‑Fi，本地调试请填写电脑的局域网 IP。',
                           style: TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
