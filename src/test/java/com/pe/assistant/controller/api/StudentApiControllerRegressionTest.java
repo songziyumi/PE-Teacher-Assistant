@@ -229,6 +229,8 @@ class StudentApiControllerRegressionTest {
         event.setSchool(school);
         event.setName("2026 春季选课");
         event.setStatus("CLOSED");
+        event.setRound3Start(java.time.LocalDateTime.now().minusHours(1));
+        event.setRound3End(java.time.LocalDateTime.now().plusHours(1));
         return event;
     }
 

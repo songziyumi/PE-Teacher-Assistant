@@ -28,6 +28,7 @@ public class TeacherService {
     private final PasswordEncoder passwordEncoder;
     private final SchoolClassRepository classRepository;
     private final SchoolRepository schoolRepository;
+    private final StudentAccountService studentAccountService;
 
     public List<Teacher> findAll(School school) {
         return teacherRepository.findBySchool(school);
@@ -135,7 +136,8 @@ public class TeacherService {
     @Transactional
     public Teacher create(String username, String name, String rawPassword, String role, String phone, School school,
                           TeacherAccountType accountType, OrganizationAdminType orgAdminType) {
-        if (teacherRepository.existsByUsername(username)) {
+        studentAccountService.assertTeacherUsernameAvailable(username);
+        if (teacherRepository.existsByUsernameIgnoreCase(username)) {
             throw new IllegalArgumentException("用户名已存在: " + username);
         }
         TeacherAccountType resolvedAccountType = accountType == null ? TeacherAccountType.TEACHER : accountType;
@@ -179,6 +181,7 @@ public class TeacherService {
             existing.setSchool(school);
             return teacherRepository.save(existing);
         }
+        studentAccountService.assertTeacherUsernameAvailable(username);
         Teacher created = create(
                 username,
                 name == null || name.isBlank() ? org.getName() + "组织管理员" : name,

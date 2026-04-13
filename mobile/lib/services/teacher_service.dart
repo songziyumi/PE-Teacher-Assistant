@@ -16,6 +16,20 @@ class TeacherService {
     return data.map((e) => SchoolClass.fromJson(e)).toList();
   }
 
+  static Future<void> requestEmailBind({required String email}) async {
+    await ApiService.post('/teacher/email/bind/request', {
+      'email': email.trim(),
+    });
+  }
+
+  static Future<void> updateEmailNotifyEnabled({
+    required bool enabled,
+  }) async {
+    await ApiService.post('/teacher/email/notify-toggle', {
+      'enabled': enabled,
+    });
+  }
+
   static Future<Map<String, dynamic>> getProfile() async {
     final data = await ApiService.get('/teacher/profile') as Map;
     return Map<String, dynamic>.from(data);

@@ -5,6 +5,25 @@ import '../models/student_selection.dart';
 import 'api_service.dart';
 
 class StudentService {
+  static Future<Map<String, dynamic>> getAccountSecurity() async {
+    final data = await ApiService.get('/student/account-security') as Map;
+    return Map<String, dynamic>.from(data);
+  }
+
+  static Future<void> requestEmailBind({required String email}) async {
+    await ApiService.post('/student/email/bind/request', {
+      'email': email.trim(),
+    });
+  }
+
+  static Future<void> updateEmailNotifyEnabled({
+    required bool enabled,
+  }) async {
+    await ApiService.post('/student/email/notify-toggle', {
+      'enabled': enabled,
+    });
+  }
+
   static Future<Map<String, dynamic>?> getCurrentEvent() async {
     final data = await ApiService.get('/student/events/current');
     if (data == null) return null;
@@ -118,10 +137,12 @@ class StudentService {
   static Future<void> changePassword({
     required String oldPassword,
     required String newPassword,
+    String loginAlias = '',
   }) async {
     await ApiService.post('/student/password/change', {
       'oldPassword': oldPassword,
       'newPassword': newPassword,
+      'loginAlias': loginAlias.trim(),
     });
   }
 }

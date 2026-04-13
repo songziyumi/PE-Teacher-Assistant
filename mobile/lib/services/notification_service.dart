@@ -43,7 +43,6 @@ class NotificationService {
     // 初始化 Workmanager（不在这里注册任务，登录后再注册）
     await Workmanager().initialize(
       notificationCallbackDispatcher,
-      isInDebugMode: false,
     );
   }
 
@@ -96,7 +95,7 @@ class NotificationService {
   static Future<void> _backgroundCheck() async {
     try {
       const storage = FlutterSecureStorage();
-      final token = await storage.read(key: 'auth_token');
+      final token = await storage.read(key: 'jwt_token');
       if (token == null) return; // 未登录则跳过
 
       final res = await http

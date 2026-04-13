@@ -487,11 +487,12 @@ public class StudentApiController {
             StudentAccount account = currentUserService.getCurrentStudentAccount();
             String oldPassword = body.get("oldPassword") != null ? String.valueOf(body.get("oldPassword")) : "";
             String newPassword = body.get("newPassword") != null ? String.valueOf(body.get("newPassword")) : "";
+            String loginAlias = body.get("loginAlias") != null ? String.valueOf(body.get("loginAlias")) : "";
             if (oldPassword.isBlank() || newPassword.isBlank()) {
                 return ApiResponse.error(400, "旧密码和新密码不能为空");
             }
-            studentAccountService.changePassword(account, oldPassword, newPassword);
-            return ApiResponse.ok("密码修改成功");
+            studentAccountService.changePasswordAndUpdateLoginAlias(account, oldPassword, newPassword, loginAlias);
+            return ApiResponse.ok("密码修改成功，便捷账号已保存");
         } catch (IllegalArgumentException e) {
             return ApiResponse.error(400, e.getMessage());
         } catch (Exception e) {

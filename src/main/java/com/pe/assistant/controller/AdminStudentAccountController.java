@@ -283,6 +283,7 @@ public class AdminStudentAccountController {
                 gradeName,
                 className,
                 account != null ? account.getLoginId() : "",
+                account != null ? account.getLoginAlias() : "",
                 studentAccountService.resolveStatus(account),
                 account != null && Boolean.TRUE.equals(account.getActivated()),
                 passwordChanged,
@@ -346,7 +347,7 @@ public class AdminStudentAccountController {
             font.setBold(true);
             headerStyle.setFont(font);
 
-            String[] headers = {"\u59d3\u540d", "\u5b66\u53f7", "\u5e74\u7ea7", "\u73ed\u7ea7", "\u8d26\u53f7", "\u521d\u59cb\u5bc6\u7801", "\u8d26\u53f7\u72b6\u6001"};
+            String[] headers = {"\u59d3\u540d", "\u5b66\u53f7", "\u5e74\u7ea7", "\u73ed\u7ea7", "\u7cfb\u7edf\u8d26\u53f7", "\u4fbf\u6377\u8d26\u53f7", "\u521d\u59cb\u5bc6\u7801", "\u8d26\u53f7\u72b6\u6001"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
@@ -363,8 +364,9 @@ public class AdminStudentAccountController {
                         ? student.getSchoolClass().getGrade().getName() : "");
                 row.createCell(3).setCellValue(student.getSchoolClass() != null ? student.getSchoolClass().getName() : "");
                 row.createCell(4).setCellValue(account != null && account.getLoginId() != null ? account.getLoginId() : "");
-                row.createCell(5).setCellValue(account != null && account.getIssuedPassword() != null ? account.getIssuedPassword() : "");
-                row.createCell(6).setCellValue(studentAccountService.resolveStatus(account));
+                row.createCell(5).setCellValue(account != null && account.getLoginAlias() != null ? account.getLoginAlias() : "");
+                row.createCell(6).setCellValue(account != null && account.getIssuedPassword() != null ? account.getIssuedPassword() : "");
+                row.createCell(7).setCellValue(studentAccountService.resolveStatus(account));
             }
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
@@ -381,6 +383,7 @@ public class AdminStudentAccountController {
             String gradeName,
             String className,
             String loginId,
+            String loginAlias,
             String status,
             boolean activated,
             boolean passwordChanged,

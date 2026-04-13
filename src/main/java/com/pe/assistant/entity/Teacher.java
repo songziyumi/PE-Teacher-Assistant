@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -18,7 +19,9 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "teachers")
+@Table(name = "teachers", indexes = {
+        @Index(name = "idx_teacher_email", columnList = "email")
+})
 public class Teacher {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -69,6 +72,18 @@ public class Teacher {
 
     @Column(length = 100)
     private String email;
+
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_bound_at")
+    private LocalDateTime emailBoundAt;
+
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
+    @Column(name = "email_notify_enabled", nullable = false)
+    private Boolean emailNotifyEnabled = true;
 
     @Column(name = "photo_url", length = 200)
     private String photoUrl;
