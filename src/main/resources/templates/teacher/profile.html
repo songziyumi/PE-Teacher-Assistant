@@ -24,13 +24,13 @@
         .info-table { width: 100%; border-collapse: collapse; }
         .info-table tr td { padding: 8px 4px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
         .info-table tr:last-child td { border-bottom: none; }
-        .info-table td:first-child { color: #6b7280; width: 90px; }
+        .info-table td:first-child { color: #6b7280; width: 100px; }
         .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #4b5563; font-weight: 600; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 9px 10px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
         .form-group textarea { min-height: 100px; resize: vertical; }
         .full { grid-column: 1 / -1; }
-        .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+        .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
         .pw-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; user-select: none; }
         .pw-toggle span { font-size: 14px; font-weight: 600; color: #2563eb; }
         .pw-toggle .chevron { transition: transform .2s; display: inline-block; }
@@ -42,6 +42,12 @@
         .dot-approve { background: #27ae60; }
         .dot-reject { background: #e74c3c; }
         .activity-time { margin-left: auto; color: #9ca3af; white-space: nowrap; font-size: 12px; }
+        .status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .status-badge.ok { background: #dcfce7; color: #166534; }
+        .status-badge.pending { background: #fef3c7; color: #92400e; }
+        .inline-note { color: #6b7280; font-size: 12px; line-height: 1.7; margin-top: 6px; }
+        .inline-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .inline-form input[type="email"] { flex: 1 1 260px; }
         @media (max-width: 640px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .grid { grid-template-columns: 1fr; }
@@ -94,6 +100,13 @@
                 <tr><td>出生年月</td><td th:text="${teacher.birthDate != null ? teacher.birthDate : '未设置'}">-</td></tr>
                 <tr><td>专业特长</td><td th:text="${teacher.specialty != null ? teacher.specialty : '未设置'}">-</td></tr>
                 <tr><td>邮箱</td><td th:text="${teacher.email != null ? teacher.email : '未设置'}">-</td></tr>
+                <tr>
+                    <td>邮箱状态</td>
+                    <td>
+                        <span th:class="${teacher.emailVerified} ? 'status-badge ok' : 'status-badge pending'"
+                              th:text="${teacher.emailVerified} ? '已验证' : '待验证'"></span>
+                    </td>
+                </tr>
                 <tr><td>自我介绍</td><td th:text="${teacher.bio != null ? teacher.bio : '未设置'}" style="white-space:pre-wrap">-</td></tr>
             </table>
         </div>
@@ -125,6 +138,7 @@
                     <div class="form-group">
                         <label>邮箱</label>
                         <input type="email" name="email" th:value="${teacher.email}" placeholder="example@school.edu">
+                        <div class="inline-note">修改邮箱后会重置验证状态，请保存后再发送验证邮件。</div>
                     </div>
                     <div class="form-group full">
                         <label>自我介绍</label>
@@ -136,6 +150,37 @@
                     <button type="submit" class="btn btn-primary">保存资料</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="section-header">
+            <p class="section-title">邮箱安全</p>
+        </div>
+
+        <div class="inline-note" style="margin-bottom:12px;">
+            只有已验证邮箱才可用于邮箱验证确认和忘记密码。
+        </div>
+
+        <div style="margin-bottom:14px;">
+            <span th:class="${teacher.emailVerified} ? 'status-badge ok' : 'status-badge pending'"
+                  th:text="${teacher.emailVerified} ? '已验证' : '待验证'"></span>
+            <span class="inline-note" th:if="${teacher.emailVerifiedAt != null}">
+                验证时间：
+                <span th:text="${#temporals.format(teacher.emailVerifiedAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </span>
+        </div>
+
+        <form th:action="@{/teacher/profile/email-bind/request}" method="post" style="margin-bottom:14px;">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <div class="inline-form">
+                <input type="email" name="email" th:value="${teacher.email}" placeholder="请输入用于验证的邮箱" required>
+                <button type="submit" class="btn btn-primary">发送验证邮件</button>
+            </div>
+        </form>
+
+        <div class="inline-note">
+            选课结果邮件通知已暂停开发，当前阶段仅启用邮箱绑定、邮箱验证与忘记密码。
         </div>
     </div>
 
@@ -199,7 +244,7 @@ function togglePassword() {
 const STAT_DEFS = [
     { key: 'classCount', label: '带班数', icon: '班', unit: '个', color: '#2563eb', href: '/dashboard' },
     { key: 'monthlyAttendanceCount', label: '本月考勤', icon: '勤', unit: '次', color: '#27ae60', href: null },
-    { key: 'pendingRequestCount', label: '待审核', icon: '审', unit: '条', color: '#e67e22', href: '/teacher/courses' },
+    { key: 'pendingRequestCount', label: '待审批', icon: '审', unit: '条', color: '#e67e22', href: '/teacher/courses' },
     { key: 'processedRequestCount', label: '已处理', icon: '办', unit: '条', color: '#8e44ad', href: '/teacher/courses' }
 ];
 
@@ -208,9 +253,7 @@ function renderStats(data) {
     grid.innerHTML = '';
     STAT_DEFS.forEach(def => {
         const val = data[def.key] ?? 0;
-        const openTag = def.href
-            ? `<a class="stat-card" href="${def.href}">`
-            : '<div class="stat-card" style="cursor:default">';
+        const openTag = def.href ? `<a class="stat-card" href="${def.href}">` : '<div class="stat-card" style="cursor:default">';
         const closeTag = def.href ? '</a>' : '</div>';
         grid.innerHTML += openTag
             + `<div class="stat-icon">${def.icon}</div>`
@@ -231,7 +274,7 @@ function renderActivities(activities) {
         const isApprove = activity.action === 'APPROVE';
         const li = document.createElement('li');
         li.innerHTML = `<span class="activity-dot ${isApprove ? 'dot-approve' : 'dot-reject'}"></span>`
-            + `<span>${isApprove ? '同意' : '拒绝'}了 <b>${activity.studentName || '-'}</b> 的申请${activity.courseName ? ' ' + activity.courseName : ''}`
+            + `<span>${isApprove ? '同意' : '拒绝'}了 <b>${activity.studentName || '-'}</b> 的申请${activity.courseName ? ' · ' + activity.courseName : ''}`
             + (activity.remark ? `<br><small style="color:#9ca3af">${activity.remark}</small>` : '')
             + `</span>`
             + `<span class="activity-time">${activity.time || ''}</span>`;

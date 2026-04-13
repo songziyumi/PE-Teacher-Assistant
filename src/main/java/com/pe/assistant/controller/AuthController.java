@@ -11,6 +11,7 @@ public class AuthController {
 
     @GetMapping("/login")
     public String login(@RequestParam(required = false) String logout,
+                        @RequestParam(required = false) String resetSuccess,
                         HttpSession session, Model model) {
         if (Boolean.TRUE.equals(session.getAttribute("LOCKED"))) {
             session.removeAttribute("LOCKED");
@@ -20,6 +21,7 @@ public class AuthController {
             model.addAttribute("loginError", true);
         }
         if (logout != null) model.addAttribute("logoutSuccess", true);
+        if (resetSuccess != null) model.addAttribute("resetSuccess", true);
         return "auth/login";
     }
 

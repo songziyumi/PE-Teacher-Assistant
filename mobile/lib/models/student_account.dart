@@ -5,6 +5,7 @@ class StudentAccountRow {
   final String? gradeName;
   final String? className;
   final String loginId;
+  final String loginAlias;
   final String status;
   final bool activated;
   final bool passwordChanged;
@@ -19,6 +20,7 @@ class StudentAccountRow {
     this.gradeName,
     this.className,
     required this.loginId,
+    required this.loginAlias,
     required this.status,
     required this.activated,
     required this.passwordChanged,
@@ -35,6 +37,7 @@ class StudentAccountRow {
       gradeName: json['gradeName']?.toString(),
       className: json['className']?.toString(),
       loginId: json['loginId']?.toString() ?? '',
+      loginAlias: json['loginAlias']?.toString() ?? '',
       status: json['status']?.toString() ?? '未生成',
       activated: json['activated'] == true,
       passwordChanged: json['passwordChanged'] == true,
@@ -52,6 +55,7 @@ class StudentAccountRow {
   }
 
   bool get hasAccount => loginId.trim().isNotEmpty;
+  bool get hasLoginAlias => loginAlias.trim().isNotEmpty;
 
   static DateTime? _parseDate(Object? raw) {
     if (raw == null) return null;

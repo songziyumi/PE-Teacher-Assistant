@@ -3,6 +3,32 @@
   jwt:
     secret: pe-teacher-assistant-jwt-secret-key-2026-change-in-production
     expiration: 86400000
+  mail:
+    enabled: ${APP_MAIL_ENABLED:false}
+    transport: ${APP_MAIL_TRANSPORT:smtp}
+    product-name: ${APP_MAIL_PRODUCT_NAME:体育教师助手}
+    from: ${APP_MAIL_FROM:no-reply@example.com}
+    base-url: ${APP_MAIL_BASE_URL:http://localhost:8080}
+    dispatch-enabled: ${APP_MAIL_DISPATCH_ENABLED:true}
+    dispatch-batch-size: ${APP_MAIL_DISPATCH_BATCH_SIZE:20}
+    dispatch-fixed-delay-ms: ${APP_MAIL_DISPATCH_FIXED_DELAY_MS:30000}
+    max-retry-count: ${APP_MAIL_MAX_RETRY_COUNT:3}
+    retry-delay-minutes: ${APP_MAIL_RETRY_DELAY_MINUTES:5}
+    verify-email-expire-minutes: ${APP_MAIL_VERIFY_EXPIRE_MINUTES:30}
+    reset-password-expire-minutes: ${APP_MAIL_RESET_EXPIRE_MINUTES:30}
+    verify-email-limit-per-account: ${APP_MAIL_VERIFY_LIMIT_PER_ACCOUNT:3}
+    verify-email-limit-per-ip: ${APP_MAIL_VERIFY_LIMIT_PER_IP:10}
+    reset-password-limit-per-account: ${APP_MAIL_RESET_LIMIT_PER_ACCOUNT:3}
+    reset-password-limit-per-ip: ${APP_MAIL_RESET_LIMIT_PER_IP:10}
+    ses-api:
+      secret-id: ${APP_MAIL_SES_API_SECRET_ID:}
+      secret-key: ${APP_MAIL_SES_API_SECRET_KEY:}
+      region: ${APP_MAIL_SES_API_REGION:ap-guangzhou}
+      endpoint: ${APP_MAIL_SES_API_ENDPOINT:ses.tencentcloudapi.com}
+      reply-to-address: ${APP_MAIL_SES_API_REPLY_TO_ADDRESS:}
+      trigger-type: ${APP_MAIL_SES_API_TRIGGER_TYPE:1}
+      verify-email-template-id: ${APP_MAIL_SES_API_VERIFY_EMAIL_TEMPLATE_ID:0}
+      reset-password-template-id: ${APP_MAIL_SES_API_RESET_PASSWORD_TEMPLATE_ID:0}
 
 # 服务器档位切换说明：
 # 1. 默认启用 server-low
@@ -11,6 +37,28 @@
 # 4. 如需与本地配置叠加：--spring.profiles.active=local,server-high
 
 spring:
+  mail:
+    # 腾讯云 SES SMTP 常用主机：
+    # - 中国大陆（广州）：gz-smtp.qcloudmail.com
+    # - 中国香港：smtp.qcloudmail.com
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:465}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    protocol: ${SPRING_MAIL_PROTOCOL:smtp}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
+            required: ${SPRING_MAIL_SMTP_STARTTLS_REQUIRED:false}
+          ssl:
+            enable: ${SPRING_MAIL_SMTP_SSL_ENABLE:true}
+          connectiontimeout: ${SPRING_MAIL_SMTP_CONNECTION_TIMEOUT:5000}
+          timeout: ${SPRING_MAIL_SMTP_TIMEOUT:10000}
+          writetimeout: ${SPRING_MAIL_SMTP_WRITE_TIMEOUT:10000}
   jpa:
     hibernate:
       ddl-auto: update

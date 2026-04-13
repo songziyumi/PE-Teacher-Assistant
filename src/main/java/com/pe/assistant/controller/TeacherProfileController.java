@@ -6,9 +6,11 @@ import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.AttendanceRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
 import com.pe.assistant.repository.TeacherRepository;
+import com.pe.assistant.service.AccountEmailService;
 import com.pe.assistant.service.ClassService;
 import com.pe.assistant.service.CurrentUserService;
 import com.pe.assistant.service.MessageService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +37,7 @@ public class TeacherProfileController {
     private final TeacherRepository teacherRepository;
     private final CurrentUserService currentUserService;
     private final PasswordEncoder passwordEncoder;
+    private final AccountEmailService accountEmailService;
     private final ClassService classService;
     private final AttendanceRepository attendanceRepository;
     private final MessageService messageService;
@@ -91,7 +94,6 @@ public class TeacherProfileController {
             Teacher teacher = currentUserService.getCurrentTeacher();
             teacher.setGender(emptyToNull(gender));
             teacher.setSpecialty(emptyToNull(specialty));
-            teacher.setEmail(emptyToNull(email));
             teacher.setBio(emptyToNull(bio));
             if (birthDate != null && !birthDate.isBlank()) {
                 teacher.setBirthDate(LocalDate.parse(birthDate));
@@ -102,7 +104,11 @@ public class TeacherProfileController {
                 String photoUrl = savePhoto(teacher.getId(), photo);
                 teacher.setPhotoUrl(photoUrl);
             }
-            teacherRepository.save(teacher);
+            if (email != null) {
+                accountEmailService.updateTeacherEmailDraft(teacher, email);
+            } else {
+                teacherRepository.save(teacher);
+            }
             ra.addFlashAttribute("success", "\u4e2a\u4eba\u4e3b\u9875\u5df2\u66f4\u65b0");
         } catch (Exception e) {
             ra.addFlashAttribute("error", "\u4fdd\u5b58\u5931\u8d25\uff1a" + e.getMessage());
@@ -137,6 +143,41 @@ public class TeacherProfileController {
         return "redirect:/teacher/profile";
     }
 
+    @PostMapping("/teacher/profile/email-bind/request")
+    public String requestEmailBind(@RequestParam(required = false) String email,
+                                   HttpServletRequest request,
+                                   RedirectAttributes ra) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            accountEmailService.requestTeacherEmailBind(
+                    teacher,
+                    email,
+                    resolveClientIp(request),
+                    request.getHeader("User-Agent"));
+            ra.addFlashAttribute("success", "验证邮件已生成，请前往邮箱完成验证");
+        } catch (IllegalArgumentException ex) {
+            ra.addFlashAttribute("error", ex.getMessage());
+        } catch (Exception ex) {
+            ra.addFlashAttribute("error", "邮箱验证邮件发送失败");
+        }
+        return "redirect:/teacher/profile";
+    }
+
+    @PostMapping("/teacher/profile/email-notify")
+    public String updateEmailNotify(@RequestParam(defaultValue = "false") boolean enabled,
+                                    RedirectAttributes ra) {
+        try {
+            Teacher teacher = currentUserService.getCurrentTeacher();
+            accountEmailService.updateTeacherNotifyEnabled(teacher, enabled);
+            ra.addFlashAttribute("success", "邮箱通知设置已更新");
+        } catch (IllegalArgumentException ex) {
+            ra.addFlashAttribute("error", ex.getMessage());
+        } catch (Exception ex) {
+            ra.addFlashAttribute("error", "邮箱通知设置更新失败");
+        }
+        return "redirect:/teacher/profile";
+    }
+
     private String savePhoto(Long teacherId, MultipartFile photo) throws IOException {
         Path dir = Paths.get(uploadDir, "teachers").toAbsolutePath().normalize();
         Files.createDirectories(dir);
@@ -167,6 +208,15 @@ public class TeacherProfileController {
             return null;
         }
         return value.trim();
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            int commaIndex = forwarded.indexOf(',');
+            return commaIndex >= 0 ? forwarded.substring(0, commaIndex).trim() : forwarded.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @GetMapping("/student/teachers/{id}")

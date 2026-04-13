@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
     Optional<Teacher> findByUsername(String username);
     boolean existsByUsername(String username);
+    boolean existsByUsernameIgnoreCase(String username);
+    Optional<Teacher> findByEmailIgnoreCase(String email);
+    boolean existsByEmailIgnoreCase(String email);
 
     @Query("SELECT t FROM Teacher t WHERE t.school = :school AND " +
            "(:name IS NULL OR LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +

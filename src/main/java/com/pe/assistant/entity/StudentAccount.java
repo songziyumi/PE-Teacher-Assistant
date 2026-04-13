@@ -6,10 +6,15 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "student_accounts", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_student_account_student", columnNames = "student_id"),
-        @UniqueConstraint(name = "uk_student_account_login_id", columnNames = "login_id")
-})
+@Table(name = "student_accounts",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_student_account_student", columnNames = "student_id"),
+                @UniqueConstraint(name = "uk_student_account_login_id", columnNames = "login_id"),
+                @UniqueConstraint(name = "uk_student_account_login_alias", columnNames = "login_alias")
+        },
+        indexes = {
+                @Index(name = "idx_student_account_email", columnList = "email")
+        })
 @Data
 public class StudentAccount {
 
@@ -23,6 +28,9 @@ public class StudentAccount {
 
     @Column(name = "login_id", nullable = false, length = 32)
     private String loginId;
+
+    @Column(name = "login_alias", length = 32)
+    private String loginAlias;
 
     @Column(name = "password_hash", nullable = false, length = 200)
     private String passwordHash;
@@ -53,6 +61,24 @@ public class StudentAccount {
 
     @Column(name = "last_password_reset_at")
     private LocalDateTime lastPasswordResetAt;
+
+    @Column(name = "login_alias_bound_at")
+    private LocalDateTime loginAliasBoundAt;
+
+    @Column(length = 100)
+    private String email;
+
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_bound_at")
+    private LocalDateTime emailBoundAt;
+
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
+    @Column(name = "email_notify_enabled", nullable = false)
+    private Boolean emailNotifyEnabled = true;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
