@@ -43,10 +43,11 @@
 <div class="page-wrap">
     <div class="profile-card">
         <div class="profile-header">
-            <div th:if="${teacher.photoUrl != null}">
-                <img th:src="${teacher.photoUrl}" alt="头像" class="avatar">
+            <div th:if="${teacher.photoUrl != null and !#strings.isEmpty(#strings.trim(teacher.photoUrl))}">
+                <img th:src="@{${teacher.photoUrl}}" alt="头像" class="avatar">
             </div>
-            <div th:if="${teacher.photoUrl == null}" class="avatar-ph">👤</div>
+            <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}"
+                 class="avatar-ph">👤</div>
             <div class="hdr-info">
                 <h2 th:text="${teacher.name}"></h2>
                 <p th:text="${teacher.specialty != null ? teacher.specialty : '体育教师'}"></p>

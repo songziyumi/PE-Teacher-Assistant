@@ -100,8 +100,8 @@ public class SecurityConfig {
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "ORG_ADMIN")
                         .requestMatchers("/student/**").hasRole("STUDENT")
-                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
-                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN")
+                        .requestMatchers("/teacher/profile/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/teacher/messages/**").hasAnyRole("TEACHER", "ADMIN", "ORG_ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")
