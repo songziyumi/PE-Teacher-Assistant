@@ -73,8 +73,13 @@
 
     <div class="card">
         <div class="header">
-            <img th:if="${teacher.photoUrl != null}" class="avatar" th:src="${teacher.photoUrl}" alt="头像">
-            <div th:if="${teacher.photoUrl == null}" class="avatar-fallback" th:text="${#strings.substring(teacher.name,0,1)}">T</div>
+            <img th:if="${teacher.photoUrl != null and !#strings.isEmpty(#strings.trim(teacher.photoUrl))}"
+                 class="avatar"
+                 th:src="@{${teacher.photoUrl}}"
+                 alt="头像">
+            <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}"
+                 class="avatar-fallback"
+                 th:text="${#strings.substring(teacher.name,0,1)}">T</div>
             <div class="title">
                 <h2 th:text="${teacher.name}">教师姓名</h2>
                 <p th:text="${teacher.role} + ' · ' + (${teacher.school != null ? teacher.school.name : ''})">TEACHER</p>
