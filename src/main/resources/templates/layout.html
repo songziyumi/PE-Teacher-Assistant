@@ -17,6 +17,7 @@
         </span>
         <span sec:authorize="hasRole('SUPER_ADMIN')">
             <a th:href="@{/super-admin/schools}">学校管理</a>
+            <a th:href="@{/teacher/profile}">个人主页</a>
         </span>
         <span class="nav-user" sec:authentication="name"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
