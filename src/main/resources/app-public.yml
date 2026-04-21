@@ -1,7 +1,7 @@
 ﻿app:
-  version: 4.0
+  version: 5.0
   jwt:
-    secret: pe-teacher-assistant-jwt-secret-key-2026-change-in-production
+    secret: ${APP_JWT_SECRET}
     expiration: 86400000
   mail:
     enabled: ${APP_MAIL_ENABLED:false}
