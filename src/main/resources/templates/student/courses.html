@@ -102,6 +102,17 @@
         .request-inline-feedback.show { display: block; }
         .request-meta.hidden { display:none; }
         .request-textarea.textarea-readonly { background:#f8fafc; color:#64748b; }
+        @media (max-width: 768px) {
+            .student-nav { height: 56px; padding: 0 12px; align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .student-nav .brand { flex: 0 0 auto; white-space: nowrap; font-size: .95rem; }
+            .student-nav .nav-right { width: auto; flex: 0 0 auto; flex-wrap: nowrap; gap: 12px; white-space: nowrap; }
+            .student-nav .nav-right > *, .student-nav .nav-right form { width: auto; flex: 0 0 auto; white-space: nowrap; }
+            .page-wrap { margin: 16px auto; padding: 0 12px; }
+            .panel, .course-card { padding: 16px; }
+            .course-grid { grid-template-columns: 1fr; }
+            .actions { flex-direction: column; }
+            .actions form, .actions button, .actions .btn-primary, .actions .btn-secondary, .actions .btn-success, .actions .btn-request { width: 100%; }
+        }
     </style>
 </head>
 <body>

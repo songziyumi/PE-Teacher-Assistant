@@ -41,6 +41,10 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
             overflow: hidden;
         }
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .table-card table {
             margin: 0;
         }
@@ -119,9 +123,61 @@
             gap: 8px;
             padding-top: 12px;
         }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
         @media (max-width: 768px) {
+            .wrap {
+                margin: 14px auto 20px;
+                padding: 0 12px;
+            }
+            .header {
+                align-items: center;
+            }
+            .header > span {
+                display: none;
+            }
+            .header-actions {
+                margin-left: auto;
+                flex: 0 0 auto;
+                gap: 8px;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .header-actions .btn {
+                width: auto;
+                flex: 0 0 auto;
+                padding: 7px 10px;
+                font-size: 12px;
+            }
+            .stats {
+                flex-direction: row;
+                flex-wrap: nowrap;
+                gap: 6px;
+            }
+            .stat {
+                min-width: 0;
+                flex: 1 1 0;
+                padding: 9px 6px;
+                text-align: center;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+            .stat b {
+                font-size: 16px;
+            }
             .grid {
                 grid-template-columns: 1fr;
+            }
+            .actions {
+                flex-direction: column;
+            }
+            .actions .btn {
+                width: 100%;
             }
         }
     </style>
@@ -145,8 +201,10 @@
     <div class="header">
         <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}">班级</h2>
         <span style="flex:1"></span>
-        <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">考勤录入</a>
-        <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
+        <div class="header-actions">
+            <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">考勤录入</a>
+            <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
+        </div>
     </div>
 
     <div class="stats">
@@ -156,6 +214,7 @@
     </div>
 
     <div class="table-card">
+        <div class="table-wrap">
         <table class="table">
             <thead>
             <tr>
@@ -199,6 +258,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 

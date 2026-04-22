@@ -79,6 +79,47 @@
         }
         .type-badge.teacher { background: #e8f0fe; color: #2f6fe4; }
         .type-badge.admin { background: #fff1df; color: #c26a00; }
+        .teacher-filter-card { background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:14px 18px;margin-bottom:16px; }
+        .teacher-filter-layout { display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between; }
+        .teacher-filter-form { display:flex;gap:12px;align-items:center;flex-wrap:wrap; }
+        .teacher-filter-actions { display:flex;gap:8px;flex-shrink:0; }
+        .teacher-pager { display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px;padding:0 2px; }
+        .teacher-page-links { display:flex;gap:4px;align-items:center;flex-wrap:wrap; }
+        .teacher-jump-form { display:flex;align-items:center;gap:6px; }
+        @media (max-width: 768px) {
+            .teacher-filter-layout,
+            .teacher-filter-form,
+            .teacher-filter-actions,
+            .teacher-pager,
+            .teacher-page-links,
+            .teacher-jump-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .teacher-filter-layout > *,
+            .teacher-filter-form > *,
+            .teacher-filter-form > div,
+            .teacher-filter-actions > *,
+            .teacher-pager > *,
+            .teacher-page-links > *,
+            .teacher-jump-form > * {
+                width: 100%;
+            }
+            .teacher-filter-form input,
+            .teacher-jump-form input {
+                width: 100% !important;
+            }
+            td .form-inline {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            td .form-inline input,
+            td .form-inline .btn,
+            td .btn,
+            td form {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -102,9 +143,9 @@
         <h2>教师管理</h2>
     </div>
 
-    <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:14px 18px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between">
-            <form th:action="@{/admin/teachers}" method="get" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div class="teacher-filter-card">
+        <div class="teacher-filter-layout">
+            <form th:action="@{/admin/teachers}" method="get" class="teacher-filter-form">
                 <div style="display:flex;align-items:center;gap:6px">
                     <label style="font-size:13px;color:#555;white-space:nowrap;font-weight:500">姓名</label>
                     <input type="text" name="name" th:value="${searchName}" placeholder="搜索姓名"
@@ -123,7 +164,7 @@
                 <button type="submit" class="btn btn-secondary" style="padding:7px 18px">搜索</button>
                 <a th:href="@{/admin/teachers}" class="btn btn-outline" style="padding:7px 18px">清除</a>
             </form>
-            <div style="display:flex;gap:8px;flex-shrink:0">
+            <div class="teacher-filter-actions">
                 <button class="btn btn-primary" type="button" onclick="openAddModal()">+ 添加账号</button>
                 <form th:action="@{/admin/teachers/delete-all}" method="post" style="display:inline"
                       onsubmit="return confirm('确认删除全部教师数据？此操作不可恢复！')">
@@ -182,13 +223,13 @@
         </tbody>
     </table>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:10px;padding:0 2px">
+    <div class="teacher-pager">
         <div style="font-size:13px;color:#666">
             共 <strong th:text="${teacherPage.totalElements}"></strong> 条记录，
             每页 15 条，第 <strong th:text="${teacherPage.number + 1}"></strong> /
             <strong th:text="${teacherPage.totalPages > 0 ? teacherPage.totalPages : 1}"></strong> 页
         </div>
-        <div style="display:flex;gap:4px;align-items:center" th:if="${teacherPage.totalPages > 1}">
+        <div class="teacher-page-links" th:if="${teacherPage.totalPages > 1}">
             <a th:if="${!teacherPage.first}"
                th:href="@{/admin/teachers(page=${teacherPage.number - 1},name=${searchName},username=${searchUsername},phone=${searchPhone})}"
                class="btn btn-sm btn-outline">‹ 上一页</a>
@@ -206,7 +247,7 @@
             <span th:if="${teacherPage.last}" class="btn btn-sm btn-outline" style="opacity:.4;cursor:default">下一页 ›</span>
         </div>
         <form th:action="@{/admin/teachers}" method="get"
-              style="display:flex;align-items:center;gap:6px"
+              class="teacher-jump-form"
               onsubmit="handlePageJump(event, this)">
             <input type="hidden" name="name" th:value="${searchName}">
             <input type="hidden" name="username" th:value="${searchUsername}">

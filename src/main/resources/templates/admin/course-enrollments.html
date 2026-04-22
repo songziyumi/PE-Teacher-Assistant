@@ -26,6 +26,19 @@
         .stat-row { display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap; }
         .stat-chip { background:#f8f9fa; border-radius:8px; padding:8px 16px; font-size:.88rem; }
         .stat-chip strong { color:#4a90e2; font-size:1.1rem; }
+        @media (max-width: 768px) {
+            .page-header .btn,
+            .stat-chip,
+            .modal-footer .btn,
+            td .btn,
+            td form {
+                width: 100%;
+            }
+            .modal-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 <body>

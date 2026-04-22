@@ -20,6 +20,18 @@
         .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
         .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
         .pagination .disabled { color: #bbb; pointer-events: none; }
+        .stats-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 768px) {
+            .search-bar,
+            .page-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar > *,
+            .page-toolbar > * {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -93,7 +105,7 @@
     <input type="hidden" id="pg-studentNo" th:value="${studentNo}">
     <input type="hidden" id="pg-idCard"    th:value="${idCard}">
     <!-- 分页控件 -->
-    <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${studentPage.totalPages > 0}">
+    <div class="page-toolbar" th:if="${studentPage.totalPages > 0}">
         <span style="font-size:13px;color:#555;white-space:nowrap"
               th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
         <div class="pagination" id="pagination" th:if="${studentPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">

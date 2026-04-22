@@ -48,6 +48,19 @@
         }
         .info-tip { font-size: .82rem; color: #888; }
         .score-formula { font-size: .78rem; color: #aaa; text-align: center; margin-top: .5rem; }
+        @media (max-width: 768px) {
+            .filter-bar,
+            .save-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-bar > *,
+            .save-bar > *,
+            .save-bar .btn {
+                width: 100%;
+            }
+            .info-tip { line-height: 1.6; }
+        }
     </style>
 </head>
 <body>

@@ -21,6 +21,103 @@
         .attendance-row.band-1 {
             background: #ffe2c2;
         }
+        @media (max-width: 768px) {
+            .page-header {
+                align-items: center;
+            }
+            .page-header > div {
+                width: auto;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: nowrap;
+                margin-top: 0 !important;
+                margin-left: auto;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .page-header .btn {
+                width: auto;
+                margin-left: 0 !important;
+                margin-top: 0;
+                flex: 0 0 auto;
+            }
+            .attendance-toolbar {
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: nowrap;
+            }
+            .attendance-toolbar .form-inline {
+                width: auto;
+                flex: 0 0 auto;
+                align-items: center;
+                flex-wrap: nowrap;
+            }
+            .attendance-toolbar .form-inline label {
+                width: auto;
+                white-space: nowrap;
+            }
+            .attendance-toolbar .form-inline input {
+                width: 148px;
+            }
+            .attendance-actions {
+                flex: 0 0 auto;
+                flex-direction: row;
+                gap: 8px;
+            }
+            .attendance-actions .btn,
+            .attendance-toolbar .btn {
+                width: auto;
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            .attendance-stats {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            .attendance-stats .stat-item {
+                display: inline-flex;
+                align-items: center;
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+        }
+        @media (max-width: 480px) {
+            .page-header > div {
+                gap: 6px;
+            }
+            .page-header .badge {
+                padding: 2px 8px;
+                font-size: 11px;
+            }
+            .page-header .btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            .attendance-toolbar {
+                gap: 8px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .attendance-toolbar .form-inline input {
+                width: 132px;
+            }
+            .attendance-toolbar .form-inline label,
+            .attendance-actions .btn {
+                font-size: 12px;
+            }
+            .attendance-stats {
+                gap: 8px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -52,7 +149,7 @@
                 <input type="date" name="date" th:value="${date}" required>
             </div>
             <div class="attendance-actions">
-                <button type="button" class="btn btn-success" onclick="setAll('出勤')">一键全部出勤</button>
+                    <button type="button" class="btn btn-success" onclick="setAll('出勤')">一键出勤</button>
                 <button type="submit" class="btn btn-primary">保存考勤</button>
             </div>
         </div>

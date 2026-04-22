@@ -24,6 +24,17 @@
         .badge-pending  { background:#fef3e2; color:#c87c0a; }
         .badge-approved { background:#eafaf1; color:#1a6e3a; }
         .badge-rejected { background:#fdf0f0; color:#9b2525; }
+        @media (max-width: 768px) {
+            .msg-wrap { margin: 16px auto; padding: 0 12px; }
+            .msg-head { padding: 12px 14px 10px; flex-wrap: wrap; }
+            .msg-subject,
+            .msg-time,
+            .msg-actions .btn,
+            .msg-actions form { width: 100%; }
+            .msg-subject { white-space: normal; }
+            .msg-body,
+            .msg-actions { padding-left: 14px; padding-right: 14px; }
+        }
     </style>
 </head>
 <body>

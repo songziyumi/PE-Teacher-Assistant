@@ -75,6 +75,39 @@
         .helper-text { font-size:.82rem; color:#888; }
         .scope-callout { margin-bottom:16px; padding:12px 14px; border-radius:10px; background:#f8fafc; border:1px solid #e5e7eb; color:#475569; font-size:.86rem; }
         .empty-inline { padding:14px; border:1px dashed #d1d5db; border-radius:8px; color:#6b7280; background:#fafafa; font-size:.86rem; }
+        @media (max-width: 768px) {
+            .tab-bar {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tab-btn {
+                flex: 0 0 auto;
+                padding: 10px 16px;
+            }
+            .status-bar > *,
+            .status-bar form,
+            .status-bar .btn {
+                width: 100%;
+            }
+            .per-class-toolbar,
+            .per-class-row {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .per-class-toolbar > *,
+            .per-class-row > *,
+            .select-all-bar > *,
+            .student-check-item {
+                width: 100%;
+            }
+            .select-all-bar {
+                flex-direction: column;
+            }
+            .collapsible-toggle {
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
@@ -456,7 +489,8 @@
                 <div class="form-row single">
                     <div class="form-group">
                         <label>课程简介</label>
-                        <textarea name="description" rows="2" placeholder="选填"></textarea>
+                        <textarea name="description" rows="2" placeholder="选填，最多500字" maxlength="500" data-char-count-target="course-description-counter"></textarea>
+                        <div id="course-description-counter" style="margin-top:4px;font-size:.8rem;color:#888;">0/500</div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -524,6 +558,21 @@ function openModal(id) {
 function closeModal(id) {
     document.getElementById(id).classList.remove('active');
 }
+
+function updateCharCounter(textarea) {
+    const targetId = textarea?.dataset?.charCountTarget;
+    if (!targetId) return;
+    const counter = document.getElementById(targetId);
+    if (!counter) return;
+    const maxLength = Number(textarea.getAttribute('maxlength') || 0);
+    const currentLength = textarea.value.length;
+    counter.textContent = maxLength > 0 ? `${currentLength}/${maxLength}` : String(currentLength);
+}
+
+document.querySelectorAll('textarea[data-char-count-target]').forEach(textarea => {
+    updateCharCounter(textarea);
+    textarea.addEventListener('input', () => updateCharCounter(textarea));
+});
 
 function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));

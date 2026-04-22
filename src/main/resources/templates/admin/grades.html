@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>年级管理 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 768px) {
+            .page-header { align-items: stretch; }
+            .card .form-inline,
+            .table .form-inline {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .card .form-inline input,
+            .table .form-inline input,
+            .card .form-inline .btn,
+            .table .form-inline .btn {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -29,6 +47,7 @@
             <button type="submit" class="btn btn-primary">添加</button>
         </form>
     </div>
+    <div class="table-wrap">
     <table class="table">
         <thead><tr><th>ID</th><th>年级名称</th><th>操作</th></tr></thead>
         <tbody>
@@ -51,6 +70,7 @@
             </tr>
         </tbody>
     </table>
+    </div>
 </div>
 <script>
 function confirmDeleteGrade(form) {

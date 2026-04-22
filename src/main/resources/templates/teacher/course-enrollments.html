@@ -11,6 +11,10 @@
         .badge-pending   { background:#f39c12; color:#fff; }
         .badge-fail      { background:#e74c3c; color:#fff; }
         .badge-cancelled { background:#bdc3c7; color:#fff; }
+        .summary-bar { background:#f8f9fa;border-radius:8px;padding:12px 18px;margin-bottom:18px;font-size:.88rem;color:#666; }
+        @media (max-width: 768px) {
+            .summary-bar { line-height: 1.8; }
+        }
     </style>
 </head>
 <body>
@@ -33,7 +37,7 @@
         </h2>
     </div>
 
-    <div style="background:#f8f9fa;border-radius:8px;padding:12px 18px;margin-bottom:18px;font-size:.88rem;color:#666;">
+    <div class="summary-bar">
         总名额 <strong th:text="${course.totalCapacity}"></strong>
         &nbsp;·&nbsp; 已确认 <strong th:text="${confirmedEnrollmentCount}"></strong>
         &nbsp;·&nbsp; 剩余 <strong th:text="${remainingEnrollmentCapacity}"></strong>

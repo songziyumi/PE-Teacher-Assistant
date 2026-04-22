@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>考勤记录 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        @media (max-width: 768px) {
+            td form {
+                display: flex !important;
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+            }
+            td form .select-sm,
+            td form .btn {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">

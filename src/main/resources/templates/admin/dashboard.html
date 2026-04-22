@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        @media (max-width: 768px) {
+            .page-header {
+                align-items: stretch;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">
@@ -18,7 +25,10 @@
     </div>
 </nav>
 <div class="container">
-    <div class="page-header"><h2>管理后台</h2></div>
+    <div class="page-header">
+        <h2>管理后台</h2>
+        <p>常用管理入口已按手机屏幕收拢，可直接在手机上操作。</p>
+    </div>
     <div class="admin-grid">
         <a th:href="@{/admin/classes}" class="admin-card">
             <div class="admin-card-icon">班</div>

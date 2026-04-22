@@ -41,6 +41,19 @@
         .badge-good      { background: #2980b9; color: #fff; }
         .badge-pass      { background: #f39c12; color: #fff; }
         .badge-fail      { background: #e74c3c; color: #fff; }
+        @media (max-width: 768px) {
+            .search-bar,
+            .batch-bar,
+            .pagination {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar > *,
+            .batch-bar > *,
+            .pagination > * {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>

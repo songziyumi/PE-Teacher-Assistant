@@ -54,6 +54,10 @@
             gap: 6px;
             flex-wrap: wrap;
         }
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .pagination {
             display: flex;
             justify-content: center;
@@ -81,6 +85,16 @@
         @media (max-width: 640px) {
             .filters {
                 grid-template-columns: 1fr;
+            }
+            .actions {
+                flex-direction: column;
+            }
+            .actions > *,
+            .actions .btn {
+                width: 100%;
+            }
+            .pagination {
+                flex-wrap: wrap;
             }
         }
     </style>
@@ -149,6 +163,7 @@
             <span class="subtext">导出内容包含系统账号、便捷账号和初始密码，请妥善保管。</span>
         </div>
 
+        <div class="table-wrap">
         <table class="table">
             <thead>
             <tr>
@@ -212,6 +227,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
     </form>
 
     <div class="pagination" th:if="${totalPages > 1}">

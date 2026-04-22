@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>缺勤/请假查询 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        @media (max-width: 768px) {
+            .card .form-inline {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .card .form-inline > * {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 <nav class="navbar">

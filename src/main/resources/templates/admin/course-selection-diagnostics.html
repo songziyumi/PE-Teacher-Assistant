@@ -50,6 +50,25 @@
         .activity-title { font-weight:600; color:#0f172a; }
         .activity-time { font-size:.8rem; color:#64748b; }
         .hidden { display:none; }
+        @media (max-width: 768px) {
+            .page-header > div,
+            .toolbar-card,
+            .toolbar-form,
+            .toolbar-actions {
+                width: 100%;
+            }
+            .toolbar-card,
+            .toolbar-form,
+            .toolbar-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .page-header .btn,
+            .toolbar-actions .btn,
+            .toolbar-form > div {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>

@@ -165,12 +165,29 @@
         .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
         .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
         .pagination .disabled { color: #bbb; pointer-events: none; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .page-toolbar { display:flex;align-items:center;margin-top:12px;gap:8px;flex-wrap:wrap; }
 
         @media (max-width: 1100px) {
             .search-bar { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
         }
         @media (max-width: 680px) {
             .search-bar { grid-template-columns: 1fr; }
+            .search-actions,
+            .page-toolbar { flex-direction: column; align-items: stretch; }
+            .search-actions > *,
+            .page-toolbar > *,
+            .delete-all-verify,
+            .search-actions form,
+            .search-actions .btn,
+            .page-toolbar form { width: 100%; }
+            .delete-all-verify { flex-wrap: wrap; justify-content: space-between; }
+            .delete-all-verify input { width: 100%; }
+            .modal { width: calc(100vw - 20px); }
+            .modal-header, .modal-body, .modal-footer { padding-left: 16px; padding-right: 16px; }
+            .modal-footer { flex-direction: column; }
+            .modal-footer .btn { width: 100%; }
+            .form-grid2 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -242,6 +259,7 @@
         </form>
     </div>
 
+    <div class="table-wrap">
     <table class="table">
         <thead>
         <tr>
@@ -284,6 +302,7 @@
         </tr>
         </tbody>
     </table>
+    </div>
 
     <form id="batchDeleteForm" th:action="@{/admin/students/delete-batch}" method="post" style="display:none">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -301,7 +320,7 @@
     <input type="hidden" id="pg-studentStatus" th:value="${studentStatus}">
     <input type="hidden" id="pg-size" th:value="${size}">
 
-    <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${studentPage.totalPages > 0}">
+    <div class="page-toolbar" th:if="${studentPage.totalPages > 0}">
         <span style="font-size:13px;color:#555;white-space:nowrap"
               th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
         <form method="get" th:action="@{/admin/students}" style="display:flex;align-items:center;gap:6px;margin-left:8px;">

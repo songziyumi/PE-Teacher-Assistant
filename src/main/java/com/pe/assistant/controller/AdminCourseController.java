@@ -223,6 +223,10 @@ public class AdminCourseController {
                              @RequestParam(value = "classCapacities", required = false) List<Integer> classCapacities,
                              RedirectAttributes ra) {
         try {
+            if (description != null && description.length() > 500) {
+                ra.addFlashAttribute("error", "课程简介不能超过500字");
+                return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
+            }
             SelectionEvent event = eventService.findById(eventId);
             School school = currentUserService.getCurrentSchool();
             Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);

@@ -10,6 +10,17 @@
         .badge-round1   { background:#2980b9; color:#fff; }
         .badge-round2   { background:#27ae60; color:#fff; }
         .badge-closed   { background:#bdc3c7; color:#fff; }
+        .event-card { background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:16px; }
+        .event-head { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+        @media (max-width: 768px) {
+            .event-card { padding: 16px; }
+            .event-head > * { width: 100%; }
+            .event-head .badge,
+            .event-card .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -33,8 +44,8 @@
         暂无选课活动
     </div>
 
-    <div th:each="event : ${events}" style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div th:each="event : ${events}" class="event-card">
+        <div class="event-head">
             <div>
                 <h3 style="margin:0 0 4px;font-size:1rem;" th:text="${event.name}"></h3>
                 <span style="font-size:.82rem;color:#888;">

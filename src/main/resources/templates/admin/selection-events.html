@@ -29,6 +29,29 @@
         .event-info h3 { margin:0 0 6px; font-size:1.05rem; }
         .event-meta { font-size:.83rem; color:#888; }
         .event-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        @media (max-width: 768px) {
+            .page-header > div,
+            .event-card > div,
+            .event-actions,
+            .modal-footer {
+                width: 100%;
+            }
+            .page-header > div,
+            .event-actions,
+            .modal-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .event-actions .btn,
+            .event-actions form,
+            .event-actions button,
+            .page-header .btn {
+                width: 100%;
+            }
+            .event-card {
+                padding: 16px;
+            }
+        }
     </style>
 </head>
 <body>

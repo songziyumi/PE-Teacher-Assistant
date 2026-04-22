@@ -82,6 +82,30 @@
             background: #f5f7fb; border: 1px dashed #b8c4d6; color: #2d4c7c;
             font-weight: 700; letter-spacing: 1px; font-size: 14px;
         }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .page-toolbar { display:flex;align-items:center;margin-top:12px;gap:8px;flex-wrap:wrap; }
+        @media (max-width: 768px) {
+            .fold-section summary,
+            .fold-body,
+            .modal-header,
+            .modal-body,
+            .modal-footer { padding-left: 16px; padding-right: 16px; }
+            .search-bar,
+            .class-toolbar,
+            .class-search-form,
+            .class-danger-form,
+            .page-toolbar { flex-direction: column; align-items: stretch; }
+            .class-search-form { flex: none; }
+            .class-search-form select,
+            .class-search-form input[name="name"],
+            .class-search-form .btn,
+            .class-danger-form > *,
+            .page-toolbar > * { width: 100%; flex: none; }
+            .class-danger-form input[name="verifyCode"] { width: 100%; }
+            .modal { width: calc(100vw - 20px); }
+            .modal-footer { flex-direction: column; }
+            .modal-footer .btn { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -111,6 +135,7 @@
                     <input type="text" name="name" placeholder="年级名称（如：高一）" required>
                     <button type="submit" class="btn btn-primary">添加年级</button>
                 </form>
+                <div class="table-wrap">
                 <table class="table" style="margin-bottom:0;">
                     <thead><tr><th style="width:90px;">ID</th><th>年级名称</th><th style="width:180px;">操作</th></tr></thead>
                     <tbody>
@@ -136,6 +161,7 @@
                     </tr>
                     </tbody>
                 </table>
+                </div>
             </div>
         </details>
 
@@ -172,6 +198,7 @@
                     </form>
                 </div>
 
+                <div class="table-wrap">
                 <table class="table">
                     <thead><tr><th>类型</th><th>年级</th><th>班级</th><th>任课教师</th><th>操作</th></tr></thead>
                     <tbody>
@@ -197,13 +224,14 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <input type="hidden" id="pg-current"  th:value="${classPage.number}">
                 <input type="hidden" id="pg-total"    th:value="${classPage.totalPages}">
                 <input type="hidden" id="pg-type"     th:value="${type}">
                 <input type="hidden" id="pg-gradeId"  th:value="${gradeId}">
                 <input type="hidden" id="pg-name"     th:value="${name}">
-                <div style="display:flex;align-items:center;margin-top:12px;gap:8px" th:if="${classPage.totalPages > 0}">
+                <div class="page-toolbar" th:if="${classPage.totalPages > 0}">
                     <span style="font-size:13px;color:#555;white-space:nowrap"
                           th:text="'共 ' + ${classPage.totalElements} + ' 个班级，共 ' + ${classPage.totalPages} + ' 页'"></span>
                     <div class="pagination" id="pagination" th:if="${classPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
