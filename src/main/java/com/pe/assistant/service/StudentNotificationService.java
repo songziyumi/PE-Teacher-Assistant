@@ -35,7 +35,7 @@ public class StudentNotificationService {
             subject = "第一轮选课结果：未中签";
             content = "第一轮选课结果已公布，您在第一轮暂未中签。"
                     + buildRound2ScheduleText(event)
-                    + "请按时参加第二轮抢课；如未参加，第二轮结束后系统会从仍有空余名额的课程中随机为您分配。";
+                    + "请按时参加第二轮抢课；若到第二轮结束时您仍未确认课程，系统会从仍有空余名额的课程中随机为您分配。";
         }
         return sendSystemMessage(resolveSchool(student, event), student, subject, content);
     }

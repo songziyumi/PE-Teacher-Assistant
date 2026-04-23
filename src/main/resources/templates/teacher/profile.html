@@ -11,8 +11,9 @@
         .header { display: flex; gap: 16px; align-items: center; }
         .avatar { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2px solid #dbe4ff; }
         .avatar-fallback { width: 84px; height: 84px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; }
-        .title h2 { margin: 0 0 4px; font-size: 22px; color: #1f2937; }
-        .title p { margin: 0; color: #6b7280; font-size: 13px; }
+        .title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .title h2 { margin: 0; font-size: 22px; color: #1f2937; }
+        .title-meta { margin: 0; color: #6b7280; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
         .stat-card { background: #f8faff; border-radius: 10px; padding: 14px 10px; text-align: center; cursor: pointer; text-decoration: none; display: block; transition: background .15s; }
         .stat-card:hover { background: #e8f0fe; }
@@ -48,8 +49,14 @@
         .inline-note { color: #6b7280; font-size: 12px; line-height: 1.7; margin-top: 6px; }
         .inline-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .inline-form input[type="email"] { flex: 1 1 260px; }
+        .email-bind-form .inline-form { flex-wrap: nowrap; align-items: stretch; }
+        .email-bind-form .inline-form input[type="email"] { flex: 1 1 auto; min-width: 0; }
+        .email-bind-form .inline-form .btn { flex: 0 0 auto; white-space: nowrap; }
         @media (max-width: 640px) {
-            .header { flex-direction: column; align-items: flex-start; }
+            .header { flex-direction: row; align-items: center; }
+            .title { flex: 1 1 auto; min-width: 0; }
+            .title h2 { margin-bottom: 4px; }
+            .title p { white-space: normal; word-break: break-word; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .grid { grid-template-columns: 1fr; }
             .actions,
@@ -60,6 +67,13 @@
             .actions > *,
             .inline-form > * {
                 width: 100%;
+            }
+            .email-bind-form .inline-form {
+                flex-direction: row;
+                align-items: stretch;
+            }
+            .email-bind-form .inline-form > * {
+                width: auto;
             }
         }
     </style>
@@ -186,7 +200,7 @@
             </span>
         </div>
 
-        <form th:action="@{/teacher/profile/email-bind/request}" method="post" style="margin-bottom:14px;">
+        <form th:action="@{/teacher/profile/email-bind/request}" method="post" class="email-bind-form" style="margin-bottom:14px;">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <div class="inline-form">
                 <input type="email" name="email" th:value="${teacher.email}" placeholder="请输入用于验证的邮箱" required>

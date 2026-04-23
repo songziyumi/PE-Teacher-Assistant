@@ -42,6 +42,7 @@
     <div class="nav-right">
         <a th:href="@{/student/courses}" style="color:#4a90e2;">选课</a>
         <a th:href="@{/student/my-courses}" style="color:#4a90e2;">我的选课</a>
+        <a th:href="@{/student/password}" style="color:#4a90e2;">账号安全</a>
         <span th:text="${student != null ? student.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">

@@ -388,25 +388,10 @@ public class CourseService {
             return List.of();
         }
 
-        Set<Long> failedStudentIds = selectionRepo.findByEvent(event).stream()
-                .filter(selection -> selection.getRound() == 1)
-                .filter(selection -> "LOTTERY_FAIL".equals(selection.getStatus()))
-                .map(CourseSelection::getStudent)
-                .filter(student -> student != null && student.getId() != null)
-                .map(Student::getId)
-                .collect(java.util.stream.Collectors.toSet());
-
-        if (failedStudentIds.isEmpty()) {
-            return List.of();
-        }
-
         List<Student> candidates = new ArrayList<>();
         Set<Long> seenStudentIds = new HashSet<>();
         for (Student student : participatingStudents) {
             if (student == null || student.getId() == null) {
-                continue;
-            }
-            if (!failedStudentIds.contains(student.getId())) {
                 continue;
             }
             if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
