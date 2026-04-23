@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生首页 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        body { background:#f4f6fb; }
+        .student-nav { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; gap:12px; overflow-x:auto; }
+        .student-nav .brand { font-weight:700; color:#4a90e2; white-space:nowrap; }
+        .student-nav .nav-right { display:flex; align-items:center; gap:14px; font-size:.9rem; white-space:nowrap; }
+        .page-wrap { max-width:920px; margin:22px auto; padding:0 14px; }
+        .hero { background:linear-gradient(135deg,#2563eb,#60a5fa); color:#fff; border-radius:16px; padding:22px; margin-bottom:16px; box-shadow:0 8px 22px rgba(37,99,235,.18); }
+        .hero h2 { margin:0 0 6px; font-size:1.35rem; }
+        .hero p { margin:0; opacity:.92; font-size:.92rem; }
+        .card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+        .home-card { display:flex; flex-direction:column; gap:8px; background:#fff; border-radius:14px; padding:18px; text-decoration:none; color:#1f2937; box-shadow:0 3px 12px rgba(15,23,42,.08); border:1px solid #eef2f7; }
+        .home-card:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(15,23,42,.11); }
+        .card-title { display:flex; align-items:center; gap:8px; font-weight:700; color:#2563eb; }
+        .card-icon { font-size:1.25rem; }
+        .card-desc { color:#64748b; font-size:.88rem; line-height:1.55; }
+        .card-stat { margin-top:auto; color:#334155; font-size:.9rem; }
+        @media (max-width:640px) {
+            .student-nav { padding:0 12px; }
+            .student-nav .brand { font-size:.95rem; }
+            .student-nav .nav-right { gap:12px; }
+            .page-wrap { margin:16px auto; padding:0 12px; }
+            .hero { padding:18px; }
+            .card-grid { grid-template-columns:1fr; gap:12px; }
+            .home-card { padding:16px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="student-nav">
+    <div class="brand">体育学生端</div>
+    <div class="nav-right">
+        <span th:text="${student != null ? student.name : ''}"></span>
+        <form th:action="@{/logout}" method="post" style="display:inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:.88rem;">退出</button>
+        </form>
+    </div>
+</nav>
+
+<div class="page-wrap">
+    <section class="hero">
+        <h2 th:text="${student != null ? student.name + '，欢迎回来' : '学生首页'}">学生首页</h2>
+        <p>这里可以查看选课、体质健康测试、出勤情况、学期体育成绩和账号安全。</p>
+    </section>
+
+    <div class="card-grid">
+        <a class="home-card" th:href="@{/student/courses}">
+            <div class="card-title"><span class="card-icon">📚</span><span>选课</span></div>
+            <div class="card-desc">查看选课活动、填报志愿、抢课或查看第三轮申请入口。</div>
+            <div class="card-stat">进入选课页面</div>
+        </a>
+        <a class="home-card" th:href="@{/student/physical-tests}">
+            <div class="card-title"><span class="card-icon">🏃</span><span>体质健康测试</span></div>
+            <div class="card-desc">查看身高、体重、肺活量、跑跳等体测记录。</div>
+            <div class="card-stat" th:if="${latestPhysicalTest != null}"
+                 th:text="${latestPhysicalTest.academicYear + ' ' + latestPhysicalTest.semester + ' · ' + (latestPhysicalTest.level != null ? latestPhysicalTest.level : '暂无等级')}"></div>
+            <div class="card-stat" th:if="${latestPhysicalTest == null}">暂无体测记录</div>
+        </a>
+        <a class="home-card" th:href="@{/student/attendance}">
+            <div class="card-title"><span class="card-icon">✅</span><span>出勤情况</span></div>
+            <div class="card-desc">查看体育课出勤、缺勤、请假统计和明细。</div>
+            <div class="card-stat"
+                 th:text="'出勤率 ' + ${attendanceStats['rate']} + '% · 共 ' + ${attendanceStats['total']} + ' 次'">出勤统计</div>
+        </a>
+        <a class="home-card" th:href="@{/student/term-grades}">
+            <div class="card-title"><span class="card-icon">🏅</span><span>学期体育成绩</span></div>
+            <div class="card-desc">查看出勤分、技能分、理论分、综合分和等级。</div>
+            <div class="card-stat" th:if="${latestTermGrade != null}"
+                 th:text="${latestTermGrade.academicYear + ' ' + latestTermGrade.semester + ' · ' + (latestTermGrade.totalScore != null ? latestTermGrade.totalScore : '暂无分数')}"></div>
+            <div class="card-stat" th:if="${latestTermGrade == null}">暂无成绩记录</div>
+        </a>
+        <a class="home-card" th:href="@{/student/password}">
+            <div class="card-title"><span class="card-icon">🔐</span><span>账号安全</span></div>
+            <div class="card-desc">修改密码、设置便捷账号、绑定和验证邮箱。</div>
+            <div class="card-stat">管理账号安全</div>
+        </a>
+        <a class="home-card" th:href="@{/student/messages}">
+            <div class="card-title"><span class="card-icon">✉️</span><span>消息</span></div>
+            <div class="card-desc">查看教师通知、选课结果提醒和站内消息。</div>
+            <div class="card-stat" th:text="'未读 ' + ${unreadMessageCount} + ' 条'">未读 0 条</div>
+        </a>
+    </div>
+</div>
+</body>
+</html>

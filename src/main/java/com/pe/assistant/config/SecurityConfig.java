@@ -165,7 +165,7 @@ public class SecurityConfig {
                 boolean forcePasswordChange = studentAccountService.resolvePrincipal(authentication.getName())
                         .map(studentAccountService::requiresPasswordChange)
                         .orElse(false);
-                response.sendRedirect(forcePasswordChange ? "/student/password?force=true" : "/student/courses");
+                response.sendRedirect(forcePasswordChange ? "/student/password?force=true" : "/student");
                 return;
             }
             if (isOrgAdmin) {

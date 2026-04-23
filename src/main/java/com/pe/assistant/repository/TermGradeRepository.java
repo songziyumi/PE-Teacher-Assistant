@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
     void deleteByStudent(Student student);
 
+    List<TermGrade> findByStudentOrderByAcademicYearDescSemesterDesc(Student student);
+
     @Query(value = "SELECT t FROM TermGrade t " +
                    "LEFT JOIN t.student s LEFT JOIN s.schoolClass sc LEFT JOIN sc.grade g " +
                    "WHERE t.school = :school " +

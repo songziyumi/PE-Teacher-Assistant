@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface PhysicalTestRepository extends JpaRepository<PhysicalTest, Long> {
     void deleteByStudent(Student student);
 
+    List<PhysicalTest> findByStudentOrderByAcademicYearDescSemesterDesc(Student student);
+
     Optional<PhysicalTest> findByStudentAndAcademicYearAndSemester(
             Student student, String academicYear, String semester);
 

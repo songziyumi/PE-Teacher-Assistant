@@ -106,6 +106,10 @@ public class StudentCourseController {
         model.addAttribute("hasPref2", false);
         model.addAttribute("round1SubmissionConfirmed", false);
         model.addAttribute("mySelections", List.of());
+        model.addAttribute("droppableSelectionIds", List.of());
+        model.addAttribute("confirmedSelectionCount", 0L);
+        model.addAttribute("pendingSelectionCount", 0L);
+        model.addAttribute("lotteryFailSelectionCount", 0L);
         model.addAttribute("courses", List.of());
         try {
             SelectionEvent event = findActiveEvent(student);
@@ -129,6 +133,16 @@ public class StudentCourseController {
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
+                    model.addAttribute("droppableSelectionIds", mySelections.stream()
+                            .filter(courseService::canDropSelection)
+                            .map(CourseSelection::getId)
+                            .collect(Collectors.toList()));
+                    model.addAttribute("confirmedSelectionCount",
+                            mySelections.stream().filter(s -> "CONFIRMED".equals(s.getStatus())).count());
+                    model.addAttribute("pendingSelectionCount",
+                            mySelections.stream().filter(s -> "PENDING".equals(s.getStatus())).count());
+                    model.addAttribute("lotteryFailSelectionCount",
+                            mySelections.stream().filter(s -> "LOTTERY_FAIL".equals(s.getStatus())).count());
                     model.addAttribute("inRound3", inRound3);
                     model.addAttribute("round3NotStarted", !inRound3 && isRound3NotStarted(closedEvent));
                     model.addAttribute("round3Ended", !inRound3 && isRound3Ended(closedEvent));
@@ -163,6 +177,16 @@ public class StudentCourseController {
         model.addAttribute("event", event);
         model.addAttribute("courses", courses);
         model.addAttribute("mySelections", mySelections);
+        model.addAttribute("droppableSelectionIds", mySelections.stream()
+                .filter(courseService::canDropSelection)
+                .map(CourseSelection::getId)
+                .collect(Collectors.toList()));
+        model.addAttribute("confirmedSelectionCount",
+                mySelections.stream().filter(s -> "CONFIRMED".equals(s.getStatus())).count());
+        model.addAttribute("pendingSelectionCount",
+                mySelections.stream().filter(s -> "PENDING".equals(s.getStatus())).count());
+        model.addAttribute("lotteryFailSelectionCount",
+                mySelections.stream().filter(s -> "LOTTERY_FAIL".equals(s.getStatus())).count());
         model.addAttribute("inRound1", eventService.isInRound1(event));
         model.addAttribute("inRound2", eventService.isInRound2(event));
         model.addAttribute("inRound3", false);
@@ -298,7 +322,9 @@ public class StudentCourseController {
     // ===== 退课 =====
 
     @PostMapping("/selections/{selectionId}/drop")
-    public String drop(@PathVariable Long selectionId, RedirectAttributes ra) {
+    public String drop(@PathVariable Long selectionId,
+                       @RequestParam(defaultValue = "/student/my-courses") String returnTo,
+                       RedirectAttributes ra) {
         try {
             Student student = currentUserService.getCurrentStudent();
             courseService.dropCourse(student, selectionId);
@@ -306,7 +332,10 @@ public class StudentCourseController {
         } catch (Exception e) {
             ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeStudentPrompt(e.getMessage()));
         }
-        return "redirect:/student/my-courses";
+        if (returnTo == null || returnTo.isBlank() || !returnTo.startsWith("/student")) {
+            returnTo = "/student/my-courses";
+        }
+        return "redirect:" + returnTo;
     }
 
     // ===== 第三轮：向教师发选课申请 =====

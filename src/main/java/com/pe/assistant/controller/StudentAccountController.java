@@ -48,7 +48,7 @@ public class StudentAccountController {
             }
             studentAccountService.changePasswordAndUpdateLoginAlias(account, oldPassword, newPassword, loginAlias);
             ra.addFlashAttribute("success", "密码修改成功，便捷账号已保存");
-            return "redirect:/student/password?force=false";
+            return "redirect:/student";
         } catch (IllegalArgumentException e) {
             ra.addFlashAttribute("error", e.getMessage());
             return "redirect:/student/password?force=" + force;

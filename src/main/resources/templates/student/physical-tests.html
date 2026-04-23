@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体质健康测试 - 体育教师助手</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        body { background:#f4f6fb; }
+        .student-nav { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; gap:12px; overflow-x:auto; }
+        .student-nav .brand,.student-nav .nav-right { white-space:nowrap; }
+        .student-nav .brand { font-weight:700; color:#4a90e2; }
+        .student-nav .nav-right { display:flex; align-items:center; gap:14px; font-size:.9rem; }
+        .page-wrap { max-width:980px; margin:22px auto; padding:0 14px; }
+        .card { background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow-x:auto; }
+        @media (max-width:640px) { .page-wrap{margin:16px auto;padding:0 12px;} }
+    </style>
+</head>
+<body>
+<nav class="student-nav">
+    <div class="brand">体质健康测试</div>
+    <div class="nav-right">
+        <a th:href="@{/student}" style="color:#4a90e2;">首页</a>
+        <a th:href="@{/student/courses}" style="color:#4a90e2;">选课</a>
+        <span th:text="${student != null ? student.name : ''}"></span>
+    </div>
+</nav>
+<div class="page-wrap">
+    <div class="card">
+        <table class="table">
+            <thead>
+            <tr><th>学年</th><th>学期</th><th>日期</th><th>身高</th><th>体重</th><th>BMI</th><th>肺活量</th><th>50米</th><th>总分</th><th>等级</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="r : ${records}">
+                <td th:text="${r.academicYear}"></td><td th:text="${r.semester}"></td><td th:text="${r.testDate}"></td>
+                <td th:text="${r.height}"></td><td th:text="${r.weight}"></td><td th:text="${r.bmi}"></td>
+                <td th:text="${r.lungCapacity}"></td><td th:text="${r.sprint50m}"></td><td th:text="${r.totalScore}"></td><td th:text="${r.level}"></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(records)}"><td colspan="10" style="text-align:center;color:#999;">暂无体测记录</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
