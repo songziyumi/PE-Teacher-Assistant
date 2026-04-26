@@ -7,88 +7,43 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         body { background:#f4f6fb; }
-        .student-nav { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:56px; }
+        .student-nav { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; }
         .student-nav .brand { font-weight:700; color:#4a90e2; font-size:1.05rem; }
         .student-nav .nav-right { display:flex; align-items:center; gap:16px; font-size:.9rem; }
-        .page-wrap { max-width:640px; margin:28px auto; padding:0 16px; }
-        .profile-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.09); overflow:hidden; }
-        .profile-header { background:linear-gradient(135deg,#4a90e2,#7bb8f5); padding:32px; display:flex; align-items:center; gap:24px; }
-        .avatar { width:90px; height:90px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,.6); }
-        .avatar-ph { width:90px; height:90px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:2.2rem; flex-shrink:0; }
-        .hdr-info h2 { color:#fff; margin:0 0 4px; font-size:1.3rem; }
-        .hdr-info p { color:rgba(255,255,255,.85); margin:0; font-size:.88rem; }
-        .profile-body { padding:28px 32px; }
-        .info-row { display:flex; align-items:baseline; gap:10px; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:.92rem; }
+        .page-wrap { max-width:960px; margin:24px auto; padding:0 16px; }
+        .profile-card { max-width:720px; margin:0 auto; }
+        .profile-card { background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,.08); overflow:hidden; border:1px solid #e8eef5; }
+        .profile-header { background:linear-gradient(135deg,#2563eb,#60a5fa); padding:28px; display:flex; align-items:center; gap:20px; }
+        .avatar { width:88px; height:88px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,.65); }
+        .avatar-ph { width:88px; height:88px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:#fff; flex-shrink:0; }
+        .hdr-info h2 { color:#fff; margin:0 0 6px; font-size:1.28rem; }
+        .hdr-info p { color:rgba(255,255,255,.88); margin:0; font-size:.88rem; }
+        .profile-body { padding:24px; }
+        .info-row { display:flex; align-items:baseline; gap:10px; padding:12px 0; border-bottom:1px solid #eef2f7; font-size:.92rem; }
         .info-row:last-child { border-bottom:none; }
-        .info-label { font-weight:600; color:#888; min-width:80px; }
-        .info-val { color:#333; flex:1; white-space:pre-wrap; word-break:break-word; }
-        .bio-block { background:#f8f9fb; border-radius:8px; padding:14px 16px; font-size:.88rem; color:#555; line-height:1.7; white-space:pre-wrap; }
-        .msg-btn-wrap { margin-top:24px; text-align:right; }
+        .info-label { font-weight:600; color:#64748b; min-width:84px; }
+        .info-val { color:#1f2937; flex:1; white-space:pre-wrap; word-break:break-word; }
+        .bio-title { font-weight:600; color:#64748b; font-size:.84rem; margin:16px 0 8px; }
+        .bio-block { background:#f8fafc; border-radius:10px; padding:14px 16px; font-size:.88rem; color:#475569; line-height:1.7; white-space:pre-wrap; border:1px solid #e8eef5; }
+        .msg-btn-wrap { margin-top:20px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
         @media (max-width: 768px) {
-            .student-nav {
-                height:56px;
-                padding:0 12px;
-                align-items:center;
-                gap:10px;
-                flex-wrap:nowrap;
-                overflow-x:auto;
-                -webkit-overflow-scrolling:touch;
-            }
-            .student-nav .brand {
-                flex:0 0 auto;
-                white-space:nowrap;
-                font-size:.95rem;
-            }
-            .student-nav .nav-right {
-                width:auto;
-                flex:0 0 auto;
-                flex-wrap:nowrap;
-                gap:12px;
-                white-space:nowrap;
-            }
-            .student-nav .nav-right > *,
-            .student-nav .nav-right form {
-                width:auto;
-                flex:0 0 auto;
-                white-space:nowrap;
-            }
-            .page-wrap {
-                margin:16px auto;
-                padding:0 12px;
-            }
-            .profile-header {
-                padding:20px 16px;
-                flex-direction:column;
-                align-items:flex-start;
-                gap:16px;
-            }
-            .profile-body {
-                padding:18px 16px;
-            }
-            .info-row {
-                flex-direction:column;
-                gap:4px;
-                align-items:flex-start;
-            }
-            .info-label {
-                min-width:0;
-            }
-            .msg-btn-wrap {
-                text-align:left;
-                display:flex;
-                flex-direction:column;
-                gap:10px;
-            }
-            .msg-btn-wrap .btn {
-                width:100%;
-                margin-left:0 !important;
-            }
+            .student-nav { height:56px; padding:0 12px; align-items:center; gap:10px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+            .student-nav .brand { flex:0 0 auto; white-space:nowrap; font-size:.95rem; }
+            .student-nav .nav-right { width:auto; flex:0 0 auto; flex-wrap:nowrap; gap:12px; white-space:nowrap; }
+            .student-nav .nav-right > *, .student-nav .nav-right form { width:auto; flex:0 0 auto; white-space:nowrap; }
+            .page-wrap { margin:16px auto; padding:0 12px; }
+            .profile-header { padding:20px 16px; flex-direction:column; align-items:flex-start; gap:16px; }
+            .profile-body { padding:18px 16px; }
+            .info-row { flex-direction:column; gap:4px; align-items:flex-start; }
+            .info-label { min-width:0; }
+            .msg-btn-wrap { flex-direction:column; }
+            .msg-btn-wrap .btn { width:100%; margin-left:0 !important; }
         }
     </style>
 </head>
 <body>
 <nav class="student-nav">
-    <div class="brand">🏃 体育选课</div>
+    <div class="brand">体育学生端</div>
     <div class="nav-right">
         <a th:href="@{/student}" style="color:#4a90e2;">首页</a>
         <a th:href="@{/student/courses}" style="color:#4a90e2;">选课</a>
@@ -106,8 +61,7 @@
             <div th:if="${teacher.photoUrl != null and !#strings.isEmpty(#strings.trim(teacher.photoUrl))}">
                 <img th:src="@{${teacher.photoUrl}}" alt="头像" class="avatar">
             </div>
-            <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}"
-                 class="avatar-ph">👤</div>
+            <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}" class="avatar-ph">师</div>
             <div class="hdr-info">
                 <h2 th:text="${teacher.name}"></h2>
                 <p th:text="${teacher.specialty != null ? teacher.specialty : '体育教师'}"></p>
@@ -131,14 +85,15 @@
                 <span class="info-label">电子邮箱</span>
                 <span class="info-val" th:text="${teacher.email}"></span>
             </div>
-            <div th:if="${teacher.bio != null and !teacher.bio.isBlank()}" style="margin-top:16px;">
-                <div style="font-weight:600;color:#888;font-size:.83rem;margin-bottom:8px;">个人简介</div>
+
+            <div th:if="${teacher.bio != null and !teacher.bio.isBlank()}">
+                <div class="bio-title">个人简介</div>
                 <div class="bio-block" th:text="${teacher.bio}"></div>
             </div>
 
             <div class="msg-btn-wrap">
                 <a th:href="@{/student/messages}" class="btn btn-primary">发送站内消息</a>
-                <a th:href="@{/student/courses}" class="btn btn-secondary" style="margin-left:8px;">返回选课</a>
+                <a th:href="@{/student/courses}" class="btn btn-secondary">返回选课</a>
             </div>
         </div>
     </div>

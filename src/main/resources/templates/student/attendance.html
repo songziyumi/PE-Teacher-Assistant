@@ -11,17 +11,35 @@
         .student-nav .brand,.student-nav .nav-right { white-space:nowrap; }
         .student-nav .brand { font-weight:700; color:#4a90e2; }
         .student-nav .nav-right { display:flex; align-items:center; gap:14px; font-size:.9rem; }
-        .page-wrap { max-width:860px; margin:22px auto; padding:0 14px; }
+        .page-wrap { max-width:960px; margin:24px auto; padding:0 16px; }
         .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
         .stat { background:#fff; border-radius:12px; padding:14px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,.06); }
         .stat b { display:block; font-size:1.2rem; color:#2563eb; }
-        .card { background:#fff; border-radius:14px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,.06); overflow-x:auto; }
-        @media (max-width:640px) { .page-wrap{margin:16px auto;padding:0 12px;} .summary{grid-template-columns:repeat(2,1fr);} }
+        .stat span { color:#64748b; font-size:.84rem; }
+        .card { background:#fff; border-radius:14px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+        .section-header { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #eef2f7; }
+        .section-title { margin:0; font-size:1.02rem; color:#1f2937; font-weight:700; }
+        .section-desc { margin:0; color:#64748b; font-size:.84rem; line-height:1.6; }
+        .desktop-table { overflow-x:auto; }
+        .mobile-records { display:none; }
+        .mobile-record-list { display:flex; flex-direction:column; gap:10px; }
+        .mobile-record { border:1px solid #e8edf5; border-radius:12px; padding:14px; background:#fff; }
+        .mobile-record-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .mobile-record-date { font-weight:700; color:#1f2937; }
+        .mobile-record-status { display:inline-flex; align-items:center; min-height:30px; padding:0 10px; border-radius:999px; background:#eff6ff; color:#2563eb; font-size:.8rem; font-weight:600; white-space:nowrap; }
+        .empty-state { text-align:center; color:#999; padding:12px 0; }
+        @media (max-width:640px) {
+            .page-wrap { margin:16px auto; padding:0 12px; }
+            .summary { grid-template-columns:repeat(2,1fr); }
+            .card { padding:14px; }
+            .desktop-table { display:none; }
+            .mobile-records { display:block; }
+        }
     </style>
 </head>
 <body>
 <nav class="student-nav">
-    <div class="brand">出勤情况</div>
+    <div class="brand">体育学生端</div>
     <div class="nav-right">
         <a th:href="@{/student}" style="color:#4a90e2;">首页</a>
         <a th:href="@{/student/courses}" style="color:#4a90e2;">选课</a>
@@ -35,14 +53,39 @@
         <div class="stat"><b th:text="${stats['absent']}">0</b><span>缺勤</span></div>
         <div class="stat"><b th:text="${stats['leave']}">0</b><span>请假</span></div>
     </div>
+
     <div class="card">
-        <table class="table">
-            <thead><tr><th>日期</th><th>状态</th></tr></thead>
-            <tbody>
-            <tr th:each="r : ${records}"><td th:text="${r.date}"></td><td th:text="${r.status}"></td></tr>
-            <tr th:if="${#lists.isEmpty(records)}"><td colspan="2" style="text-align:center;color:#999;">暂无出勤记录</td></tr>
-            </tbody>
-        </table>
+        <div class="section-header">
+            <h3 class="section-title">出勤记录</h3>
+            <p class="section-desc">查看每次课程的出勤状态。</p>
+        </div>
+
+        <div class="desktop-table">
+            <table class="table">
+                <thead><tr><th>日期</th><th>状态</th></tr></thead>
+                <tbody>
+                <tr th:each="r : ${records}">
+                    <td th:text="${r.date}"></td>
+                    <td th:text="${r.status}"></td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(records)}">
+                    <td colspan="2" class="empty-state">当前暂无记录</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mobile-records">
+            <div th:if="${#lists.isEmpty(records)}" class="empty-state">当前暂无记录</div>
+            <div th:if="${!#lists.isEmpty(records)}" class="mobile-record-list">
+                <div th:each="r : ${records}" class="mobile-record">
+                    <div class="mobile-record-head">
+                        <div class="mobile-record-date" th:text="${r.date}"></div>
+                        <div class="mobile-record-status" th:text="${r.status}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 </body>

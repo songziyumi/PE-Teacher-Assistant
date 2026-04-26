@@ -7,7 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         body { background: #f4f6fb; }
-        .student-nav { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+        .student-nav { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
         .student-nav .brand { font-weight: 700; color: #4a90e2; font-size: 1.05rem; }
         .student-nav .nav-right { display: flex; align-items: center; gap: 16px; font-size: .9rem; }
         .page-wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
@@ -40,11 +40,12 @@
         }
         .my-course-card-header {
             display: flex;
-            align-items: baseline;
+            flex-direction: column;
+            align-items: flex-start;
             justify-content: flex-start;
-            gap: 10px;
-            flex-wrap: wrap;
-            padding-bottom: 2px;
+            gap: 4px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eef2f7;
         }
         .my-course-card-header h3 {
             margin: 0;
@@ -55,8 +56,9 @@
         }
         .my-course-title p {
             margin: 0;
-            font-size: .8rem;
-            color: #94a3b8;
+            font-size: .84rem;
+            color: #64748b;
+            line-height: 1.6;
         }
         .my-course-empty {
             color: #64748b;
@@ -123,11 +125,12 @@
             line-height: 1.6;
         }
         .drop-selection-button {
-            min-height: 34px;
+            min-height: 36px;
             padding: 0 14px;
             border-radius: 999px;
             font-size: .82rem;
             font-weight: 600;
+            box-shadow: 0 8px 18px rgba(220,38,38,.14);
         }
         .btn-danger.btn-loading,
         .btn-danger:disabled { opacity: .7; cursor: not-allowed; }
@@ -143,17 +146,24 @@
         .actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .actions form { margin: 0; }
         .btn-primary, .btn-secondary, .btn-success, .btn-request {
-            border: none;
-            border-radius: 6px;
-            padding: 8px 14px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            min-height:40px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 10px 16px;
             color: #fff;
             cursor: pointer;
-            transition: opacity .2s ease, transform .2s ease;
+            font-size:.88rem;
+            font-weight:600;
+            line-height:1.2;
+            transition: opacity .2s ease, transform .2s ease, box-shadow .2s ease;
         }
-        .btn-primary { background: #2980b9; }
-        .btn-secondary { background: #8e44ad; }
-        .btn-success { background: #27ae60; }
-        .btn-request { background: #8e44ad; }
+        .btn-primary { background: #2563eb; box-shadow: 0 8px 18px rgba(37,99,235,.18); }
+        .btn-secondary { background: #475569; box-shadow: 0 8px 18px rgba(71,85,105,.14); }
+        .btn-success { background: #16a34a; box-shadow: 0 8px 18px rgba(22,163,74,.16); }
+        .btn-request { background: #7c3aed; box-shadow: 0 8px 18px rgba(124,58,237,.16); }
         .btn-success:disabled,
         .btn-primary:disabled,
         .btn-secondary:disabled,
@@ -228,7 +238,7 @@
             .course-grid { grid-template-columns: 1fr; }
             .actions { flex-direction: column; }
             .actions form, .actions button, .actions .btn-primary, .actions .btn-secondary, .actions .btn-success, .actions .btn-request { width: 100%; }
-            .my-course-card-header { align-items: baseline; }
+            .my-course-card-header { align-items: flex-start; }
             .my-course-list { gap: 10px; }
             .empty-course-actions { flex-direction: column; }
             .empty-course-actions .btn { width: 100%; }
@@ -241,7 +251,7 @@
 </head>
 <body>
 <nav class="student-nav">
-    <div class="brand">体育选课</div>
+    <div class="brand">体育学生端</div>
     <div class="nav-right">
         <a th:href="@{/student}" style="color:#4a90e2;">首页</a>
         <span th:text="${student != null ? student.name : ''}"></span>
@@ -261,7 +271,7 @@
         <div class="my-course-card-header">
             <div class="my-course-title">
                 <h3>我的选课</h3>
-                <p>已选课程与状态</p>
+                <p>查看已选课程与当前状态</p>
             </div>
         </div>
         <div th:if="${event != null and droppableSelectionIds != null and !#lists.isEmpty(droppableSelectionIds)}"
@@ -310,19 +320,19 @@
         </div>
 
         <div th:if="${mySelections == null or #lists.isEmpty(mySelections)}" class="my-course-empty">
-            当前还没有选课记录。你可以先在下方课程列表中选择课程，保存志愿或直接抢课。
+            当前暂无记录。可在下方课程列表中进行选课。
         </div>
     </div>
 
     <div th:if="${noEvent}" class="panel" style="text-align:center;color:#666;">
-        <h3>暂无进行中的选课活动</h3>
+        <h3>当前暂无选课活动</h3>
         <p>请等待管理员发布。</p>
     </div>
 
     <div th:if="${noEvent}" class="empty-course-panel">
         <h3>课程区说明</h3>
-        <p>当前没有正在进行中的选课活动，所以暂时不会显示课程列表、志愿填报或抢课按钮。</p>
-        <p>顶部“我的选课”仍会保留，用于查看历史选课记录；当学校发布新的选课活动后，这里会自动恢复课程内容。</p>
+        <p>当前没有进行中的选课活动，因此暂不显示课程列表和选课操作。</p>
+        <p>顶部“我的选课”会继续保留，用于查看历史记录；活动开始后这里会自动恢复内容。</p>
         <div class="empty-course-actions">
             <a th:href="@{/student/my-courses}" class="btn btn-secondary btn-sm">查看我的选课</a>
             <a th:href="@{/student}" class="btn btn-outline btn-sm">返回学生首页</a>
@@ -517,7 +527,7 @@
         </div>
 
         <div th:if="${#lists.isEmpty(courses)}" class="panel" style="text-align:center;color:#666;">
-            <span th:text="${inRound3} ? '暂无可申请课程' : '暂无可选课程'">暂无可选课程</span>
+            <span th:text="${inRound3} ? '当前暂无可申请课程' : '当前暂无可选课程'">当前暂无可选课程</span>
         </div>
     </div>
 </div>

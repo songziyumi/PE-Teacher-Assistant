@@ -7,21 +7,26 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
         body { background: #f4f6fb; }
-        .student-nav { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+        .student-nav { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
         .student-nav .brand { font-weight: 700; color: #4a90e2; font-size: 1.05rem; }
         .student-nav .nav-right { display: flex; align-items: center; gap: 16px; font-size: .9rem; }
-        .page-wrap { max-width: 760px; margin: 24px auto; padding: 0 16px; }
+        .page-wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+        .page-title { font-size:1.15rem; margin-bottom:16px; color:#1f2937; }
         .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); padding: 24px; margin-bottom: 16px; }
-        .sel-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
-        .sel-row:last-child { border-bottom: none; }
-        .sel-course { font-weight: 600; font-size: .95rem; }
-        .sel-meta { font-size: .82rem; color: #777; }
-        .status { font-size: .82rem; color: #555; }
-        .drop-tip { font-size: .8rem; color:#7a7a7a; margin-top:6px; }
-        .btn-danger.btn-loading,
-        .btn-danger:disabled { opacity: .7; cursor: not-allowed; }
+        .section-header { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #eef2f7; }
+        .section-title { margin:0; color:#1f2937; font-size:1.02rem; font-weight:700; }
+        .section-desc { margin:0; color:#64748b; font-size:.84rem; line-height:1.6; }
+        .tip { margin-bottom:12px; padding:10px 12px; border-radius:8px; background:#eef7ff; color:#2c3e50; font-size:.86rem; line-height:1.6; }
+        .sel-list { display:flex; flex-direction:column; gap:10px; }
+        .sel-row { display: flex; align-items: center; gap: 12px; padding: 14px; border:1px solid #e8edf5; border-radius:12px; background:#fff; flex-wrap: wrap; }
+        .sel-course { font-weight: 700; font-size: .95rem; color:#111827; }
+        .sel-meta { font-size: .82rem; color: #777; margin-top:6px; }
+        .status { display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:0 11px; border-radius:999px; background:#f3f4f6; color:#4b5563; font-size:.78rem; font-weight:600; white-space:nowrap; }
+        .drop-tip { font-size: .8rem; color:#7a7a7a; width:100%; line-height:1.6; }
         .ajax-feedback { display:none; margin-bottom:16px; }
         .ajax-feedback.show { display:block; }
+        .empty-state { text-align:center; color:#999; }
+        .btn-danger.btn-loading, .btn-danger:disabled { opacity: .7; cursor: not-allowed; }
         @media (max-width: 768px) {
             .student-nav { height: 56px; padding: 0 12px; align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .student-nav .brand { flex: 0 0 auto; white-space: nowrap; font-size: .95rem; }
@@ -37,10 +42,10 @@
 </head>
 <body>
 <nav class="student-nav">
-    <div class="brand">体育选课</div>
+    <div class="brand">体育学生端</div>
     <div class="nav-right">
         <a th:href="@{/student}" style="color:#4a90e2;">首页</a>
-        <a th:href="@{/student/courses}" style="color:#4a90e2;">返回选课</a>
+        <a th:href="@{/student/courses}" style="color:#4a90e2;">选课</a>
         <span th:text="${student != null ? student.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -50,54 +55,64 @@
 </nav>
 
 <div class="page-wrap">
-    <h2 style="font-size:1.15rem;margin-bottom:16px;">我的选课记录</h2>
+    <h2 class="page-title">我的选课记录</h2>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <div id="dropAjaxFeedback" class="ajax-feedback"></div>
 
-    <div th:if="${event == null or mySelections == null or #lists.isEmpty(mySelections)}" class="card" style="text-align:center;color:#999;">
-        <p>暂无选课记录</p>
+    <div th:if="${event == null or mySelections == null or #lists.isEmpty(mySelections)}" class="card empty-state">
+        <div class="section-header">
+            <h3 class="section-title">当前暂无记录</h3>
+            <p class="section-desc">暂时没有可展示的选课信息。</p>
+        </div>
         <a th:href="@{/student/courses}" class="btn btn-primary btn-sm">去选课</a>
     </div>
 
     <div th:if="${mySelections != null and !#lists.isEmpty(mySelections)}" class="card">
-        <div th:if="${droppableSelectionIds != null and !#lists.isEmpty(droppableSelectionIds)}"
-             style="margin-bottom:12px;padding:10px 12px;border-radius:8px;background:#eef7ff;color:#2c3e50;font-size:.86rem;line-height:1.6;">
+        <div class="section-header">
+            <h3 class="section-title">我的选课</h3>
+            <p class="section-desc">查看已选课程、状态和退课操作。</p>
+        </div>
+
+        <div th:if="${droppableSelectionIds != null and !#lists.isEmpty(droppableSelectionIds)}" class="tip">
             第一轮已确认课程可在第二轮期间主动退课。退课后名额将回流第二轮，您需要按第二轮规则重新抢课，系统不会回到第一轮重新分配。
         </div>
-        <div th:each="sel : ${mySelections}" class="sel-row">
-            <div style="flex:1;">
-                <div class="sel-course" th:text="${sel.course.name}"></div>
-                <div class="sel-meta">
-                    <span th:if="${sel.round == 1}" th:text="${'第一轮 · ' + sel.preference + '志愿'}"></span>
-                    <span th:if="${sel.round == 2}">第二轮</span>
-                    <span th:if="${sel.round != 1 and sel.round != 2}">手动加入</span>
-                    <span th:if="${sel.selectedAt != null}" th:text="${' · ' + #temporals.format(sel.selectedAt, 'MM-dd HH:mm')}"></span>
+
+        <div class="sel-list">
+            <div th:each="sel : ${mySelections}" class="sel-row">
+                <div style="flex:1;">
+                    <div class="sel-course" th:text="${sel.course.name}"></div>
+                    <div class="sel-meta">
+                        <span th:if="${sel.round == 1}" th:text="${'第一轮 · ' + sel.preference + '志愿'}"></span>
+                        <span th:if="${sel.round == 2}">第二轮</span>
+                        <span th:if="${sel.round != 1 and sel.round != 2}">手动加入</span>
+                        <span th:if="${sel.selectedAt != null}" th:text="${' · ' + #temporals.format(sel.selectedAt, 'MM-dd HH:mm')}"></span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="status">
-                <span th:if="${sel.status == 'DRAFT'}">草稿</span>
-                <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
-                <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
-                <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
-                <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
-            </div>
+                <div class="status">
+                    <span th:if="${sel.status == 'DRAFT'}">草稿</span>
+                    <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
+                    <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
+                    <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
+                    <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
+                </div>
 
-            <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
-                  th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
-                  th:attr="data-course-name=${sel.course.name}"
-                  class="drop-selection-form"
-                  method="post"
-                  onsubmit="return confirm('确认退课？退课后将失去当前录取结果，并按第二轮规则重新抢课。')">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                <button type="submit"
-                        class="btn btn-danger btn-xs drop-selection-button"
-                        data-default-text="退课"
-                        data-loading-text="退课处理中...">退课</button>
-            </form>
-            <div class="drop-tip" th:if="${#lists.contains(droppableSelectionIds, sel.id)}">退课后名额会回流到第二轮，请尽快重新抢课。</div>
+                <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
+                      th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
+                      th:attr="data-course-name=${sel.course.name}"
+                      class="drop-selection-form"
+                      method="post"
+                      onsubmit="return confirm('确认退课？退课后将失去当前录取结果，并按第二轮规则重新抢课。')">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit"
+                            class="btn btn-danger btn-xs drop-selection-button"
+                            data-default-text="退课"
+                            data-loading-text="退课处理中...">退课</button>
+                </form>
+                <div class="drop-tip" th:if="${#lists.contains(droppableSelectionIds, sel.id)}">退课后名额会回流到第二轮，请尽快重新抢课。</div>
+            </div>
         </div>
     </div>
 
