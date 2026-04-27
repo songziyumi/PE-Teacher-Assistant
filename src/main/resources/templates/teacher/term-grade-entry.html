@@ -6,200 +6,285 @@
     <title>期末成绩录入 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .filter-bar {
-            background: #f8f9fa; padding: 1rem; border-radius: 8px;
-            margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;
+        body { background: #f4f6fb; }
+        .page { max-width: 1180px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
         }
-        .filter-bar .form-group { display: flex; flex-direction: column; gap: .25rem; }
-        .filter-bar label { font-size: .85rem; font-weight: 600; color: #555; }
-        .filter-bar select, .filter-bar input[type=text] {
-            padding: .4rem .7rem; border: 1px solid #ddd; border-radius: 4px; font-size: .9rem;
+        .hero-card h2 { margin: 0; font-size: 1.28rem; }
+        .hero-card p { margin: 8px 0 0; font-size: .9rem; line-height: 1.65; opacity: .92; }
+        .filter-card,
+        .table-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        .filter-grid .form-group {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .filter-grid label,
+        .filter-label {
+            display: block;
+            font-size: .84rem;
+            font-weight: 600;
+            color: #475569;
+            line-height: 1.2;
+        }
+        .filter-grid select,
+        .filter-grid input[type=text] {
+            width: 100%;
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: .92rem;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .filter-grid .btn {
+            width: 100%;
+            min-height: 42px;
+            padding: 0 14px;
+            border-radius: 10px;
+        }
+        .filter-action { justify-content: flex-end; }
+        .score-formula {
+            font-size: .82rem;
+            color: #64748b;
+            margin-bottom: 12px;
+            line-height: 1.7;
         }
         .table-scroll { overflow-x: auto; }
-        .entry-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+        .entry-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
         .entry-table th {
-            background: #2c3e50; color: #fff; padding: .5rem .6rem;
-            text-align: center; white-space: nowrap; position: sticky; top: 0; z-index: 1;
+            background: #0f172a;
+            color: #fff;
+            padding: .55rem .6rem;
+            text-align: center;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
-        .entry-table td { padding: .35rem .4rem; border-bottom: 1px solid #eee; vertical-align: middle; }
-        .entry-table tr:hover { background: #f8f9fa; }
-        .entry-table input[type=number] {
-            width: 80px; padding: .3rem .35rem; border: 1px solid #ccc; border-radius: 3px;
-            font-size: .85rem; text-align: center;
+        .entry-table td {
+            padding: .4rem;
+            border-bottom: 1px solid #eef2f7;
+            vertical-align: middle;
+            background: #fff;
         }
+        .entry-table tr:hover td { background: #f8fafc; }
+        .entry-table input[type=number],
         .entry-table input[type=text] {
-            width: 110px; padding: .3rem .35rem; border: 1px solid #ccc; border-radius: 3px; font-size: .85rem;
+            width: 100%;
+            min-width: 80px;
+            padding: .36rem .42rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: .84rem;
+            box-sizing: border-box;
         }
-        .entry-table input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,.2); }
-        .col-name { font-weight: 600; min-width: 70px; }
-        .col-no { font-family: monospace; font-size: .8rem; color: #666; }
+        .entry-table input:focus {
+            border-color: #2563eb;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+        }
+        .col-name { font-weight: 700; min-width: 72px; }
+        .col-no { font-family: monospace; font-size: .8rem; color: #64748b; }
         .level-badge {
-            display: inline-block; font-size: .72rem; padding: 1px 5px;
-            border-radius: 3px; color: #fff; white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            color: #fff;
+            font-size: .72rem;
+            font-weight: 700;
+            white-space: nowrap;
         }
-        .level-优秀 { background: #27ae60; }
-        .level-良好 { background: #2980b9; }
-        .level-及格 { background: #f39c12; }
-        .level-不及格 { background: #e74c3c; }
+        .level-优秀 { background: #16a34a; }
+        .level-良好 { background: #2563eb; }
+        .level-及格 { background: #d97706; }
+        .level-不及格 { background: #dc2626; }
         .save-bar {
-            position: sticky; bottom: 0; background: #fff; padding: .8rem 1rem;
-            border-top: 2px solid #e9ecef; display: flex; gap: 1rem; align-items: center;
-            box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+            position: sticky;
+            bottom: 0;
+            background: rgba(255, 255, 255, .96);
+            backdrop-filter: blur(8px);
+            padding: 12px 14px;
+            border-top: 1px solid #e8eef5;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 -6px 18px rgba(15, 23, 42, .05);
+            margin-top: 12px;
         }
-        .info-tip { font-size: .82rem; color: #888; }
-        .score-formula { font-size: .78rem; color: #aaa; text-align: center; margin-top: .5rem; }
+        .info-tip { font-size: .82rem; color: #64748b; line-height: 1.7; }
+        .empty-card {
+            background: #fff;
+            border: 1px dashed #d7e2f0;
+            border-radius: 16px;
+            color: #64748b;
+            text-align: center;
+            padding: 34px 20px;
+        }
+        @media (max-width: 900px) {
+            .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
         @media (max-width: 768px) {
-            .filter-bar,
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .filter-card,
+            .table-card { padding: 16px; }
+            .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .save-bar {
                 flex-direction: column;
                 align-items: stretch;
             }
-            .filter-bar > *,
             .save-bar > *,
             .save-bar .btn {
                 width: 100%;
             }
-            .info-tip { line-height: 1.6; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header">
+
+<div class="page">
+    <div class="hero-card">
         <h2>期末成绩录入</h2>
+        <p>按班级批量录入出勤、技能与理论分数，系统自动计算综合分和等级。</p>
     </div>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-    <div th:if="${error}"   class="alert alert-danger"  th:text="${error}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-    <!-- 班级 / 学年 / 学期 选择 -->
-    <form method="get" th:action="@{/teacher/term-grades}" class="filter-bar">
-        <div class="form-group">
-            <label>班级</label>
-            <select name="classId" onchange="this.form.submit()">
-                <option value="">-- 选择班级 --</option>
-                <option th:each="cls : ${myClasses}"
-                        th:value="${cls.id}"
-                        th:text="${(cls.grade != null ? cls.grade.name + ' ' : '') + cls.name}"
-                        th:selected="${classId != null and classId == cls.id}"></option>
-            </select>
+    <form method="get" th:action="@{/teacher/term-grades}" class="filter-card">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label>班级</label>
+                <select name="classId" onchange="this.form.submit()">
+                    <option value="">-- 选择班级 --</option>
+                    <option th:each="cls : ${myClasses}"
+                            th:value="${cls.id}"
+                            th:text="${(cls.grade != null ? cls.grade.name + ' ' : '') + cls.name}"
+                            th:selected="${classId != null and classId == cls.id}"></option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>学年</label>
+                <input type="text" name="academicYear" th:value="${academicYear}" placeholder="如 2025-2026">
+            </div>
+            <div class="form-group">
+                <label>学期</label>
+                <select name="semester">
+                    <option value="上学期" th:selected="${semester == '上学期'}">上学期</option>
+                    <option value="下学期" th:selected="${semester == '下学期'}">下学期</option>
+                </select>
+            </div>
+            <div class="form-group filter-action">
+                <span class="filter-label">操作</span>
+                <button type="submit" class="btn btn-secondary">查询</button>
+            </div>
         </div>
-        <div class="form-group">
-            <label>学年</label>
-            <input type="text" name="academicYear" th:value="${academicYear}"
-                   placeholder="如 2025-2026" style="width:120px">
-        </div>
-        <div class="form-group">
-            <label>学期</label>
-            <select name="semester">
-                <option value="上学期" th:selected="${semester == '上学期'}">上学期</option>
-                <option value="下学期" th:selected="${semester == '下学期'}">下学期</option>
-            </select>
-        </div>
-        <button type="submit" class="btn btn-secondary">查询</button>
     </form>
 
-    <!-- 录入表格 -->
     <th:block th:if="${classId != null and not #lists.isEmpty(students)}">
-        <p class="score-formula">综合分 = 出勤40% + 技能40% + 理论20%（有空项时系统自动按比例重分配），保存后自动计算。</p>
-        <form method="post" th:action="@{/teacher/term-grades/save-batch}">
-            <input type="hidden" name="classId"      th:value="${classId}">
+        <form method="post" th:action="@{/teacher/term-grades/save-batch}" class="table-card">
+            <input type="hidden" name="classId" th:value="${classId}">
             <input type="hidden" name="academicYear" th:value="${academicYear}">
-            <input type="hidden" name="semester"     th:value="${semester}">
+            <input type="hidden" name="semester" th:value="${semester}">
+
+            <p class="score-formula">
+                综合分 = 出勤 40% + 技能 40% + 理论 20%。如果存在空项，系统会自动按实际填写项重新分配权重。
+            </p>
 
             <div class="table-scroll">
                 <table class="entry-table">
                     <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>姓名</th>
-                            <th>学号</th>
-                            <th>性别</th>
-                            <th>出勤分<br><small style="font-weight:normal">0-100</small></th>
-                            <th>技能分<br><small style="font-weight:normal">0-100</small></th>
-                            <th>理论分<br><small style="font-weight:normal">0-100</small></th>
-                            <th>备注</th>
-                            <th>综合分</th>
-                            <th>等级</th>
-                        </tr>
+                    <tr>
+                        <th>#</th>
+                        <th>姓名</th>
+                        <th>学号</th>
+                        <th>性别</th>
+                        <th>出勤分<br><small>0-100</small></th>
+                        <th>技能分<br><small>0-100</small></th>
+                        <th>理论分<br><small>0-100</small></th>
+                        <th>备注</th>
+                        <th>综合分</th>
+                        <th>等级</th>
+                    </tr>
                     </thead>
                     <tbody>
-                        <tr th:each="stu, iter : ${students}">
-                            <td style="text-align:center;color:#aaa;font-size:.78rem"
-                                th:text="${iter.count}"></td>
-                            <td class="col-name">
-                                <input type="hidden" name="studentIds" th:value="${stu.id}">
-                                <span th:text="${stu.name}"></span>
-                            </td>
-                            <td class="col-no" th:text="${stu.studentNo}"></td>
-                            <td style="text-align:center" th:text="${stu.gender}"></td>
-                            <td>
-                                <input type="number" step="0.1" min="0" max="100"
-                                       name="attendanceList" placeholder="—"
-                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].attendanceScore : ''}">
-                            </td>
-                            <td>
-                                <input type="number" step="0.1" min="0" max="100"
-                                       name="skillList" placeholder="—"
-                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].skillScore : ''}">
-                            </td>
-                            <td>
-                                <input type="number" step="0.1" min="0" max="100"
-                                       name="theoryList" placeholder="—"
-                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].theoryScore : ''}">
-                            </td>
-                            <td>
-                                <input type="text" name="remarkList" placeholder="—"
-                                       th:value="${existingMap[stu.id] != null ? existingMap[stu.id].remark : ''}">
-                            </td>
-                            <td style="text-align:center;font-weight:600">
-                                <span th:if="${existingMap[stu.id] != null and existingMap[stu.id].totalScore != null}"
-                                      th:text="${existingMap[stu.id].totalScore}"></span>
-                                <span th:unless="${existingMap[stu.id] != null and existingMap[stu.id].totalScore != null}"
-                                      style="color:#ddd">—</span>
-                            </td>
-                            <td style="text-align:center">
-                                <span th:if="${existingMap[stu.id] != null and existingMap[stu.id].level != null}"
-                                      th:text="${existingMap[stu.id].level}"
-                                      th:class="'level-badge level-' + ${existingMap[stu.id].level}"></span>
-                                <span th:unless="${existingMap[stu.id] != null and existingMap[stu.id].level != null}"
-                                      style="color:#ddd;font-size:.78rem">—</span>
-                            </td>
-                        </tr>
+                    <tr th:each="stu, iter : ${students}">
+                        <td style="text-align:center;color:#94a3b8;font-size:.78rem;" th:text="${iter.count}"></td>
+                        <td class="col-name">
+                            <input type="hidden" name="studentIds" th:value="${stu.id}">
+                            <span th:text="${stu.name}"></span>
+                        </td>
+                        <td class="col-no" th:text="${stu.studentNo}"></td>
+                        <td style="text-align:center;" th:text="${stu.gender}"></td>
+                        <td><input type="number" step="0.1" min="0" max="100" name="attendanceList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].attendanceScore : ''}"></td>
+                        <td><input type="number" step="0.1" min="0" max="100" name="skillList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].skillScore : ''}"></td>
+                        <td><input type="number" step="0.1" min="0" max="100" name="theoryList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].theoryScore : ''}"></td>
+                        <td><input type="text" name="remarkList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].remark : ''}"></td>
+                        <td style="text-align:center;font-weight:700;">
+                            <span th:if="${existingMap[stu.id] != null and existingMap[stu.id].totalScore != null}"
+                                  th:text="${existingMap[stu.id].totalScore}"></span>
+                            <span th:unless="${existingMap[stu.id] != null and existingMap[stu.id].totalScore != null}" style="color:#d1d5db;">-</span>
+                        </td>
+                        <td style="text-align:center;">
+                            <span th:if="${existingMap[stu.id] != null and existingMap[stu.id].level != null}"
+                                  th:text="${existingMap[stu.id].level}"
+                                  th:class="'level-badge level-' + ${existingMap[stu.id].level}"></span>
+                            <span th:unless="${existingMap[stu.id] != null and existingMap[stu.id].level != null}" style="color:#d1d5db;">-</span>
+                        </td>
+                    </tr>
                     </tbody>
                 </table>
             </div>
 
             <div class="save-bar">
-                <button type="submit" class="btn btn-primary">💾 保存全班成绩</button>
+                <button type="submit" class="btn btn-primary">保存全班成绩</button>
                 <span class="info-tip">
-                    共 <strong th:text="${#lists.size(students)}"></strong> 名学生 &nbsp;·&nbsp;
-                    学年 <strong th:text="${academicYear}"></strong> &nbsp;·&nbsp;
-                    <strong th:text="${semester}"></strong>
-                    &nbsp;·&nbsp; 空白项保持不变，已填项将覆盖原记录
+                    共 <strong th:text="${#lists.size(students)}"></strong> 名学生 · 学年 <strong th:text="${academicYear}"></strong> · <strong th:text="${semester}"></strong>。
+                    空白项保持不变，已填写项会覆盖原记录。
                 </span>
             </div>
         </form>
     </th:block>
 
-    <div th:if="${classId == null}" class="empty-state" style="margin-top:2rem">
-        <p>请先选择班级、填写学年后点击"查询"</p>
-    </div>
-    <div th:if="${classId != null and #lists.isEmpty(students)}" class="empty-state" style="margin-top:2rem">
-        <p>该班级暂无学生</p>
-    </div>
+    <div th:if="${classId == null}" class="empty-card">请先选择班级并填写学年后再查询。</div>
+    <div th:if="${classId != null and #lists.isEmpty(students)}" class="empty-card">当前班级暂无学生。</div>
 </div>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>

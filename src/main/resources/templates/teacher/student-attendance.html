@@ -6,84 +6,158 @@
     <title>考勤记录 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
+        body { background: #f4f6fb; }
+        .page { max-width: 980px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.28rem; }
+        .hero-card p { margin: 8px 0 0; font-size: .9rem; line-height: 1.65; opacity: .92; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-num { font-size: 1.35rem; font-weight: 700; }
+        .stat-label { margin-top: 6px; font-size: .84rem; color: #64748b; }
+        .present .stat-num { color: #16a34a; }
+        .absent .stat-num { color: #dc2626; }
+        .leave .stat-num { color: #d97706; }
+        .total .stat-num { color: #2563eb; }
+        .table-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+        }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: .76rem;
+            font-weight: 700;
+        }
+        .badge-present { background: #dcfce7; color: #166534; }
+        .badge-absent { background: #fee2e2; color: #b91c1c; }
+        .badge-leave { background: #fef3c7; color: #92400e; }
+        .inline-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .inline-form .select-sm { min-height: 36px; }
+        .form-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
         @media (max-width: 768px) {
-            td form {
-                display: flex !important;
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .table-card { padding: 16px; }
+            .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .inline-form {
                 flex-direction: column;
-                gap: 8px;
                 align-items: stretch;
             }
-            td form .select-sm,
-            td form .btn {
-                width: 100%;
-            }
+            .inline-form .select-sm,
+            .inline-form .btn,
+            .form-actions .btn { width: 100%; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
+
+<div class="page">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-    <div class="page-header">
-        <h2 th:text="${student.name} + ' - 考勤记录'"></h2>
-        <p th:text="${student.schoolClass.grade.name} + ' ' + ${student.schoolClass.name}"></p>
+
+    <div class="hero-card">
+        <h2 th:text="${student.name} + ' · 考勤记录'">学生 · 考勤记录</h2>
+        <p th:text="${student.schoolClass.grade.name} + ' ' + ${student.schoolClass.name}">班级信息</p>
     </div>
-    <div class="stats-row">
+
+    <div class="stats-grid">
         <div class="stat-card present">
-            <div class="stat-num" th:text="${stats.present}"></div>
+            <div class="stat-num" th:text="${stats.present}">0</div>
             <div class="stat-label">出勤</div>
         </div>
         <div class="stat-card absent">
-            <div class="stat-num" th:text="${stats.absent}"></div>
+            <div class="stat-num" th:text="${stats.absent}">0</div>
             <div class="stat-label">缺勤</div>
         </div>
         <div class="stat-card leave">
-            <div class="stat-num" th:text="${stats.leave}"></div>
+            <div class="stat-num" th:text="${stats.leave}">0</div>
             <div class="stat-label">请假</div>
         </div>
         <div class="stat-card total">
-            <div class="stat-num" th:text="${stats.rate} + '%'"></div>
+            <div class="stat-num" th:text="${stats.rate} + '%'">0%</div>
             <div class="stat-label">出勤率</div>
         </div>
     </div>
-    <table class="table">
-        <thead>
-            <tr><th>日期</th><th>状态</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-            <tr th:each="r : ${records}">
-                <td th:text="${r.date}"></td>
-                <td>
-                    <span th:class="'badge badge-' + ${r.status == '出勤' ? 'present' : (r.status == '缺勤' ? 'absent' : 'leave')}"
-                          th:text="${r.status}"></span>
-                </td>
-                <td>
-                    <form th:action="@{/attendance/update/{id}(id=${r.id})}" method="post" style="display:inline">
-                        <input type="hidden" name="studentId" th:value="${student.id}">
-                        <select name="status" class="select-sm">
-                            <option th:each="s : ${ {'出勤','缺勤','请假'} }"
-                                    th:value="${s}" th:text="${s}"
-                                    th:selected="${r.status == s}"></option>
-                        </select>
-                        <button type="submit" class="btn btn-sm btn-primary">修改</button>
-                    </form>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <div class="form-actions">
-        <a th:href="@{/teacher/students/class/{id}(id=${student.schoolClass.id})}" class="btn btn-secondary">返回</a>
+
+    <div class="table-card">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r : ${records}">
+                    <td th:text="${r.date}"></td>
+                    <td>
+                        <span th:class="'badge badge-' + ${r.status == '出勤' ? 'present' : (r.status == '缺勤' ? 'absent' : 'leave')}"
+                              th:text="${r.status}"></span>
+                    </td>
+                    <td>
+                        <form th:action="@{/attendance/update/{id}(id=${r.id})}" method="post" class="inline-form">
+                            <input type="hidden" name="studentId" th:value="${student.id}">
+                            <select name="status" class="select-sm">
+                                <option th:each="s : ${ {'出勤','缺勤','请假'} }"
+                                        th:value="${s}" th:text="${s}"
+                                        th:selected="${r.status == s}"></option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary">修改</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-actions">
+            <a th:href="@{/teacher/students/class/{id}(id=${student.schoolClass.id})}" class="btn btn-secondary">返回学生列表</a>
+        </div>
     </div>
 </div>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>

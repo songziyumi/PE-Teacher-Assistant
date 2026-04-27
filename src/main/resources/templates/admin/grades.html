@@ -3,81 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>年级管理 - 体育教师助手</title>
+    <title>年级管理 - 管理后台</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
+        body { background: #f4f6fb; }
+        .admin-wrap { max-width: 980px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .18);
+            margin-bottom: 16px;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.3rem; }
+        .hero-card p { margin: 8px 0 0; opacity: .9; font-size: .9rem; line-height: 1.65; }
+        .card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .section-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .section-head p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: .84rem;
+        }
+        .form-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .form-inline input {
+            flex: 1 1 260px;
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: .92rem;
+            background: #fff;
+        }
+        .grade-add-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+        .grade-add-form input {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .grade-add-form .btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .grade-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+        .grade-table th,
+        .grade-table td {
+            vertical-align: middle;
+        }
+        .grade-col-name { width: auto; }
+        .grade-col-action { width: 74px; white-space: nowrap; }
+        .grade-edit-form {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+        .grade-edit-form input {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 180px;
+            min-height: 36px;
+            padding: 0 8px;
+            font-size: .86rem;
+        }
+        .grade-edit-form .btn,
+        .grade-delete-form .btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            min-height: 36px;
+            font-size: .78rem;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+        .empty-tip {
+            text-align: center;
+            color: #94a3b8;
+            padding: 18px 0;
+        }
         @media (max-width: 768px) {
-            .page-header { align-items: stretch; }
-            .card .form-inline,
-            .table .form-inline {
-                width: 100%;
-                flex-direction: column;
-                align-items: stretch;
+            .admin-wrap { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .card { padding: 16px; }
+            .form-inline { flex-direction: column; align-items: stretch; }
+            .form-inline input,
+            .form-inline .btn { width: 100%; }
+            .grade-add-form {
+                flex-direction: row;
+                align-items: center;
+                gap: 6px;
             }
-            .card .form-inline input,
-            .table .form-inline input,
-            .card .form-inline .btn,
-            .table .form-inline .btn {
-                width: 100%;
+            .grade-add-form input {
+                width: auto;
+                min-height: 38px;
+                padding: 0 10px;
+            }
+            .grade-add-form .btn {
+                width: auto;
+                min-height: 38px;
+                padding-left: 10px;
+                padding-right: 10px;
+                font-size: .78rem;
+            }
+            .grade-table {
+                font-size: .88rem;
+            }
+            .grade-col-action { width: 66px; }
+            .grade-table th,
+            .grade-table td {
+                padding: 9px 6px;
+            }
+            .grade-edit-form {
+                gap: 5px;
+            }
+            .grade-edit-form input {
+                min-height: 34px;
+                max-width: 120px;
+                padding: 0 6px;
+                font-size: .8rem;
+            }
+            .grade-edit-form .btn,
+            .grade-delete-form .btn {
+                min-height: 34px;
+                font-size: .72rem;
+                padding-left: 6px;
+                padding-right: 6px;
             }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
-        <a th:href="@{/admin}">管理后台</a>
-        <a th:href="@{/dashboard}">首页</a>
+        <a th:href="@{/admin}">后台首页</a>
+        <a th:href="@{/dashboard}">工作台</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
+
+<div class="admin-wrap">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
-    <div class="page-header"><h2>年级管理</h2></div>
+
+    <div class="hero-card">
+        <h2>年级管理</h2>
+        <p>维护年级基础信息，变更会影响班级、学生和相关统计数据的归属关系。</p>
+    </div>
+
     <div class="card">
-        <h3>添加年级</h3>
-        <form th:action="@{/admin/grades/add}" method="post" class="form-inline">
-            <input type="text" name="name" placeholder="年级名称（如：高一）" required>
-            <button type="submit" class="btn btn-primary">添加</button>
+        <div class="section-head">
+            <div>
+                <h3>新增年级</h3>
+                <p>建议使用规范命名，例如“高一”“初二”。</p>
+            </div>
+        </div>
+        <form th:action="@{/admin/grades/add}" method="post" class="form-inline grade-add-form">
+            <input type="text" name="name" placeholder="年级名称，如：高一" required>
+            <button type="submit" class="btn btn-primary">添加年级</button>
         </form>
     </div>
-    <div class="table-wrap">
-    <table class="table">
-        <thead><tr><th>ID</th><th>年级名称</th><th>操作</th></tr></thead>
-        <tbody>
-            <tr th:each="g : ${grades}">
-                <td th:text="${g.id}"></td>
-                <td>
-                    <form th:action="@{/admin/grades/edit/{id}(id=${g.id})}" method="post" class="form-inline">
-                        <input type="text" name="name" th:value="${g.name}" required>
-                        <button type="submit" class="btn btn-sm btn-secondary">保存</button>
-                    </form>
-                </td>
-                <td>
-                    <form th:action="@{/admin/grades/delete/{id}(id=${g.id})}" method="post"
-                          th:data-grade-name="${g.name}"
-                          onsubmit="return confirmDeleteGrade(this)">
-                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
-                    </form>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+
+    <div class="card">
+        <div class="section-head">
+            <div>
+                <h3>年级列表</h3>
+                <p>支持直接行内修改和删除。</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="table grade-table">
+                <thead>
+                <tr>
+                    <th class="grade-col-name">年级名称</th>
+                    <th class="grade-col-action">操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(grades)}">
+                    <td colspan="2" class="empty-tip">当前暂无年级数据</td>
+                </tr>
+                <tr th:each="g : ${grades}">
+                    <td>
+                        <form th:action="@{/admin/grades/edit/{id}(id=${g.id})}" method="post" class="grade-edit-form">
+                            <input type="text" name="name" th:value="${g.name}" required>
+                            <button type="submit" class="btn btn-sm btn-secondary">保存</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form th:action="@{/admin/grades/delete/{id}(id=${g.id})}" method="post" class="grade-delete-form"
+                              th:data-grade-name="${g.name}"
+                              onsubmit="return confirmDeleteGrade(this)">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
 <script>
 function confirmDeleteGrade(form) {
     var name = form.dataset.gradeName;
-    return confirm('确认删除年级「' + name + '」？\n该年级下的所有班级、学生及考勤记录将一并删除，此操作不可恢复！');
+    return confirm('确认删除年级「' + name + '」？\n该年级下的所有班级、学生及考勤记录将一并删除，此操作不可恢复。');
 }
 </script>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>

@@ -3,65 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>缺勤/请假查询 - 体育教师助手</title>
+    <title>缺勤/请假查询 - 管理后台</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
+        body { background: #f4f6fb; }
+        .admin-wrap { max-width: 1080px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .18);
+            margin-bottom: 16px;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.3rem; }
+        .hero-card p { margin: 8px 0 0; opacity: .9; font-size: .9rem; line-height: 1.65; }
+        .card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .form-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .form-inline label {
+            color: #475569;
+            font-size: .84rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .form-inline input {
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: .92rem;
+            background: #fff;
+        }
+        .badge-absent { color: #dc2626; font-weight: 700; }
+        .badge-leave { color: #d97706; font-weight: 700; }
         @media (max-width: 768px) {
-            .card .form-inline {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .card .form-inline > * {
-                width: 100%;
-            }
+            .admin-wrap { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .card { padding: 16px; }
+            .form-inline { flex-direction: column; align-items: stretch; }
+            .form-inline > * { width: 100%; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
-        <a th:href="@{/admin}">管理后台</a>
-        <a th:href="@{/dashboard}">首页</a>
+        <a th:href="@{/admin}">后台首页</a>
+        <a th:href="@{/dashboard}">工作台</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header"><h2>缺勤/请假查询</h2></div>
+
+<div class="admin-wrap">
+    <div class="hero-card">
+        <h2>缺勤/请假查询</h2>
+        <p>按日期区间快速筛选缺勤与请假记录，并支持导出 CSV。</p>
+    </div>
+
     <div class="card">
         <form th:action="@{/admin/stats/absent}" method="get" class="form-inline">
-            <label>开始日期：</label>
+            <label>开始日期</label>
             <input type="date" name="start" th:value="${start}" required>
-            <label>结束日期：</label>
+            <label>结束日期</label>
             <input type="date" name="end" th:value="${end}" required>
             <button type="submit" class="btn btn-primary">查询</button>
             <a th:if="${records != null}"
                th:href="@{/admin/stats/absent/export(start=${start},end=${end})}"
-               class="btn btn-secondary">导出CSV</a>
+               class="btn btn-secondary">导出 CSV</a>
         </form>
     </div>
-    <div th:if="${records != null}">
-        <p th:text="'共 ' + ${#lists.size(records)} + ' 条记录（缺勤/请假）'"></p>
-        <table class="table">
-            <thead><tr><th>日期</th><th>姓名</th><th>年级</th><th>班级</th><th>状态</th></tr></thead>
-            <tbody>
+
+    <div th:if="${records != null}" class="card">
+        <p style="margin-top:0;color:#475569;" th:text="'共 ' + ${#lists.size(records)} + ' 条记录（缺勤/请假）'"></p>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>姓名</th>
+                    <th>年级</th>
+                    <th>班级</th>
+                    <th>状态</th>
+                </tr>
+                </thead>
+                <tbody>
                 <tr th:each="r : ${records}">
                     <td th:text="${r.date}"></td>
                     <td th:text="${r.student.name}"></td>
                     <td th:text="${r.student.schoolClass.grade != null ? r.student.schoolClass.grade.name : '-'}"></td>
                     <td th:text="${r.student.schoolClass.name}"></td>
                     <td>
-                        <span th:if="${r.status == '缺勤'}" style="color:#e74c3c;font-weight:600" th:text="${r.status}"></span>
-                        <span th:if="${r.status == '请假'}" style="color:#2980b9;font-weight:600" th:text="${r.status}"></span>
+                        <span th:if="${r.status == '缺勤'}" class="badge-absent" th:text="${r.status}"></span>
+                        <span th:if="${r.status == '请假'}" class="badge-leave" th:text="${r.status}"></span>
                     </td>
                 </tr>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>

@@ -6,75 +6,303 @@
     <title>教师个人主页 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .page { max-width: 900px; margin: 24px auto; padding: 0 16px; }
-        .card { background: #fff; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.08); padding: 20px; margin-bottom: 16px; }
-        .header { display: flex; gap: 16px; align-items: center; }
-        .avatar { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 2px solid #dbe4ff; }
-        .avatar-fallback { width: 84px; height: 84px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: inline-flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; }
-        .title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-        .title h2 { margin: 0; font-size: 22px; color: #1f2937; }
-        .title-meta { margin: 0; color: #6b7280; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
-        .stat-card { background: #f8faff; border-radius: 10px; padding: 14px 10px; text-align: center; cursor: pointer; text-decoration: none; display: block; transition: background .15s; }
-        .stat-card:hover { background: #e8f0fe; }
-        .stat-icon { font-size: 22px; margin-bottom: 4px; }
-        .stat-value { font-size: 22px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #6b7280; margin-top: 2px; }
-        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .section-title { font-size: 14px; font-weight: 700; color: #2563eb; margin: 0; }
-        .info-table { width: 100%; border-collapse: collapse; }
-        .info-table tr td { padding: 8px 4px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+        body { background: #f4f6fb; }
+        .page { max-width: 980px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
+        }
+        .hero-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .hero-profile {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+        .avatar, .avatar-fallback {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .avatar {
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, .3);
+        }
+        .avatar-fallback {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, .18);
+            color: #fff;
+            font-size: 1.9rem;
+            font-weight: 700;
+            border: 3px solid rgba(255, 255, 255, .22);
+        }
+        .hero-text { min-width: 0; }
+        .hero-text h2 {
+            margin: 0;
+            font-size: 1.35rem;
+            line-height: 1.3;
+        }
+        .hero-desc {
+            margin: 8px 0 0;
+            font-size: .9rem;
+            line-height: 1.65;
+            opacity: .92;
+        }
+        .hero-meta {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .hero-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .16);
+            font-size: .82rem;
+            font-weight: 600;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            display: block;
+            text-decoration: none;
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+            color: #1f2937;
+        }
+        .stat-card.is-static { cursor: default; }
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            background: #eff6ff;
+            color: #2563eb;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .stat-value small {
+            font-size: .82rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .stat-label {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: .83rem;
+        }
+        .content-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .section-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .section-head p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: .84rem;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .info-table td {
+            padding: 12px 0;
+            border-bottom: 1px solid #eef2f7;
+            font-size: .92rem;
+            vertical-align: top;
+        }
         .info-table tr:last-child td { border-bottom: none; }
-        .info-table td:first-child { color: #6b7280; width: 100px; }
-        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #4b5563; font-weight: 600; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 9px 10px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
-        .form-group textarea { min-height: 100px; resize: vertical; }
+        .info-table td:first-child {
+            width: 112px;
+            color: #64748b;
+            padding-right: 14px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+        .status-badge.ok {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
         .full { grid-column: 1 / -1; }
-        .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-        .pw-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 0; user-select: none; }
-        .pw-toggle span { font-size: 14px; font-weight: 600; color: #2563eb; }
-        .pw-toggle .chevron { transition: transform .2s; display: inline-block; }
-        .pw-toggle.open .chevron { transform: rotate(90deg); }
-        .activity-list { list-style: none; margin: 0; padding: 0; }
-        .activity-list li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: .84rem;
+            font-weight: 600;
+            color: #475569;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: .92rem;
+            font-family: inherit;
+            background: #fff;
+        }
+        .form-group textarea {
+            min-height: 104px;
+            resize: vertical;
+        }
+        .inline-note {
+            color: #64748b;
+            font-size: .82rem;
+            line-height: 1.7;
+        }
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .email-toolbar {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .email-toolbar input[type="email"] {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .pw-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .pw-toggle strong {
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .pw-toggle span:last-child {
+            color: #2563eb;
+            font-size: 1.05rem;
+            transition: transform .2s ease;
+        }
+        .pw-toggle.open span:last-child { transform: rotate(90deg); }
+        .activity-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .activity-list li {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #eef2f7;
+            color: #475569;
+            font-size: .88rem;
+        }
         .activity-list li:last-child { border-bottom: none; }
-        .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
-        .dot-approve { background: #27ae60; }
-        .dot-reject { background: #e74c3c; }
-        .activity-time { margin-left: auto; color: #9ca3af; white-space: nowrap; font-size: 12px; }
-        .status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-        .status-badge.ok { background: #dcfce7; color: #166534; }
-        .status-badge.pending { background: #fef3c7; color: #92400e; }
-        .inline-note { color: #6b7280; font-size: 12px; line-height: 1.7; margin-top: 6px; }
-        .inline-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .inline-form input[type="email"] { flex: 1 1 260px; }
-        .email-bind-form .inline-form { flex-wrap: nowrap; align-items: stretch; }
-        .email-bind-form .inline-form input[type="email"] { flex: 1 1 auto; min-width: 0; }
-        .email-bind-form .inline-form .btn { flex: 0 0 auto; white-space: nowrap; }
-        @media (max-width: 640px) {
-            .header { flex-direction: row; align-items: center; }
-            .title { flex: 1 1 auto; min-width: 0; }
-            .title h2 { margin-bottom: 4px; }
-            .title p { white-space: normal; word-break: break-word; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .activity-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+        .dot-approve { background: #16a34a; }
+        .dot-reject { background: #dc2626; }
+        .activity-time {
+            margin-left: auto;
+            color: #94a3b8;
+            font-size: .78rem;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card { padding: 18px 16px; }
+            .hero-profile { align-items: flex-start; }
+            .avatar, .avatar-fallback { width: 72px; height: 72px; }
+            .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid { grid-template-columns: 1fr; }
-            .actions,
-            .inline-form {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .actions > *,
-            .inline-form > * {
+            .actions { flex-direction: column; }
+            .actions > * { width: 100%; }
+            .email-toolbar { flex-direction: column; }
+            .email-toolbar .btn { width: 100%; }
+            .info-table td,
+            .info-table td:first-child {
+                display: block;
                 width: 100%;
+                padding-right: 0;
             }
-            .email-bind-form .inline-form {
-                flex-direction: row;
-                align-items: stretch;
+            .info-table td:first-child {
+                border-bottom: none;
+                padding-bottom: 4px;
+                font-weight: 600;
             }
-            .email-bind-form .inline-form > * {
-                width: auto;
-            }
+            .info-table td:last-child { padding-top: 0; }
         }
     </style>
 </head>
@@ -83,7 +311,7 @@
     <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <a th:href="@{/teacher/messages}">消息</a>
+        <a th:href="@{/teacher/messages}">消息中心</a>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
@@ -95,32 +323,43 @@
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-    <div class="card">
-        <div class="header">
-            <img th:if="${teacher.photoUrl != null and !#strings.isEmpty(#strings.trim(teacher.photoUrl))}"
-                 class="avatar"
-                 th:src="@{${teacher.photoUrl}}"
-                 alt="头像">
-            <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}"
-                 class="avatar-fallback"
-                 th:text="${#strings.substring(teacher.name,0,1)}">T</div>
-            <div class="title">
-                <h2 th:text="${teacher.name}">教师姓名</h2>
-                <p th:text="${teacher.role} + ' · ' + (${teacher.school != null ? teacher.school.name : ''})">TEACHER</p>
-            </div>
-        </div>
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card" style="cursor:default">
-                <div class="stat-icon">...</div>
-                <div class="stat-value" style="font-size:14px;color:#9ca3af">加载中...</div>
+    <div class="hero-card">
+        <div class="hero-top">
+            <div class="hero-profile">
+                <img th:if="${teacher.photoUrl != null and !#strings.isEmpty(#strings.trim(teacher.photoUrl))}"
+                     class="avatar"
+                     th:src="@{${teacher.photoUrl}}"
+                     alt="教师头像">
+                <div th:if="${teacher.photoUrl == null or #strings.isEmpty(#strings.trim(teacher.photoUrl))}"
+                     class="avatar-fallback"
+                     th:text="${#strings.substring(teacher.name,0,1)}">T</div>
+                <div class="hero-text">
+                    <h2 th:text="${teacher.name}">教师姓名</h2>
+                    <p class="hero-desc">维护个人资料、邮箱安全和登录密码，保持教师端信息完整可用。</p>
+                    <div class="hero-meta">
+                        <span class="hero-chip" th:text="${teacher.role}">TEACHER</span>
+                        <span class="hero-chip" th:text="${teacher.school != null ? teacher.school.name : '未绑定学校'}">学校</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="section-header">
-            <p class="section-title">个人资料</p>
-            <button type="button" id="editToggleBtn" class="btn btn-sm btn-outline" onclick="enterEditMode()">编辑</button>
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card is-static">
+            <div class="stat-icon">…</div>
+            <div class="stat-value" style="font-size:.92rem;color:#94a3b8;">统计加载中</div>
+            <div class="stat-label">请稍候</div>
+        </div>
+    </div>
+
+    <div class="content-card">
+        <div class="section-head">
+            <div>
+                <h3>个人资料</h3>
+                <p>展示当前教师信息，也支持直接进入编辑状态。</p>
+            </div>
+            <button type="button" id="editToggleBtn" class="btn btn-sm btn-outline" onclick="enterEditMode()">编辑资料</button>
         </div>
 
         <div id="viewMode">
@@ -136,11 +375,11 @@
                               th:text="${teacher.emailVerified} ? '已验证' : '待验证'"></span>
                     </td>
                 </tr>
-                <tr><td>自我介绍</td><td th:text="${teacher.bio != null ? teacher.bio : '未设置'}" style="white-space:pre-wrap">-</td></tr>
+                <tr><td>自我介绍</td><td th:text="${teacher.bio != null ? teacher.bio : '未设置'}" style="white-space: pre-wrap;">-</td></tr>
             </table>
         </div>
 
-        <div id="editMode" style="display:none">
+        <div id="editMode" style="display:none;">
             <form th:action="@{/teacher/profile/save}" method="post" enctype="multipart/form-data">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <div class="grid">
@@ -167,11 +406,11 @@
                     <div class="form-group">
                         <label>邮箱</label>
                         <input type="email" name="email" th:value="${teacher.email}" placeholder="example@school.edu">
-                        <div class="inline-note">修改邮箱后会重置验证状态，请保存后再发送验证邮件。</div>
+                        <div class="inline-note">修改邮箱后会重置验证状态，请保存后重新发送验证邮件。</div>
                     </div>
                     <div class="form-group full">
                         <label>自我介绍</label>
-                        <textarea name="bio" placeholder="介绍你的教学理念、经验与擅长方向" th:text="${teacher.bio}"></textarea>
+                        <textarea name="bio" placeholder="介绍你的教学经验、研究方向或课程特点" th:text="${teacher.bio}"></textarea>
                     </div>
                 </div>
                 <div class="actions">
@@ -182,43 +421,44 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="section-header">
-            <p class="section-title">邮箱安全</p>
+    <div class="content-card">
+        <div class="section-head">
+            <div>
+                <h3>邮箱安全</h3>
+                <p>邮箱验证仅用于账号安全相关流程，不影响当前业务页面使用。</p>
+            </div>
         </div>
 
-        <div class="inline-note" style="margin-bottom:12px;">
-            只有已验证邮箱才可用于邮箱验证确认和忘记密码。
-        </div>
-
-        <div style="margin-bottom:14px;">
+        <div style="margin-bottom:12px;">
             <span th:class="${teacher.emailVerified} ? 'status-badge ok' : 'status-badge pending'"
                   th:text="${teacher.emailVerified} ? '已验证' : '待验证'"></span>
-            <span class="inline-note" th:if="${teacher.emailVerifiedAt != null}">
+            <span class="inline-note" th:if="${teacher.emailVerifiedAt != null}" style="margin-left:8px;">
                 验证时间：
                 <span th:text="${#temporals.format(teacher.emailVerifiedAt, 'yyyy-MM-dd HH:mm')}"></span>
             </span>
         </div>
 
-        <form th:action="@{/teacher/profile/email-bind/request}" method="post" class="email-bind-form" style="margin-bottom:14px;">
+        <div class="inline-note">只有已验证邮箱才能用于邮箱确认和找回密码。</div>
+
+        <form th:action="@{/teacher/profile/email-bind/request}" method="post" style="margin-top:14px;">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-            <div class="inline-form">
+            <div class="email-toolbar">
                 <input type="email" name="email" th:value="${teacher.email}" placeholder="请输入用于验证的邮箱" required>
                 <button type="submit" class="btn btn-primary">发送验证邮件</button>
             </div>
         </form>
 
-        <div class="inline-note">
-            选课结果邮件通知已暂停开发，当前阶段仅启用邮箱绑定、邮箱验证与忘记密码。
+        <div class="inline-note" style="margin-top:12px;">
+            选课结果邮件通知当前仍处于停用状态，本页仅启用邮箱绑定、邮箱验证与找回密码能力。
         </div>
     </div>
 
-    <div class="card">
+    <div class="content-card">
         <div class="pw-toggle" id="pwToggle" onclick="togglePassword()">
-            <span>修改密码</span>
-            <span class="chevron">&gt;</span>
+            <strong>修改密码</strong>
+            <span>&gt;</span>
         </div>
-        <div id="pwForm" style="display:none;margin-top:14px">
+        <div id="pwForm" style="display:none; margin-top:14px;">
             <form th:action="@{/teacher/profile/change-password}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                 <div class="grid">
@@ -228,7 +468,7 @@
                     </div>
                     <div class="form-group">
                         <label>新密码</label>
-                        <input type="password" name="newPassword" required placeholder="至少 8 位，包含字母和数字">
+                        <input type="password" name="newPassword" required placeholder="至少 8 位，建议包含字母和数字">
                     </div>
                     <div class="form-group">
                         <label>确认新密码</label>
@@ -243,8 +483,13 @@
         </div>
     </div>
 
-    <div class="card" id="activitiesCard" style="display:none">
-        <p class="section-title" style="margin-bottom:10px">最近操作</p>
+    <div class="content-card" id="activitiesCard" style="display:none;">
+        <div class="section-head" style="margin-bottom:8px;">
+            <div>
+                <h3>最近操作</h3>
+                <p>展示近期处理过的学生申请记录。</p>
+            </div>
+        </div>
         <ul class="activity-list" id="activitiesList"></ul>
     </div>
 </div>
@@ -271,22 +516,22 @@ function togglePassword() {
 }
 
 const STAT_DEFS = [
-    { key: 'classCount', label: '带班数', icon: '班', unit: '个', color: '#2563eb', href: '/dashboard' },
-    { key: 'monthlyAttendanceCount', label: '本月考勤', icon: '勤', unit: '次', color: '#27ae60', href: null },
-    { key: 'pendingRequestCount', label: '待审批', icon: '审', unit: '条', color: '#e67e22', href: '/teacher/courses' },
-    { key: 'processedRequestCount', label: '已处理', icon: '办', unit: '条', color: '#8e44ad', href: '/teacher/courses' }
+    { key: 'classCount', label: '带班数量', icon: '班', unit: '个', color: '#2563eb', href: '/dashboard' },
+    { key: 'monthlyAttendanceCount', label: '本月考勤', icon: '勤', unit: '次', color: '#16a34a', href: null },
+    { key: 'pendingRequestCount', label: '待处理申请', icon: '审', unit: '条', color: '#ea580c', href: '/teacher/courses' },
+    { key: 'processedRequestCount', label: '已处理申请', icon: '结', unit: '条', color: '#7c3aed', href: '/teacher/courses' }
 ];
 
 function renderStats(data) {
     const grid = document.getElementById('statsGrid');
     grid.innerHTML = '';
     STAT_DEFS.forEach(def => {
-        const val = data[def.key] ?? 0;
-        const openTag = def.href ? `<a class="stat-card" href="${def.href}">` : '<div class="stat-card" style="cursor:default">';
+        const value = data[def.key] ?? 0;
+        const openTag = def.href ? `<a class="stat-card" href="${def.href}">` : '<div class="stat-card is-static">';
         const closeTag = def.href ? '</a>' : '</div>';
         grid.innerHTML += openTag
             + `<div class="stat-icon">${def.icon}</div>`
-            + `<div class="stat-value" style="color:${def.color}">${val}<small style="font-size:13px;color:#9ca3af;font-weight:400"> ${def.unit}</small></div>`
+            + `<div class="stat-value" style="color:${def.color}">${value}<small> ${def.unit}</small></div>`
             + `<div class="stat-label">${def.label}</div>`
             + closeTag;
     });
@@ -303,9 +548,9 @@ function renderActivities(activities) {
         const isApprove = activity.action === 'APPROVE';
         const li = document.createElement('li');
         li.innerHTML = `<span class="activity-dot ${isApprove ? 'dot-approve' : 'dot-reject'}"></span>`
-            + `<span>${isApprove ? '同意' : '拒绝'}了 <b>${activity.studentName || '-'}</b> 的申请${activity.courseName ? ' · ' + activity.courseName : ''}`
-            + (activity.remark ? `<br><small style="color:#9ca3af">${activity.remark}</small>` : '')
-            + `</span>`
+            + `<span>${isApprove ? '同意' : '拒绝'}了 <b>${activity.studentName || '-'}</b> 的申请`
+            + `${activity.courseName ? ' · ' + activity.courseName : ''}`
+            + `${activity.remark ? `<br><small style="color:#94a3b8;">${activity.remark}</small>` : ''}</span>`
             + `<span class="activity-time">${activity.time || ''}</span>`;
         list.appendChild(li);
     });
@@ -319,7 +564,7 @@ fetch('/teacher/profile/stats', { credentials: 'same-origin' })
     })
     .catch(() => {
         document.getElementById('statsGrid').innerHTML =
-            '<div style="grid-column:1/-1;color:#9ca3af;font-size:13px">统计数据加载失败</div>';
+            '<div class="stat-card is-static" style="grid-column:1/-1;"><div class="stat-label">统计数据加载失败</div></div>';
     });
 </script>
 </body>

@@ -6,78 +6,200 @@
     <title>报名名单 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
-        .badge-confirmed { background:#27ae60; color:#fff; }
-        .badge-pending   { background:#f39c12; color:#fff; }
-        .badge-fail      { background:#e74c3c; color:#fff; }
-        .badge-cancelled { background:#bdc3c7; color:#fff; }
-        .summary-bar { background:#f8f9fa;border-radius:8px;padding:12px 18px;margin-bottom:18px;font-size:.88rem;color:#666; }
+        body { background: #f4f6fb; }
+        .page { max-width: 1080px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
+        }
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.28rem; }
+        .hero-card p { margin: 8px 0 0; font-size: .9rem; line-height: 1.65; opacity: .92; }
+        .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .hero-actions .btn-outline {
+            background: rgba(255, 255, 255, .16);
+            border-color: rgba(255, 255, 255, .28);
+            color: #fff;
+            box-shadow: none;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .summary-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+        }
+        .summary-label {
+            color: #64748b;
+            font-size: .82rem;
+            margin-bottom: 6px;
+        }
+        .summary-value {
+            color: #1f2937;
+            font-size: 1.28rem;
+            font-weight: 700;
+        }
+        .table-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+        }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .section-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .section-head p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: .84rem;
+        }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: .76rem;
+            font-weight: 700;
+        }
+        .badge-confirmed { background: #dcfce7; color: #166534; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-fail { background: #fee2e2; color: #b91c1c; }
+        .badge-cancelled { background: #e5e7eb; color: #475569; }
+        .empty-tip {
+            text-align: center;
+            color: #94a3b8;
+            padding: 22px 0;
+        }
         @media (max-width: 768px) {
-            .summary-bar { line-height: 1.8; }
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .table-card { padding: 16px; }
+            .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .hero-actions .btn { width: 100%; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏮 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
-        <a th:href="@{/teacher/courses}">← 选课活动</a>
-        <span class="nav-user" th:text="${currentSchool?.name}"></span>
+        <a th:href="@{/teacher/courses}">选课活动</a>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header">
-        <h2>
-            <span th:text="${course.name}"></span>
-            <span style="font-size:.85rem;font-weight:400;color:#888;"> · 已确认学生名单</span>
-        </h2>
+
+<div class="page">
+    <div class="hero-card">
+        <div class="hero-top">
+            <div>
+                <h2 th:text="${course.name} + ' · 报名名单'">课程名称 · 报名名单</h2>
+                <p>查看当前课程报名情况、确认状态和轮次来源，方便教师快速核对选课结果。</p>
+            </div>
+            <div class="hero-actions">
+                <a th:href="@{/teacher/courses}" class="btn btn-outline">返回课程页</a>
+            </div>
+        </div>
     </div>
 
-    <div class="summary-bar">
-        总名额 <strong th:text="${course.totalCapacity}"></strong>
-        &nbsp;·&nbsp; 已确认 <strong th:text="${confirmedEnrollmentCount}"></strong>
-        &nbsp;·&nbsp; 剩余 <strong th:text="${remainingEnrollmentCapacity}"></strong>
-        <th:block th:if="${overflowEnrollmentCount > 0}">
-            &nbsp;·&nbsp; 超编 <strong th:text="${overflowEnrollmentCount}"></strong>
-        </th:block>
-        &nbsp;·&nbsp; 活动：<span th:text="${event.name}"></span>
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-label">课程总容量</div>
+            <div class="summary-value" th:text="${course.totalCapacity}">0</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">已确认人数</div>
+            <div class="summary-value" th:text="${confirmedEnrollmentCount}">0</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">剩余容量</div>
+            <div class="summary-value" th:text="${remainingEnrollmentCapacity}">0</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">超编人数</div>
+            <div class="summary-value" th:text="${overflowEnrollmentCount}">0</div>
+        </div>
     </div>
 
-    <table class="table">
-        <thead>
-        <tr><th>姓名</th><th>学号</th><th>班级</th><th>志愿/轮次</th><th>状态</th><th>确认时间</th></tr>
-        </thead>
-        <tbody>
-        <tr th:if="${#lists.isEmpty(enrollments)}">
-            <td colspan="6" style="text-align:center;color:#aaa;">暂无报名记录</td>
-        </tr>
-        <tr th:each="sel : ${enrollments}">
-            <td th:text="${sel.student.name}"></td>
-            <td th:text="${sel.student.studentNo}"></td>
-            <td th:text="${sel.student.schoolClass?.name ?: '—'}"></td>
-            <td>
-                <span th:if="${sel.round == 1}" th:text="${sel.preference} + '志愿'"></span>
-                <span th:if="${sel.round == 2}">第二轮</span>
-                <span th:if="${sel.round == 0}">手动</span>
-            </td>
-            <td>
-                <span class="badge"
-                      th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
-                                      (${sel.status == 'PENDING'} ? 'badge-pending' :
-                                      (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                      th:text="${sel.status == 'CONFIRMED'} ? '已确认' :
-                                (${sel.status == 'PENDING'} ? '待结算' :
-                                (${sel.status == 'LOTTERY_FAIL'} ? '未中签' : '已取消'))">
-                </span>
-            </td>
-            <td th:text="${sel.confirmedAt} ? ${#temporals.format(sel.confirmedAt,'MM-dd HH:mm')} : '—'"></td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="table-card">
+        <div class="section-head">
+            <div>
+                <h3>报名明细</h3>
+                <p>活动：<span th:text="${event.name}">选课活动</span></p>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>学号</th>
+                    <th>班级</th>
+                    <th>志愿/轮次</th>
+                    <th>状态</th>
+                    <th>确认时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(enrollments)}">
+                    <td colspan="6" class="empty-tip">当前暂无报名记录</td>
+                </tr>
+                <tr th:each="sel : ${enrollments}">
+                    <td th:text="${sel.student.name}">张三</td>
+                    <td th:text="${sel.student.studentNo}">20240001</td>
+                    <td th:text="${sel.student.schoolClass != null ? sel.student.schoolClass.name : '-'}">高一1班</td>
+                    <td>
+                        <span th:if="${sel.round == 1}" th:text="${sel.preference} + '志愿'">第一志愿</span>
+                        <span th:if="${sel.round == 2}">第二轮</span>
+                        <span th:if="${sel.round == 0}">手动</span>
+                    </td>
+                    <td>
+                        <span class="badge"
+                              th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
+                                              (${sel.status == 'PENDING'} ? 'badge-pending' :
+                                              (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
+                              th:text="${sel.status == 'CONFIRMED' ? '已确认' :
+                                        (sel.status == 'PENDING' ? '待处理' :
+                                        (sel.status == 'LOTTERY_FAIL' ? '未中签' : '已取消'))}">已确认</span>
+                    </td>
+                    <td th:text="${sel.confirmedAt != null ? #temporals.format(sel.confirmedAt,'MM-dd HH:mm') : '-'}">-</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 </body>
 </html>

@@ -71,20 +71,22 @@ public class StudentController {
                                 @RequestParam String name,
                                 @RequestParam String gender,
                                 @RequestParam(required = false) String studentNo,
+                                @RequestParam(required = false) String idCard,
                                 @RequestParam(required = false) String studentStatus,
-                                @RequestParam(required = false) Long newClassId,
+                                @RequestParam(required = false) String newClassId,
                                 @RequestParam(required = false) String electiveClass,
                                 @RequestParam Long classId,
                                 RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
         try {
             Student current = studentService.findById(id);
+            Long normalizedNewClassId = parseOptionalLong(newClassId);
             if (current.getSchool() == null || !school.getId().equals(current.getSchool().getId())) {
                 throw new IllegalArgumentException("\u65e0\u6743\u4fee\u6539\u8be5\u5b66\u751f");
             }
 
-            if (newClassId != null) {
-                SchoolClass targetClass = classService.findById(newClassId);
+            if (normalizedNewClassId != null) {
+                SchoolClass targetClass = classService.findById(normalizedNewClassId);
                 if (targetClass.getSchool() == null
                         || !targetClass.getSchool().getId().equals(school.getId())) {
                     throw new IllegalArgumentException("\u65e0\u6743\u8c03\u6574\u5230\u8be5\u73ed\u7ea7");
@@ -106,15 +108,29 @@ public class StudentController {
                     name.trim(),
                     gender,
                     normalizedStudentNo,
-                    current.getIdCard(),
+                    idCard == null ? current.getIdCard() : idCard.trim(),
                     normalizedElective,
-                    newClassId,
+                    normalizedNewClassId,
                     studentStatus);
             ra.addFlashAttribute("success", "\u5b66\u751f\u4fe1\u606f\u66f4\u65b0\u6210\u529f");
         } catch (Exception e) {
             ra.addFlashAttribute("error", "\u66f4\u65b0\u5931\u8d25\uff1a" + e.getMessage());
         }
         return "redirect:/teacher/students/class/" + classId;
+    }
+
+    @PostMapping("/update")
+    public String updateStudentByForm(@RequestParam Long studentId,
+                                      @RequestParam String name,
+                                      @RequestParam String gender,
+                                      @RequestParam(required = false) String studentNo,
+                                      @RequestParam(required = false) String idCard,
+                                      @RequestParam(required = false) String studentStatus,
+                                      @RequestParam(required = false) String newClassId,
+                                      @RequestParam(required = false) String electiveClass,
+                                      @RequestParam Long classId,
+                                      RedirectAttributes ra) {
+        return updateStudent(studentId, name, gender, studentNo, idCard, studentStatus, newClassId, electiveClass, classId, ra);
     }
 
     @PostMapping("/{id}/elective")
@@ -152,5 +168,16 @@ public class StudentController {
         if (type == null) return false;
         String value = type.trim();
         return "\u9009\u4fee\u8bfe".equals(value) || value.contains("\u9009\u4fee") || value.contains("elective");
+    }
+
+    private Long parseOptionalLong(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.valueOf(value.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("\u73ed\u7ea7\u53c2\u6570\u4e0d\u5408\u6cd5");
+        }
     }
 }

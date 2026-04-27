@@ -3,17 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抢课诊断面板 - 体育教师助手</title>
+    <title>抢课诊断面板 - 管理后台</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .diagnostics-page { display:flex; flex-direction:column; gap:16px; }
-        .toolbar-card, .panel-card, .empty-card { background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(15,23,42,.08); padding:18px 20px; }
+        body { background:#f4f6fb; }
+        .admin-wrap { max-width:1260px; margin:24px auto; padding:0 16px 28px; }
+        .hero-card, .toolbar-card, .panel-card, .empty-card { background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(15,23,42,.05); border:1px solid #e5e7eb; }
+        .hero-card { background:linear-gradient(135deg,#0f172a,#334155); color:#fff; padding:22px 24px; border:none; box-shadow:0 14px 30px rgba(15,23,42,.18); margin-bottom:16px; }
+        .hero-top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+        .hero-card h2 { margin:0; font-size:1.3rem; }
+        .hero-card p { margin:8px 0 0; opacity:.9; font-size:.9rem; line-height:1.65; max-width:760px; }
+        .hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .toolbar-card, .panel-card, .empty-card { padding:18px 20px; }
         .toolbar-card { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:end; }
         .toolbar-form { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
         .toolbar-form label { display:block; font-size:.86rem; font-weight:600; color:#475569; margin-bottom:6px; }
         .toolbar-meta { font-size:.82rem; color:#64748b; }
         .toolbar-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-        .status-banner { border-radius:10px; padding:14px 16px; font-weight:600; }
+        .status-banner { border-radius:12px; padding:14px 16px; font-weight:600; margin-bottom:16px; }
         .status-banner.ok { background:#ecfdf5; color:#047857; }
         .status-banner.warn { background:#fffbeb; color:#b45309; }
         .status-banner.error { background:#fef2f2; color:#b91c1c; }
@@ -32,7 +39,7 @@
         .issue-card.error { border-left:4px solid #ef4444; background:#fff7f7; }
         .issue-card.warn { border-left:4px solid #f59e0b; background:#fffbf1; }
         .issue-code { font-size:.76rem; color:#64748b; margin-bottom:6px; }
-        .issue-message, .activity-desc { font-size:.94rem; color:#111827; }
+        .issue-message, .activity-desc { font-size:.94rem; color:#111827; line-height:1.7; }
         .issue-actions, .activity-actions { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
         .link-btn { display:inline-flex; align-items:center; gap:4px; color:#2563eb; text-decoration:none; font-size:.84rem; font-weight:600; }
         .link-btn:hover { text-decoration:underline; }
@@ -50,32 +57,19 @@
         .activity-title { font-weight:600; color:#0f172a; }
         .activity-time { font-size:.8rem; color:#64748b; }
         .hidden { display:none; }
-        @media (max-width: 768px) {
-            .page-header > div,
-            .toolbar-card,
-            .toolbar-form,
-            .toolbar-actions {
-                width: 100%;
-            }
-            .toolbar-card,
-            .toolbar-form,
-            .toolbar-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .page-header .btn,
-            .toolbar-actions .btn,
-            .toolbar-form > div {
-                width: 100%;
-            }
+        @media (max-width:768px) {
+            .admin-wrap { margin:16px auto 24px; padding:0 12px 24px; }
+            .hero-card, .toolbar-card, .panel-card, .empty-card { padding:16px; }
+            .toolbar-card, .toolbar-form, .toolbar-actions, .hero-actions { flex-direction:column; align-items:stretch; }
+            .toolbar-actions .btn, .toolbar-form > div, .hero-actions .btn { width:100%; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
-        <a th:href="@{/admin}">管理后台</a>
+        <a th:href="@{/admin}">后台首页</a>
         <a th:href="@{/admin/courses}">选课活动</a>
         <span class="nav-user" th:text="${currentSchool != null ? currentSchool.name : ''}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
@@ -84,12 +78,17 @@
         </form>
     </div>
 </nav>
-<div class="container diagnostics-page">
-    <div class="page-header">
-        <h2>抢课诊断面板</h2>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <a th:href="@{/admin/courses}" class="btn btn-secondary">返回选课活动</a>
-            <button type="button" class="btn btn-primary" id="refreshBtn">刷新诊断</button>
+<div class="admin-wrap">
+    <div class="hero-card">
+        <div class="hero-top">
+            <div>
+                <h2>抢课诊断面板</h2>
+                <p>集中查看选课活动的容量、异常、热点课程和最近 24 小时排障活动。</p>
+            </div>
+            <div class="hero-actions">
+                <a th:href="@{/admin/courses}" class="btn btn-secondary">返回选课活动</a>
+                <button type="button" class="btn btn-primary" id="refreshBtn">刷新诊断</button>
+            </div>
         </div>
     </div>
 
@@ -105,10 +104,7 @@
                     <label for="eventSelect">诊断活动</label>
                     <select id="eventSelect" class="form-control">
                         <option value="">自动选择最近活动</option>
-                        <option th:each="event : ${events}"
-                                th:value="${event.id}"
-                                th:selected="${selectedEventId != null and selectedEventId == event.id}"
-                                th:text="${event.name + '（' + event.adminDisplayStatusText + '）'}"></option>
+                        <option th:each="event : ${events}" th:value="${event.id}" th:selected="${selectedEventId != null and selectedEventId == event.id}" th:text="${event.name + '（' + event.adminDisplayStatusText + '）'}"></option>
                     </select>
                 </div>
                 <div>
@@ -124,334 +120,184 @@
                 <button type="button" class="btn btn-secondary" id="exportJsonBtn">导出 JSON</button>
                 <button type="button" class="btn btn-secondary" id="exportTextBtn">导出文本</button>
             </div>
-            <div class="toolbar-meta" id="toolbarMeta">等待加载诊断数据…</div>
+            <div class="toolbar-meta" id="toolbarMeta">等待加载诊断数据</div>
         </div>
 
         <div id="diagnosticsRoot" class="hidden">
-            <div id="statusBanner" class="status-banner">正在加载…</div>
-
-            <div class="panel-card">
-                <h3 class="section-title">活动概况</h3>
-                <div class="event-meta" id="eventMeta"></div>
-            </div>
-
-            <div class="panel-card">
-                <h3 class="section-title">核心指标</h3>
-                <div class="overview-grid" id="overviewGrid"></div>
-            </div>
-
-            <div class="panel-card">
-                <h3 class="section-title">风险与异常</h3>
-                <div class="issue-list" id="issueList"></div>
-            </div>
-
-            <div class="panel-card">
-                <h3 class="section-title">重点课程</h3>
-                <div class="table-wrap">
-                    <table class="diag-table">
-                        <thead>
-                        <tr>
-                            <th>课程</th>
-                            <th>模式</th>
-                            <th>状态</th>
-                            <th>总名额</th>
-                            <th>计数字段</th>
-                            <th>确认人数</th>
-                            <th>剩余</th>
-                            <th>超编</th>
-                            <th>计数异常</th>
-                        </tr>
-                        </thead>
-                        <tbody id="hotCourseBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="panel-card">
-                <h3 class="section-title">近 24 小时排障活动</h3>
-                <div class="overview-grid" id="activitySummaryGrid" style="margin-bottom:12px;"></div>
-                <div class="activity-list" id="activityList"></div>
-            </div>
+            <div id="statusBanner" class="status-banner">正在加载</div>
+            <div class="panel-card"><h3 class="section-title">活动概况</h3><div class="event-meta" id="eventMeta"></div></div>
+            <div class="panel-card"><h3 class="section-title">核心指标</h3><div class="overview-grid" id="overviewGrid"></div></div>
+            <div class="panel-card"><h3 class="section-title">风险与异常</h3><div class="issue-list" id="issueList"></div></div>
+            <div class="panel-card"><h3 class="section-title">重点课程</h3><div class="table-wrap"><table class="diag-table"><thead><tr><th>课程</th><th>模式</th><th>状态</th><th>总容量</th><th>计数字段</th><th>确认人数</th><th>剩余</th><th>超编</th><th>计数异常</th></tr></thead><tbody id="hotCourseBody"></tbody></table></div></div>
+            <div class="panel-card"><h3 class="section-title">近 24 小时排障活动</h3><div class="overview-grid" id="activitySummaryGrid" style="margin-bottom:12px;"></div><div class="activity-list" id="activityList"></div></div>
         </div>
     </div>
 </div>
 
 <script th:inline="javascript">
-    const initialSelectedEventId = /*[[${selectedEventId}]]*/ null;
-    const eventSelect = document.getElementById('eventSelect');
-    const issueLevelFilter = document.getElementById('issueLevelFilter');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const exportJsonBtn = document.getElementById('exportJsonBtn');
-    const exportTextBtn = document.getElementById('exportTextBtn');
-    const toolbarMeta = document.getElementById('toolbarMeta');
-    const diagnosticsRoot = document.getElementById('diagnosticsRoot');
-    const statusBanner = document.getElementById('statusBanner');
-    const eventMeta = document.getElementById('eventMeta');
-    const overviewGrid = document.getElementById('overviewGrid');
-    const issueList = document.getElementById('issueList');
-    const hotCourseBody = document.getElementById('hotCourseBody');
-    const activitySummaryGrid = document.getElementById('activitySummaryGrid');
-    const activityList = document.getElementById('activityList');
-    let currentDiagnostics = null;
+const initialSelectedEventId = /*[[${selectedEventId}]]*/ null;
+const eventSelect = document.getElementById('eventSelect');
+const issueLevelFilter = document.getElementById('issueLevelFilter');
+const refreshBtn = document.getElementById('refreshBtn');
+const exportJsonBtn = document.getElementById('exportJsonBtn');
+const exportTextBtn = document.getElementById('exportTextBtn');
+const toolbarMeta = document.getElementById('toolbarMeta');
+const diagnosticsRoot = document.getElementById('diagnosticsRoot');
+const statusBanner = document.getElementById('statusBanner');
+const eventMeta = document.getElementById('eventMeta');
+const overviewGrid = document.getElementById('overviewGrid');
+const issueList = document.getElementById('issueList');
+const hotCourseBody = document.getElementById('hotCourseBody');
+const activitySummaryGrid = document.getElementById('activitySummaryGrid');
+const activityList = document.getElementById('activityList');
+let currentDiagnostics = null;
 
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+function escapeHtml(value) { return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function formatDateTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    const second = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+function severityClass(value) { if (value === 'ERROR') return 'error'; if (value === 'WARN') return 'warn'; return 'ok'; }
+function currentIssueLevelFilter() { return issueLevelFilter?.value || 'ALL'; }
+function filterIssues(issues) { const level = currentIssueLevelFilter(); if (level === 'ALL') return issues || []; return (issues || []).filter(issue => issue?.level === level); }
+function linkHtml(url, label) { if (!url) return ''; return `<a class="link-btn" href="${escapeHtml(url)}">${escapeHtml(label || '查看详情')}</a>`; }
+function downloadBlob(filename, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
+function buildExportBaseName() {
+    const eventId = currentDiagnostics?.event?.id || 'latest';
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `course-selection-diagnostics-${eventId}-${stamp}`;
+}
+function buildTextExport(data) {
+    const event = data?.event || {};
+    const overview = data?.overview || {};
+    const health = data?.health || {};
+    const hotCourses = data?.hotCourses || [];
+    const activity = data?.recentActivity || {};
+    const issueLines = (health.issues || []).map((issue, index) => `${index + 1}. [${issue.level}] ${issue.code} ${issue.message}`);
+    const hotCourseLines = hotCourses.map((course, index) => `${index + 1}. ${course.courseName} / 已确认 ${course.confirmedCount} / 计数字段 ${course.currentCount} / 超编 ${course.overflowCount}`);
+    const activityLines = (activity.entries || []).map((entry, index) => `${index + 1}. ${formatDateTime(entry.operatedAt)} ${entry.title || entry.action || '-'} ${entry.description || ''}`);
+    return [
+        '抢课诊断导出',
+        `生成时间：${formatDateTime(data?.generatedAt)}`,
+        `活动：${event.name || '-'} (${event.statusText || event.status || '-'})`,
+        '',
+        '核心指标：',
+        `- 课程总数：${overview.courseCount ?? 0}`,
+        `- 启用课程：${overview.activeCourseCount ?? 0}`,
+        `- 报名记录：${overview.selectionCount ?? 0}`,
+        `- 已确认：${overview.confirmedCount ?? 0}`,
+        '',
+        `风险级别：${health.severity || 'OK'}，问题数：${health.issueCount ?? (health.issues || []).length}`,
+        '问题列表：',
+        ...(issueLines.length > 0 ? issueLines : ['- 无']),
+        '',
+        '重点课程：',
+        ...(hotCourseLines.length > 0 ? hotCourseLines : ['- 无']),
+        '',
+        '近 24 小时活动：',
+        ...(activityLines.length > 0 ? activityLines : ['- 无'])
+    ].join('\n');
+}
+function exportDiagnosticsJson() { if (!currentDiagnostics) return; downloadBlob(`${buildExportBaseName()}.json`, JSON.stringify(currentDiagnostics, null, 2), 'application/json;charset=utf-8'); }
+function exportDiagnosticsText() { if (!currentDiagnostics) return; downloadBlob(`${buildExportBaseName()}.txt`, buildTextExport(currentDiagnostics), 'text/plain;charset=utf-8'); }
+function renderMetricGrid(target, items) {
+    target.innerHTML = items.map(item => `<div class="metric-card"><div class="metric-label">${escapeHtml(item.label)}</div><div class="metric-value">${escapeHtml(item.value)}</div><div class="metric-sub">${escapeHtml(item.sub || '')}</div></div>`).join('');
+}
+function renderEventMeta(event) {
+    eventMeta.innerHTML = `<div class="event-meta-item"><span class="label">活动名称</span><span class="value">${escapeHtml(event?.name || '-')}</span></div><div class="event-meta-item"><span class="label">当前状态</span><span class="value">${escapeHtml(event?.statusText || event?.status || '-')}</span></div><div class="event-meta-item"><span class="label">第一轮时间</span><span class="value">${formatDateTime(event?.round1Start)} ~ ${formatDateTime(event?.round1End)}</span></div><div class="event-meta-item"><span class="label">第二轮时间</span><span class="value">${formatDateTime(event?.round2Start)} ~ ${formatDateTime(event?.round2End)}</span></div><div class="event-meta-item"><span class="label">第三轮时间</span><span class="value">${formatDateTime(event?.round3Start)} ~ ${formatDateTime(event?.round3End)}</span></div><div class="event-meta-item"><span class="label">创建时间</span><span class="value">${formatDateTime(event?.createdAt)}</span></div><div class="event-meta-item"><span class="label">结算提示</span><span class="value">${escapeHtml(event?.lotteryNote || '无')}</span></div><div class="event-meta-item"><span class="label">快速跳转</span><span class="value">${linkHtml(event?.detailUrl, '课程页') || '-'} ${linkHtml(event?.studentUrl, '学生页')}</span></div>`;
+}
+function renderOverview(overview) {
+    renderMetricGrid(overviewGrid, [
+        { label: '课程总数', value: overview.courseCount ?? 0, sub: `启用 ${overview.activeCourseCount ?? 0} 门` },
+        { label: '报名记录', value: overview.selectionCount ?? 0, sub: `确认 ${overview.confirmedCount ?? 0} / 待处理 ${overview.pendingCount ?? 0}` },
+        { label: '落选记录', value: overview.lotteryFailCount ?? 0, sub: `草稿 ${overview.draftCount ?? 0} / 已取消 ${overview.cancelledCount ?? 0}` },
+        { label: '课程模式', value: `${overview.globalCourseCount ?? 0} / ${overview.perClassCourseCount ?? 0}`, sub: '全局名额 / 按班名额' },
+        { label: '审批审计', value: overview.requestAuditCount ?? 0, sub: `超编审计 ${overview.overflowAuditCount ?? 0}` },
+        { label: '教师操作', value: overview.operationLogCount ?? 0, sub: '最近抓取的后台操作日志' }
+    ]);
+}
+function renderHealth(health) {
+    statusBanner.className = `status-banner ${severityClass(health?.severity)}`;
+    const severityText = health?.severity === 'ERROR' ? '发现高风险问题' : (health?.severity === 'WARN' ? '发现待关注问题' : '当前未发现异常');
+    const filteredIssues = filterIssues(health?.issues || []);
+    const totalCount = health?.issueCount ?? (health?.issues || []).length;
+    statusBanner.textContent = `${severityText}，共 ${totalCount} 项${currentIssueLevelFilter() !== 'ALL' ? `（当前筛选 ${filteredIssues.length} 项）` : ''}`;
+    if (filteredIssues.length === 0) { issueList.innerHTML = '<div class="issue-card"><div class="issue-message">当前没有检测到超编、计数错位或流程卡住等问题。</div></div>'; return; }
+    issueList.innerHTML = filteredIssues.map(issue => `<div class="issue-card ${severityClass(issue.level)}"><div class="issue-code">${escapeHtml(issue.level)} / ${escapeHtml(issue.code)}</div><div class="issue-message">${escapeHtml(issue.message)}</div>${issue.jumpUrl ? `<div class="issue-actions">${linkHtml(issue.jumpUrl, issue.jumpLabel || '查看详情')}</div>` : ''}</div>`).join('');
+}
+function renderHotCourses(courses) {
+    if (!courses || courses.length === 0) { hotCourseBody.innerHTML = '<tr><td colspan="9" style="color:#64748b;">暂无课程数据</td></tr>'; return; }
+    hotCourseBody.innerHTML = courses.map(course => `<tr><td>${course.detailUrl ? `<a class="link-btn" href="${escapeHtml(course.detailUrl)}">${escapeHtml(course.courseName)}</a>` : escapeHtml(course.courseName)}</td><td>${escapeHtml(course.capacityMode === 'PER_CLASS' ? '按班名额' : '全局名额')}</td><td>${escapeHtml(course.status)}</td><td>${escapeHtml(course.totalCapacity)}</td><td>${escapeHtml(course.currentCount)}</td><td>${escapeHtml(course.confirmedCount)}</td><td>${escapeHtml(course.remainingCapacity)}</td><td>${escapeHtml(course.overflowCount)}</td><td><span class="badge-soft ${course.countMismatch ? 'error' : 'ok'}">${course.countMismatch ? '异常' : '正常'}</span></td></tr>`).join('');
+}
+function renderRecentActivity(activity) {
+    renderMetricGrid(activitySummaryGrid, [
+        { label: '教师操作日志', value: activity.operationLogCount24h ?? 0, sub: '近 24 小时' },
+        { label: '申请审批审计', value: activity.requestAuditCount24h ?? 0, sub: '近 24 小时' },
+        { label: '强制超编审计', value: activity.overflowAuditCount24h ?? 0, sub: '近 24 小时' }
+    ]);
+    if (!activity.entries || activity.entries.length === 0) { activityList.innerHTML = '<div class="activity-item"><div class="activity-desc">近 24 小时暂无诊断相关活动。</div></div>'; return; }
+    activityList.innerHTML = activity.entries.map(entry => `<div class="activity-item"><div class="activity-head"><div class="activity-title">${escapeHtml(entry.title || entry.action || '-')}${entry.teacherName ? ' / ' + escapeHtml(entry.teacherName) : ''}</div><div class="activity-time mono">${escapeHtml(formatDateTime(entry.operatedAt))}</div></div><div class="activity-desc">${escapeHtml(entry.description || '-')}</div>${entry.jumpUrl ? `<div class="activity-actions">${linkHtml(entry.jumpUrl, entry.jumpLabel || '查看详情')}</div>` : ''}</div>`).join('');
+}
+async function loadDiagnostics() {
+    const params = new URLSearchParams();
+    if (eventSelect && eventSelect.value) params.set('eventId', eventSelect.value);
+    toolbarMeta.textContent = '正在加载诊断数据...';
+    if (refreshBtn) refreshBtn.disabled = true;
+    if (diagnosticsRoot) diagnosticsRoot.classList.remove('hidden');
+    try {
+        const response = await fetch(`/admin/course-selection-diagnostics/data${params.toString() ? '?' + params.toString() : ''}`, { headers: { 'Accept': 'application/json' } });
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) throw new Error('诊断接口返回格式异常，请刷新页面后重试');
+        const payload = await response.json();
+        if (!response.ok || payload?.code !== 200) throw new Error(payload?.message || '诊断数据加载失败');
+        const data = payload.data || {};
+        currentDiagnostics = data;
+        renderEventMeta(data.event || {});
+        renderOverview(data.overview || {});
+        renderHealth(data.health || {});
+        renderHotCourses(data.hotCourses || []);
+        renderRecentActivity(data.recentActivity || {});
+        toolbarMeta.textContent = `最后刷新：${formatDateTime(data.generatedAt)}`;
+        if (data.event?.id && eventSelect && !eventSelect.value) eventSelect.value = String(data.event.id);
+    } catch (error) {
+        currentDiagnostics = null;
+        statusBanner.className = 'status-banner error';
+        statusBanner.textContent = error.message || '诊断数据加载失败';
+        issueList.innerHTML = `<div class="issue-card error"><div class="issue-code">ERROR / LOAD_FAILED</div><div class="issue-message">${escapeHtml(error.message || '诊断数据加载失败')}</div></div>`;
+        hotCourseBody.innerHTML = '<tr><td colspan="9" style="color:#b91c1c;">加载失败，请稍后重试</td></tr>';
+        activityList.innerHTML = '<div class="activity-item"><div class="activity-desc">加载失败，请稍后重试。</div></div>';
+        toolbarMeta.textContent = '加载失败';
+    } finally {
+        if (refreshBtn) refreshBtn.disabled = false;
     }
-
-    function formatDateTime(value) {
-        if (!value) return '-';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return value;
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hour = String(date.getHours()).padStart(2, '0');
-        const minute = String(date.getMinutes()).padStart(2, '0');
-        const second = String(date.getSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-    }
-
-    function severityClass(value) {
-        if (value === 'ERROR') return 'error';
-        if (value === 'WARN') return 'warn';
-        return 'ok';
-    }
-
-    function currentIssueLevelFilter() {
-        return issueLevelFilter?.value || 'ALL';
-    }
-
-    function filterIssues(issues) {
-        const level = currentIssueLevelFilter();
-        if (level === 'ALL') return issues || [];
-        return (issues || []).filter(issue => issue?.level === level);
-    }
-
-    function linkHtml(url, label) {
-        if (!url) return '';
-        return `<a class="link-btn" href="${escapeHtml(url)}">${escapeHtml(label || '查看详情')}</a>`;
-    }
-
-    function downloadBlob(filename, content, type) {
-        const blob = new Blob([content], { type });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
-    }
-
-    function buildExportBaseName() {
-        const eventId = currentDiagnostics?.event?.id || 'latest';
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        return `course-selection-diagnostics-${eventId}-${stamp}`;
-    }
-
-    function buildTextExport(data) {
-        const event = data?.event || {};
-        const overview = data?.overview || {};
-        const health = data?.health || {};
-        const hotCourses = data?.hotCourses || [];
-        const activity = data?.recentActivity || {};
-        const issueLines = (health.issues || []).map((issue, index) =>
-            `${index + 1}. [${issue.level}] ${issue.code} ${issue.message}`);
-        const hotCourseLines = hotCourses.map((course, index) =>
-            `${index + 1}. ${course.courseName} / 已确认 ${course.confirmedCount} / 计数字段 ${course.currentCount} / 超编 ${course.overflowCount}`);
-        const activityLines = (activity.entries || []).map((entry, index) =>
-            `${index + 1}. ${formatDateTime(entry.operatedAt)} ${entry.title || entry.action || '-'} ${entry.description || ''}`);
-        return [
-            '抢课诊断导出',
-            `生成时间：${formatDateTime(data?.generatedAt)}`,
-            `活动：${event.name || '-'} (${event.statusText || event.status || '-'})`,
-            '',
-            '核心指标：',
-            `- 课程总数：${overview.courseCount ?? 0}`,
-            `- 启用课程：${overview.activeCourseCount ?? 0}`,
-            `- 报名记录：${overview.selectionCount ?? 0}`,
-            `- 已确认：${overview.confirmedCount ?? 0}`,
-            '',
-            `风险级别：${health.severity || 'OK'}，问题数：${health.issueCount ?? 0}`,
-            '问题列表：',
-            ...(issueLines.length > 0 ? issueLines : ['- 无']),
-            '',
-            '重点课程：',
-            ...(hotCourseLines.length > 0 ? hotCourseLines : ['- 无']),
-            '',
-            '近 24 小时活动：',
-            ...(activityLines.length > 0 ? activityLines : ['- 无'])
-        ].join('\n');
-    }
-
-    function exportDiagnosticsJson() {
-        if (!currentDiagnostics) return;
-        downloadBlob(`${buildExportBaseName()}.json`, JSON.stringify(currentDiagnostics, null, 2), 'application/json;charset=utf-8');
-    }
-
-    function exportDiagnosticsText() {
-        if (!currentDiagnostics) return;
-        downloadBlob(`${buildExportBaseName()}.txt`, buildTextExport(currentDiagnostics), 'text/plain;charset=utf-8');
-    }
-
-    function renderMetricGrid(target, items) {
-        target.innerHTML = items.map(item => `
-            <div class="metric-card">
-                <div class="metric-label">${escapeHtml(item.label)}</div>
-                <div class="metric-value">${escapeHtml(item.value)}</div>
-                <div class="metric-sub">${escapeHtml(item.sub || '')}</div>
-            </div>
-        `).join('');
-    }
-
-    function renderEventMeta(event) {
-        eventMeta.innerHTML = `
-            <div class="event-meta-item"><span class="label">活动名称</span><span class="value">${escapeHtml(event?.name || '-')}</span></div>
-            <div class="event-meta-item"><span class="label">当前状态</span><span class="value">${escapeHtml(event?.statusText || event?.status || '-')}</span></div>
-            <div class="event-meta-item"><span class="label">第一轮时间</span><span class="value">${formatDateTime(event?.round1Start)} ~ ${formatDateTime(event?.round1End)}</span></div>
-            <div class="event-meta-item"><span class="label">第二轮时间</span><span class="value">${formatDateTime(event?.round2Start)} ~ ${formatDateTime(event?.round2End)}</span></div>
-            <div class="event-meta-item"><span class="label">&#31532;&#19977;&#36718;&#26102;&#38388;</span><span class="value">${formatDateTime(event?.round3Start)} ~ ${formatDateTime(event?.round3End)}</span></div>
-            <div class="event-meta-item"><span class="label">创建时间</span><span class="value">${formatDateTime(event?.createdAt)}</span></div>
-            <div class="event-meta-item"><span class="label">结算提示</span><span class="value">${escapeHtml(event?.lotteryNote || '无')}</span></div>
-            <div class="event-meta-item"><span class="label">快速跳转</span><span class="value">${linkHtml(event?.detailUrl, '课程页') || '-'} ${linkHtml(event?.studentUrl, '学生页')}</span></div>
-        `;
-    }
-
-    function renderOverview(overview) {
-        renderMetricGrid(overviewGrid, [
-            { label: '课程总数', value: overview.courseCount ?? 0, sub: `启用 ${overview.activeCourseCount ?? 0} 门` },
-            { label: '报名记录', value: overview.selectionCount ?? 0, sub: `确认 ${overview.confirmedCount ?? 0} / 待处理 ${overview.pendingCount ?? 0}` },
-            { label: '首轮落选', value: overview.lotteryFailCount ?? 0, sub: `草稿 ${overview.draftCount ?? 0} / 已取消 ${overview.cancelledCount ?? 0}` },
-            { label: '课程模式', value: `${overview.globalCourseCount ?? 0} / ${overview.perClassCourseCount ?? 0}`, sub: '全局名额 / 按班名额' },
-            { label: '审批审计', value: overview.requestAuditCount ?? 0, sub: `超编审计 ${overview.overflowAuditCount ?? 0}` },
-            { label: '教师操作', value: overview.operationLogCount ?? 0, sub: '最近拉取的后台操作日志' }
-        ]);
-    }
-
-    function renderHealth(health) {
-        statusBanner.className = `status-banner ${severityClass(health?.severity)}`;
-        const severityText = health?.severity === 'ERROR' ? '发现高风险问题' : (health?.severity === 'WARN' ? '发现待关注问题' : '当前未发现异常');
-        const filteredIssues = filterIssues(health?.issues || []);
-        const totalCount = health?.issueCount ?? (health?.issues || []).length;
-        statusBanner.textContent = `${severityText}：${totalCount} 项${currentIssueLevelFilter() !== 'ALL' ? `（当前筛选 ${filteredIssues.length} 项）` : ''}`;
-        if (filteredIssues.length === 0) {
-            issueList.innerHTML = '<div class="issue-card"><div class="issue-message">当前没有检测到超编、计数错位或流程卡住等问题。</div></div>';
-            return;
-        }
-        issueList.innerHTML = filteredIssues.map(issue => `
-            <div class="issue-card ${severityClass(issue.level)}">
-                <div class="issue-code">${escapeHtml(issue.level)} · ${escapeHtml(issue.code)}</div>
-                <div class="issue-message">${escapeHtml(issue.message)}</div>
-                ${issue.jumpUrl ? `<div class="issue-actions">${linkHtml(issue.jumpUrl, issue.jumpLabel || '查看详情')}</div>` : ''}
-            </div>
-        `).join('');
-    }
-
-    function renderHotCourses(courses) {
-        if (!courses || courses.length === 0) {
-            hotCourseBody.innerHTML = '<tr><td colspan="9" style="color:#64748b;">暂无课程数据</td></tr>';
-            return;
-        }
-        hotCourseBody.innerHTML = courses.map(course => `
-            <tr>
-                <td>${course.detailUrl ? `<a class="link-btn" href="${escapeHtml(course.detailUrl)}">${escapeHtml(course.courseName)}</a>` : escapeHtml(course.courseName)}</td>
-                <td>${escapeHtml(course.capacityMode === 'PER_CLASS' ? '按班名额' : '全局名额')}</td>
-                <td>${escapeHtml(course.status)}</td>
-                <td>${escapeHtml(course.totalCapacity)}</td>
-                <td>${escapeHtml(course.currentCount)}</td>
-                <td>${escapeHtml(course.confirmedCount)}</td>
-                <td>${escapeHtml(course.remainingCapacity)}</td>
-                <td>${escapeHtml(course.overflowCount)}</td>
-                <td><span class="badge-soft ${course.countMismatch ? 'error' : 'ok'}">${course.countMismatch ? '异常' : '正常'}</span></td>
-            </tr>
-        `).join('');
-    }
-
-    function renderRecentActivity(activity) {
-        renderMetricGrid(activitySummaryGrid, [
-            { label: '教师操作日志', value: activity.operationLogCount24h ?? 0, sub: '近 24 小时' },
-            { label: '申请审批审计', value: activity.requestAuditCount24h ?? 0, sub: '近 24 小时' },
-            { label: '强制超编审计', value: activity.overflowAuditCount24h ?? 0, sub: '近 24 小时' }
-        ]);
-        if (!activity.entries || activity.entries.length === 0) {
-            activityList.innerHTML = '<div class="activity-item"><div class="activity-desc">近 24 小时暂无诊断相关活动。</div></div>';
-            return;
-        }
-        activityList.innerHTML = activity.entries.map(entry => `
-            <div class="activity-item">
-                <div class="activity-head">
-                    <div class="activity-title">${escapeHtml(entry.title || entry.action || '-')}${entry.teacherName ? ' · ' + escapeHtml(entry.teacherName) : ''}</div>
-                    <div class="activity-time mono">${escapeHtml(formatDateTime(entry.operatedAt))}</div>
-                </div>
-                <div class="activity-desc">${escapeHtml(entry.description || '-')}</div>
-                ${entry.jumpUrl ? `<div class="activity-actions">${linkHtml(entry.jumpUrl, entry.jumpLabel || '查看详情')}</div>` : ''}
-            </div>
-        `).join('');
-    }
-
-    async function loadDiagnostics() {
-        const params = new URLSearchParams();
-        if (eventSelect && eventSelect.value) params.set('eventId', eventSelect.value);
-        toolbarMeta.textContent = '正在加载诊断数据…';
-        if (refreshBtn) refreshBtn.disabled = true;
-        if (diagnosticsRoot) diagnosticsRoot.classList.remove('hidden');
-        try {
-            const response = await fetch(`/admin/course-selection-diagnostics/data${params.toString() ? '?' + params.toString() : ''}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-            const contentType = response.headers.get('content-type') || '';
-            if (!contentType.includes('application/json')) {
-                throw new Error('诊断接口返回格式异常，请刷新页面后重试');
-            }
-            const payload = await response.json();
-            if (!response.ok || payload?.code !== 200) {
-                throw new Error(payload?.message || '诊断数据加载失败');
-            }
-            const data = payload.data || {};
-            currentDiagnostics = data;
-            renderEventMeta(data.event || {});
-            renderOverview(data.overview || {});
-            renderHealth(data.health || {});
-            renderHotCourses(data.hotCourses || []);
-            renderRecentActivity(data.recentActivity || {});
-            toolbarMeta.textContent = `最后刷新：${formatDateTime(data.generatedAt)}`;
-            if (data.event?.id && eventSelect && !eventSelect.value) {
-                eventSelect.value = String(data.event.id);
-            }
-        } catch (error) {
-            currentDiagnostics = null;
-            statusBanner.className = 'status-banner error';
-            statusBanner.textContent = error.message || '诊断数据加载失败';
-            issueList.innerHTML = `<div class="issue-card error"><div class="issue-code">ERROR · LOAD_FAILED</div><div class="issue-message">${escapeHtml(error.message || '诊断数据加载失败')}</div></div>`;
-            hotCourseBody.innerHTML = '<tr><td colspan="9" style="color:#b91c1c;">加载失败，请稍后重试</td></tr>';
-            activityList.innerHTML = '<div class="activity-item"><div class="activity-desc">加载失败，请稍后重试。</div></div>';
-            toolbarMeta.textContent = '加载失败';
-        } finally {
-            if (refreshBtn) refreshBtn.disabled = false;
-        }
-    }
-
-    if (eventSelect) {
-        if (initialSelectedEventId) eventSelect.value = String(initialSelectedEventId);
-        eventSelect.addEventListener('change', loadDiagnostics);
-    }
-    if (issueLevelFilter) {
-        issueLevelFilter.addEventListener('change', () => {
-            if (currentDiagnostics) {
-                renderHealth(currentDiagnostics.health || {});
-            }
-        });
-    }
-    if (refreshBtn) refreshBtn.addEventListener('click', loadDiagnostics);
-    if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportDiagnosticsJson);
-    if (exportTextBtn) exportTextBtn.addEventListener('click', exportDiagnosticsText);
-    if (diagnosticsRoot) loadDiagnostics();
+}
+if (eventSelect) {
+    if (initialSelectedEventId) eventSelect.value = String(initialSelectedEventId);
+    eventSelect.addEventListener('change', loadDiagnostics);
+}
+if (issueLevelFilter) issueLevelFilter.addEventListener('change', function () { if (currentDiagnostics) renderHealth(currentDiagnostics.health || {}); });
+if (refreshBtn) refreshBtn.addEventListener('click', loadDiagnostics);
+if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportDiagnosticsJson);
+if (exportTextBtn) exportTextBtn.addEventListener('click', exportDiagnosticsText);
+if (diagnosticsRoot) loadDiagnostics();
 </script>
 </body>
 </html>

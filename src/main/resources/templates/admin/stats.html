@@ -3,32 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>考勤统计 - 体育教师助手</title>
+    <title>考勤统计 - 管理后台</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .search-bar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
-        .search-bar input, .search-bar select {
-            flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 14px; outline: none; min-width: 0;
+        body { background: #f4f6fb; }
+        .admin-wrap { max-width: 1240px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .18);
+            margin-bottom: 16px;
         }
-        .search-bar input:focus, .search-bar select:focus { border-color: #4a90e2; }
-        .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 16px; align-items: center; }
+        .hero-card h2 { margin: 0; font-size: 1.3rem; }
+        .hero-card p { margin: 8px 0 0; opacity: .9; font-size: .9rem; line-height: 1.65; max-width: 760px; }
+        .toolbar-card,
+        .table-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .toolbar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .toolbar-grid input,
+        .toolbar-grid select,
+        .jump-wrap input {
+            width: 100%;
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: .92rem;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .progress-bar {
+            width: 120px;
+            max-width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: #e5e7eb;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #60a5fa);
+        }
+        .pagination {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
         .pagination a, .pagination span {
-            padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 13px; text-decoration: none; color: #333;
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: .82rem;
+            text-decoration: none;
+            color: #334155;
+            background: #fff;
         }
-        .pagination a:hover { background: #f0f4ff; border-color: #4a90e2; }
-        .pagination .active { background: #4a90e2; color: #fff; border-color: #4a90e2; }
-        .pagination .disabled { color: #bbb; pointer-events: none; }
-        .stats-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .pagination a:hover { border-color: #2563eb; background: #eff6ff; }
+        .pagination .active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+        .pagination .disabled { color: #94a3b8; pointer-events: none; }
+        .page-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .jump-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+            color: #475569;
+            font-size: .82rem;
+            white-space: nowrap;
+        }
+        .jump-wrap input { width: 58px; min-height: 34px; padding: 0 8px; }
+        @media (max-width: 1100px) {
+            .toolbar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
         @media (max-width: 768px) {
-            .search-bar,
-            .page-toolbar {
+            .admin-wrap { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .toolbar-card,
+            .table-card { padding: 16px; }
+            .toolbar-grid { grid-template-columns: 1fr; }
+            .toolbar-actions,
+            .page-toolbar,
+            .jump-wrap {
                 flex-direction: column;
                 align-items: stretch;
             }
-            .search-bar > *,
-            .page-toolbar > * {
+            .toolbar-actions > *,
+            .page-toolbar > *,
+            .jump-wrap > * {
                 width: 100%;
             }
         }
@@ -36,56 +129,74 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏃 体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
-        <a th:href="@{/admin}">管理后台</a>
-        <a th:href="@{/dashboard}">首页</a>
+        <a th:href="@{/admin}">后台首页</a>
+        <a th:href="@{/dashboard}">工作台</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header">
+
+<div class="admin-wrap">
+    <div class="hero-card">
         <h2>考勤统计</h2>
+        <p>按年级、班级和学生筛选查看出勤、缺勤、请假及整体出勤率。</p>
     </div>
-    <!-- 搜索框 -->
-    <form method="get" th:action="@{/admin/stats}" class="search-bar">
-        <select name="gradeId" id="gradeSelect">
-            <option value="" th:selected="${gradeId == null}">全部年级</option>
-            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
-                    th:selected="${gradeId != null && gradeId == g.id}"></option>
-        </select>
-        <select name="classId" id="classSelect">
-            <option value="" th:selected="${classId == null}">全部班级</option>
-            <option th:each="c : ${classes}" th:value="${c.id}"
-                    th:attr="data-grade=${c.grade != null ? c.grade.id : ''}"
-                    th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"
-                    th:selected="${classId != null && classId == c.id}"></option>
-        </select>
-        <input type="text" name="name" th:value="${name}" placeholder="姓名">
-        <input type="text" name="studentNo" th:value="${studentNo}" placeholder="学号">
-        <input type="text" name="idCard" th:value="${idCard}" placeholder="身份证号">
-        <button type="submit" class="btn btn-secondary">搜索</button>
-        <a th:href="@{/admin/stats}" class="btn btn-outline">重置</a>
-        <a th:href="@{/admin/stats/absent}" class="btn btn-secondary">缺勤查询</a>
+
+    <form method="get" th:action="@{/admin/stats}" class="toolbar-card">
+        <div class="toolbar-grid">
+            <select name="gradeId" id="gradeSelect">
+                <option value="" th:selected="${gradeId == null}">全部年级</option>
+                <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
+                        th:selected="${gradeId != null && gradeId == g.id}"></option>
+            </select>
+            <select name="classId" id="classSelect">
+                <option value="" th:selected="${classId == null}">全部班级</option>
+                <option th:each="c : ${classes}" th:value="${c.id}"
+                        th:attr="data-grade=${c.grade != null ? c.grade.id : ''}"
+                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"
+                        th:selected="${classId != null && classId == c.id}"></option>
+            </select>
+            <input type="text" name="name" th:value="${name}" placeholder="姓名">
+            <input type="text" name="studentNo" th:value="${studentNo}" placeholder="学号">
+            <input type="text" name="idCard" th:value="${idCard}" placeholder="身份证号">
+        </div>
+        <div class="toolbar-actions">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a th:href="@{/admin/stats}" class="btn btn-outline">重置</a>
+            <a th:href="@{/admin/stats/absent}" class="btn btn-secondary">缺勤/请假查询</a>
+        </div>
     </form>
-    <div class="stats-table">
-        <table class="table">
-            <thead>
-                <tr><th>#</th><th>班级</th><th>姓名</th><th>学号</th><th>总记录</th><th>出勤</th><th>缺勤</th><th>请假</th><th>出勤率</th></tr>
-            </thead>
-            <tbody>
+
+    <div class="table-card">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>班级</th>
+                    <th>姓名</th>
+                    <th>学号</th>
+                    <th>总记录</th>
+                    <th>出勤</th>
+                    <th>缺勤</th>
+                    <th>请假</th>
+                    <th>出勤率</th>
+                </tr>
+                </thead>
+                <tbody>
                 <tr th:each="s, iter : ${studentStats}">
                     <td th:text="${studentPage.number * studentPage.size + iter.count}"></td>
                     <td th:text="${s.className}"></td>
                     <td th:text="${s.studentName}"></td>
                     <td th:text="${s.studentNo}"></td>
                     <td th:text="${s.total}"></td>
-                    <td style="color:#27ae60;font-weight:600" th:text="${s.present}"></td>
-                    <td style="color:#e74c3c;font-weight:600" th:text="${s.absent}"></td>
-                    <td style="color:#2980b9;font-weight:600" th:text="${s.leave}"></td>
+                    <td style="color:#16a34a;font-weight:700;" th:text="${s.present}"></td>
+                    <td style="color:#dc2626;font-weight:700;" th:text="${s.absent}"></td>
+                    <td style="color:#d97706;font-weight:700;" th:text="${s.leave}"></td>
                     <td>
                         <div class="progress-bar">
                             <div class="progress-fill" th:style="'width:' + ${s.rate} + '%'"></div>
@@ -93,43 +204,43 @@
                         <span th:text="${s.rate} + '%'"></span>
                     </td>
                 </tr>
-            </tbody>
-        </table>
-    </div>
-    <!-- 分页参数（供JS读取） -->
-    <input type="hidden" id="pg-current"   th:value="${studentPage.number}">
-    <input type="hidden" id="pg-total"     th:value="${studentPage.totalPages}">
-    <input type="hidden" id="pg-gradeId"   th:value="${gradeId}">
-    <input type="hidden" id="pg-classId"   th:value="${classId}">
-    <input type="hidden" id="pg-name"      th:value="${name}">
-    <input type="hidden" id="pg-studentNo" th:value="${studentNo}">
-    <input type="hidden" id="pg-idCard"    th:value="${idCard}">
-    <!-- 分页控件 -->
-    <div class="page-toolbar" th:if="${studentPage.totalPages > 0}">
-        <span style="font-size:13px;color:#555;white-space:nowrap"
-              th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
-        <div class="pagination" id="pagination" th:if="${studentPage.totalPages > 1}" style="margin:0;flex:1;justify-content:center">
-            <a id="pg-prev">上一页</a>
-            <span id="pg-numbers"></span>
-            <a id="pg-next">下一页</a>
+                </tbody>
+            </table>
         </div>
-        <span style="font-size:13px;color:#555;white-space:nowrap;margin-left:auto" th:if="${studentPage.totalPages > 1}">跳转到
-            <input type="number" id="pg-jump" min="1" th:max="${studentPage.totalPages}"
-                   style="width:52px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px" placeholder="页">
-            <button onclick="jumpPage()" class="btn btn-sm btn-outline" style="padding:4px 10px">GO</button>
-        </span>
+
+        <input type="hidden" id="pg-current" th:value="${studentPage.number}">
+        <input type="hidden" id="pg-total" th:value="${studentPage.totalPages}">
+        <input type="hidden" id="pg-gradeId" th:value="${gradeId}">
+        <input type="hidden" id="pg-classId" th:value="${classId}">
+        <input type="hidden" id="pg-name" th:value="${name}">
+        <input type="hidden" id="pg-studentNo" th:value="${studentNo}">
+        <input type="hidden" id="pg-idCard" th:value="${idCard}">
+
+        <div class="page-toolbar" th:if="${studentPage.totalPages > 0}">
+            <span style="font-size:.82rem;color:#475569;white-space:nowrap;"
+                  th:text="'共 ' + ${studentPage.totalElements} + ' 名学生，共 ' + ${studentPage.totalPages} + ' 页'"></span>
+            <div class="pagination" id="pagination" th:if="${studentPage.totalPages > 1}" style="flex:1;">
+                <a id="pg-prev">上一页</a>
+                <span id="pg-numbers"></span>
+                <a id="pg-next">下一页</a>
+            </div>
+            <span class="jump-wrap" th:if="${studentPage.totalPages > 1}">
+                跳转到
+                <input type="number" id="pg-jump" min="1" th:max="${studentPage.totalPages}" placeholder="页">
+                <button onclick="jumpPage()" class="btn btn-sm btn-outline" type="button">GO</button>
+            </span>
+        </div>
     </div>
 </div>
+
 <script>
-// 年级联动班级
 (function() {
     const gradeSelect = document.getElementById('gradeSelect');
     const classSelect = document.getElementById('classSelect');
-    const allOptions  = Array.from(classSelect.options).slice(1); // 跳过"全部班级"
+    const allOptions = Array.from(classSelect.options).slice(1);
 
     function filterClasses() {
         const gid = gradeSelect.value;
-        // 先清空（保留第一项）
         while (classSelect.options.length > 1) classSelect.remove(1);
         allOptions.forEach(opt => {
             if (!gid || opt.dataset.grade === gid) classSelect.add(opt.cloneNode(true));
@@ -141,29 +252,27 @@
         filterClasses();
     });
 
-    // 初始化：如果已选年级，过滤班级列表
     if (gradeSelect.value) filterClasses();
 })();
 
-// 分页逻辑
 (function() {
     const pg = document.getElementById('pagination');
     if (!pg) return;
-    const current   = parseInt(document.getElementById('pg-current').value);
-    const total     = parseInt(document.getElementById('pg-total').value);
-    const gradeId   = document.getElementById('pg-gradeId').value;
-    const classId   = document.getElementById('pg-classId').value;
-    const name      = document.getElementById('pg-name').value;
+    const current = parseInt(document.getElementById('pg-current').value, 10);
+    const total = parseInt(document.getElementById('pg-total').value, 10);
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const classId = document.getElementById('pg-classId').value;
+    const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
-    const idCard    = document.getElementById('pg-idCard').value;
+    const idCard = document.getElementById('pg-idCard').value;
 
     function url(p) {
         const params = new URLSearchParams();
-        if (gradeId)   params.set('gradeId', gradeId);
-        if (classId)   params.set('classId', classId);
-        if (name)      params.set('name', name);
+        if (gradeId) params.set('gradeId', gradeId);
+        if (classId) params.set('classId', classId);
+        if (name) params.set('name', name);
         if (studentNo) params.set('studentNo', studentNo);
-        if (idCard)    params.set('idCard', idCard);
+        if (idCard) params.set('idCard', idCard);
         params.set('page', p);
         return '/admin/stats?' + params.toString();
     }
@@ -180,7 +289,7 @@
     const sorted = [...pages].sort((a, b) => a - b);
     let html = '', prev2 = -1;
     for (const p of sorted) {
-        if (prev2 !== -1 && p - prev2 > 1) html += '<span style="padding:0 4px;color:#bbb">…</span>';
+        if (prev2 !== -1 && p - prev2 > 1) html += '<span style="padding:0 4px;color:#94a3b8;">…</span>';
         html += `<a href="${url(p)}" class="${p === current ? 'active' : ''}">${p + 1}</a>`;
         prev2 = p;
     }
@@ -188,24 +297,25 @@
 })();
 
 function jumpPage() {
-    const total     = parseInt(document.getElementById('pg-total').value);
-    const val       = parseInt(document.getElementById('pg-jump').value);
+    const total = parseInt(document.getElementById('pg-total').value, 10);
+    const val = parseInt(document.getElementById('pg-jump').value, 10);
     if (isNaN(val) || val < 1 || val > total) return;
-    const gradeId   = document.getElementById('pg-gradeId').value;
-    const classId   = document.getElementById('pg-classId').value;
-    const name      = document.getElementById('pg-name').value;
+    const gradeId = document.getElementById('pg-gradeId').value;
+    const classId = document.getElementById('pg-classId').value;
+    const name = document.getElementById('pg-name').value;
     const studentNo = document.getElementById('pg-studentNo').value;
-    const idCard    = document.getElementById('pg-idCard').value;
+    const idCard = document.getElementById('pg-idCard').value;
     const params = new URLSearchParams();
-    if (gradeId)   params.set('gradeId', gradeId);
-    if (classId)   params.set('classId', classId);
-    if (name)      params.set('name', name);
+    if (gradeId) params.set('gradeId', gradeId);
+    if (classId) params.set('classId', classId);
+    if (name) params.set('name', name);
     if (studentNo) params.set('studentNo', studentNo);
-    if (idCard)    params.set('idCard', idCard);
+    if (idCard) params.set('idCard', idCard);
     params.set('page', val - 1);
     location.href = '/admin/stats?' + params.toString();
 }
 </script>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>

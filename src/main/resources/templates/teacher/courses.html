@@ -3,85 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>选课名单 - 体育教师助手</title>
+    <title>选课活动一览 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:.75rem; font-weight:600; }
-        .badge-round1   { background:#2980b9; color:#fff; }
-        .badge-round2   { background:#27ae60; color:#fff; }
-        .badge-closed   { background:#bdc3c7; color:#fff; }
-        .event-card { background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:18px 22px;margin-bottom:16px; }
-        .event-head { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+        body { background: #f4f6fb; }
+        .page { max-width: 1080px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.28rem; }
+        .hero-card p { margin: 8px 0 0; font-size: .9rem; line-height: 1.65; opacity: .92; }
+        .event-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .event-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .event-head h3 {
+            margin: 0 0 4px;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .event-meta {
+            color: #64748b;
+            font-size: .84rem;
+            line-height: 1.6;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 999px;
+            font-size: .78rem;
+            font-weight: 700;
+        }
+        .badge-round1 { background: #dbeafe; color: #1d4ed8; }
+        .badge-round2 { background: #dcfce7; color: #166534; }
+        .badge-closed { background: #e5e7eb; color: #475569; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .empty-card {
+            background: #fff;
+            border: 1px dashed #d7e2f0;
+            border-radius: 16px;
+            color: #64748b;
+            text-align: center;
+            padding: 34px 20px;
+        }
         @media (max-width: 768px) {
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
             .event-card { padding: 16px; }
-            .event-head > * { width: 100%; }
-            .event-head .badge,
-            .event-card .btn {
+            .event-head .badge {
                 width: 100%;
-                text-align: center;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏮 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <span class="nav-user" th:text="${currentSchool?.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header">
+
+<div class="page">
+    <div class="hero-card">
         <h2>选课活动一览</h2>
+        <p>查看当前负责课程的选课活动、课程容量和报名名单入口。</p>
     </div>
 
-    <div th:if="${#lists.isEmpty(events)}" style="text-align:center;color:#aaa;padding:40px 0;">
-        暂无选课活动
-    </div>
+    <div th:if="${#lists.isEmpty(events)}" class="empty-card">当前暂无选课活动</div>
 
     <div th:each="event : ${events}" class="event-card">
         <div class="event-head">
             <div>
-                <h3 style="margin:0 0 4px;font-size:1rem;" th:text="${event.name}"></h3>
-                <span style="font-size:.82rem;color:#888;">
+                <h3 th:text="${event.name}">活动名称</h3>
+                <div class="event-meta">
                     第一轮：
-                    <th:block th:text="${event.round1Start} ? ${#temporals.format(event.round1Start,'MM-dd HH:mm')} : '—'"></th:block>
+                    <th:block th:text="${event.round1Start != null ? #temporals.format(event.round1Start,'MM-dd HH:mm') : '-'}"></th:block>
                     ~
-                    <th:block th:text="${event.round1End} ? ${#temporals.format(event.round1End,'MM-dd HH:mm')} : '—'"></th:block>
-                </span>
+                    <th:block th:text="${event.round1End != null ? #temporals.format(event.round1End,'MM-dd HH:mm') : '-'}"></th:block>
+                </div>
             </div>
             <span class="badge"
                   th:classappend="${event.status == 'ROUND1'} ? 'badge-round1' :
                                   (${event.status == 'ROUND2'} ? 'badge-round2' : 'badge-closed')"
-                  th:text="${event.status == 'ROUND1'} ? '第一轮进行中' :
-                            (${event.status == 'ROUND2'} ? '第二轮进行中' :
-                            (${event.status == 'PROCESSING'} ? '结算中' :
-                            (${event.status == 'DRAFT'} ? '草稿' : '已关闭')))">
-            </span>
+                  th:text="${event.status == 'ROUND1' ? '第一轮进行中' :
+                            (event.status == 'ROUND2' ? '第二轮进行中' :
+                            (event.status == 'PROCESSING' ? '结算中' :
+                            (event.status == 'DRAFT' ? '草稿' : '已关闭')))}">已关闭</span>
         </div>
 
-        <div style="margin-top:12px;">
-            <table class="table" style="margin:0;">
+        <div class="table-wrap">
+            <table class="table">
                 <thead>
-                <tr><th>课程名称</th><th>总名额</th><th>已确认</th><th>操作</th></tr>
+                <tr>
+                    <th>课程名称</th>
+                    <th>总容量</th>
+                    <th>已确认</th>
+                    <th>操作</th>
+                </tr>
                 </thead>
                 <tbody>
                 <tr th:each="c : ${coursesByEvent[event.id]}">
-                    <td th:text="${c.name}"></td>
-                    <td th:text="${c.totalCapacity}"></td>
-                    <td th:text="${confirmedCountByCourse[c.id]}"></td>
+                    <td th:text="${c.name}">课程名称</td>
+                    <td th:text="${c.totalCapacity}">0</td>
+                    <td th:text="${confirmedCountByCourse[c.id]}">0</td>
                     <td>
                         <a th:href="@{/teacher/courses/{eid}/courses/{cid}/enrollments(eid=${event.id},cid=${c.id})}"
                            class="btn btn-secondary btn-xs">查看名单</a>
                     </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(coursesByEvent[event.id])}">
-                    <td colspan="4" style="color:#aaa;font-size:.85rem;">本活动暂无您负责的课程</td>
+                    <td colspan="4" style="color:#94a3b8;">当前活动下暂无你负责的课程</td>
                 </tr>
                 </tbody>
             </table>

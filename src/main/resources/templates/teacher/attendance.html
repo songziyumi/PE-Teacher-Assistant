@@ -6,194 +6,369 @@
     <title>考勤登记 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .attendance-row {
+        body { background: #f4f6fb; }
+        .page { max-width: 1040px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 32px rgba(37, 99, 235, .18);
+            margin-bottom: 16px;
+        }
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.28rem; }
+        .hero-card p { margin: 8px 0 0; font-size: .9rem; line-height: 1.65; opacity: .92; }
+        .hero-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .hero-actions .btn-outline {
+            background: rgba(255, 255, 255, .16);
+            border-color: rgba(255, 255, 255, .28);
+            color: #fff;
+            box-shadow: none;
+        }
+        .hero-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .hero-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .16);
+            font-size: .82rem;
+            font-weight: 600;
+        }
+        .toolbar-card,
+        .list-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .toolbar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .toolbar-row + .toolbar-row { margin-top: 12px; }
+        .toolbar-form,
+        .toolbar-actions,
+        .stats-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .toolbar-form label {
+            color: #475569;
+            font-size: .85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .toolbar-form input[type="date"] {
+            min-height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
             border-radius: 10px;
-            margin-bottom: 8px;
-            padding: 10px 12px;
-            transition: background-color .2s ease;
-            border: 1px solid rgba(15, 23, 42, 0.06);
+            font-size: .92rem;
+            background: #fff;
         }
-
-        .attendance-row.band-0 {
-            background: #ddeeff;
+        .stat-chip {
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 999px;
+            font-size: .86rem;
+            font-weight: 700;
         }
-
-        .attendance-row.band-1 {
-            background: #ffe2c2;
+        .stat-chip.present { background: #dcfce7; color: #166534; }
+        .stat-chip.absent { background: #fee2e2; color: #b91c1c; }
+        .stat-chip.leave { background: #fef3c7; color: #92400e; }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .section-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .section-head p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: .84rem;
+        }
+        .attendance-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .attendance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, .06);
+        }
+        .attendance-row.band-0 { background: #eef6ff; }
+        .attendance-row.band-1 { background: #fff1df; }
+        .student-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+        .student-name {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .student-meta {
+            color: #64748b;
+            font-size: .84rem;
+            white-space: nowrap;
+        }
+        .text-muted {
+            color: #64748b;
+            font-size: .84rem;
+        }
+        .status-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .status-label {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #475569;
+            font-size: .85rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .status-label input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .status-label.出勤 { border-color: #bbf7d0; color: #166534; }
+        .status-label.缺勤 { border-color: #fecaca; color: #b91c1c; }
+        .status-label.请假 { border-color: #fde68a; color: #92400e; }
+        .status-label:has(input:checked) {
+            box-shadow: inset 0 0 0 2px currentColor;
+            background: rgba(255, 255, 255, .95);
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
         }
         @media (max-width: 768px) {
-            .page-header {
-                align-items: center;
+            .page { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .toolbar-card,
+            .list-card { padding: 16px; }
+            .hero-actions,
+            .toolbar-row,
+            .toolbar-form,
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
             }
-            .page-header > div {
-                width: auto;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                flex-wrap: nowrap;
-                margin-top: 0 !important;
-                margin-left: auto;
-                overflow-x: auto;
-                white-space: nowrap;
-                -webkit-overflow-scrolling: touch;
-            }
-            .page-header .btn {
-                width: auto;
-                margin-left: 0 !important;
-                margin-top: 0;
-                flex: 0 0 auto;
-            }
-            .attendance-toolbar {
-                align-items: center;
-                justify-content: space-between;
-                flex-wrap: nowrap;
-            }
-            .attendance-toolbar .form-inline {
-                width: auto;
-                flex: 0 0 auto;
-                align-items: center;
-                flex-wrap: nowrap;
-            }
-            .attendance-toolbar .form-inline label {
-                width: auto;
-                white-space: nowrap;
-            }
-            .attendance-toolbar .form-inline input {
-                width: 148px;
-            }
-            .attendance-actions {
-                flex: 0 0 auto;
-                flex-direction: row;
-                gap: 8px;
-            }
-            .attendance-actions .btn,
-            .attendance-toolbar .btn {
-                width: auto;
-                flex: 0 0 auto;
-                white-space: nowrap;
-            }
-            .attendance-stats {
-                display: flex;
+            .attendance-row {
                 flex-direction: row;
                 align-items: center;
-                gap: 12px;
                 flex-wrap: nowrap;
-                overflow-x: auto;
-                white-space: nowrap;
-                -webkit-overflow-scrolling: touch;
+                gap: 8px;
             }
-            .attendance-stats .stat-item {
-                display: inline-flex;
-                align-items: center;
-                flex: 0 0 auto;
-                white-space: nowrap;
-            }
-        }
-        @media (max-width: 480px) {
-            .page-header > div {
+            .student-info {
+                flex: 1 1 auto;
                 gap: 6px;
             }
-            .page-header .badge {
-                padding: 2px 8px;
-                font-size: 11px;
+            .student-name {
+                font-size: .9rem;
             }
-            .page-header .btn {
-                padding: 6px 10px;
-                font-size: 12px;
+            .student-meta {
+                font-size: .78rem;
             }
-            .attendance-toolbar {
-                gap: 8px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+            .text-muted {
+                font-size: .78rem;
             }
-            .attendance-toolbar .form-inline input {
-                width: 132px;
+            .toolbar-actions {
+                flex-direction: row;
+                align-items: stretch;
+                flex-wrap: nowrap;
             }
-            .attendance-toolbar .form-inline label,
-            .attendance-actions .btn {
-                font-size: 12px;
+            .hero-actions .btn,
+            .toolbar-form input[type="date"],
+            .form-actions .btn {
+                width: 100%;
             }
-            .attendance-stats {
-                gap: 8px;
-                font-size: 12px;
+            .toolbar-actions .btn {
+                width: auto;
+                flex: 1 1 0;
+                min-width: 0;
+            }
+            .stats-row {
+                flex-direction: row;
+                align-items: stretch;
+                flex-wrap: nowrap;
+            }
+            .stats-row .stat-chip {
+                flex: 1 1 0;
+                min-width: 0;
+                justify-content: center;
+                padding-left: 8px;
+                padding-right: 8px;
+                font-size: .8rem;
+            }
+            .status-buttons {
+                justify-content: flex-start;
+                flex: 0 0 auto;
+                gap: 6px;
+                flex-wrap: nowrap;
+            }
+            .status-label {
+                flex: 0 0 auto;
+                justify-content: center;
+                min-width: 0;
+                min-height: 34px;
+                padding: 0 10px;
+                font-size: .78rem;
             }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">🏮 体育教师助手</div>
+    <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
     </div>
 </nav>
-<div class="container">
+
+<div class="page">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
-    <div class="page-header">
-        <h2 th:text="${classTitle} + ' - 考勤登记'"></h2>
-        <div style="margin-top:0.5rem">
-            <span th:if="${mode == 'admin'}" class="badge badge-admin">行政班模式</span>
-            <span th:if="${mode == 'elective'}" class="badge badge-elective">选修课模式</span>
-            <a th:href="@{/dashboard}" class="btn btn-secondary btn-sm" style="margin-left:1rem">切换班级</a>
+
+    <div class="hero-card">
+        <div class="hero-top">
+            <div>
+                <h2 th:text="${classTitle} + ' · 考勤登记'">班级 · 考勤登记</h2>
+                <p>按日期记录学生出勤情况，支持快速一键出勤和实时统计。</p>
+                <div class="hero-meta">
+                    <span th:if="${mode == 'admin'}" class="hero-chip">行政班模式</span>
+                    <span th:if="${mode == 'elective'}" class="hero-chip">选修课模式</span>
+                    <a th:href="@{/dashboard}" class="btn btn-outline">切换班级</a>
+                </div>
+            </div>
         </div>
     </div>
+
     <form th:action="@{/attendance/class/{id}/save(id=${schoolClass.id})}" method="post">
         <input type="hidden" name="mode" th:value="${mode}">
-        <div class="attendance-toolbar">
-            <div class="form-inline">
-                <label>日期：</label>
-                <input type="date" name="date" th:value="${date}" required>
-            </div>
-            <div class="attendance-actions">
+
+        <div class="toolbar-card">
+            <div class="toolbar-row">
+                <div class="toolbar-form">
+                    <label for="attendance-date">考勤日期</label>
+                    <input id="attendance-date" type="date" name="date" th:value="${date}" required>
+                </div>
+                <div class="toolbar-actions">
                     <button type="button" class="btn btn-success" onclick="setAll('出勤')">一键出勤</button>
-                <button type="submit" class="btn btn-primary">保存考勤</button>
-            </div>
-        </div>
-        <div class="attendance-stats" id="stats">
-            <span class="stat-item present">出勤: <span id="cnt-present">0</span></span>
-            <span class="stat-item absent">缺勤: <span id="cnt-absent">0</span></span>
-            <span class="stat-item leave">请假: <span id="cnt-leave">0</span></span>
-        </div>
-        <div class="attendance-list">
-            <div th:each="student, iter : ${students}"
-                 class="attendance-row"
-                 th:classappend="${studentClassBands[student.id] == 1 ? ' band-1' : ' band-0'}">
-                <div class="student-info">
-                    <span class="student-no" th:text="${iter.count}"></span>
-                    <span class="student-name" th:text="${student.name}"></span>
-                    <span class="student-gender text-muted" th:text="${student.gender}"></span>
-                    <span th:if="${mode == 'elective'}"
-                          class="text-muted"
-                          th:text="'(' + ${student.schoolClass.grade != null ? student.schoolClass.grade.name : ''} + ${student.schoolClass.name} + ')'"></span>
+                    <button type="submit" class="btn btn-primary">保存考勤</button>
                 </div>
-                <div class="status-buttons">
-                    <label th:each="status : ${ {'出勤','缺勤','请假'} }"
-                           th:class="'status-label ' + ${status}">
-                        <input type="radio"
-                               th:name="'status_' + ${student.id}"
-                               th:value="${status}"
-                               th:checked="${statusMap[student.id] == status || (statusMap[student.id] == null && status == '出勤')}"
-                               onchange="updateStats()">
-                        <span th:text="${status}"></span>
-                    </label>
+            </div>
+            <div class="toolbar-row">
+                <div class="stats-row" id="stats">
+                    <span class="stat-chip present">出勤 <span id="cnt-present" style="margin-left:6px;">0</span></span>
+                    <span class="stat-chip absent">缺勤 <span id="cnt-absent" style="margin-left:6px;">0</span></span>
+                    <span class="stat-chip leave">请假 <span id="cnt-leave" style="margin-left:6px;">0</span></span>
                 </div>
             </div>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-lg">保存考勤</button>
-            <a th:href="@{/dashboard}" class="btn btn-secondary">返回</a>
+
+        <div class="list-card">
+            <div class="section-head">
+                <div>
+                    <h3>学生列表</h3>
+                    <p>每名学生一行完成状态选择，保存后将覆盖当天考勤记录。</p>
+                </div>
+            </div>
+
+            <div class="attendance-list">
+                <div th:each="student : ${students}"
+                     class="attendance-row"
+                     th:classappend="${studentClassBands[student.id] == 1 ? ' band-1' : ' band-0'}">
+                    <div class="student-info">
+                        <span class="student-name" th:text="${student.name}">学生姓名</span>
+                        <span class="student-meta"
+                              th:text="${(student.gender != null ? student.gender : '-') + ' · ' + (student.schoolClass != null ? student.schoolClass.name : '-')}">男 · 一班</span>
+                    </div>
+                    <div class="status-buttons">
+                        <label th:each="status : ${ {'出勤','缺勤','请假'} }"
+                               th:class="'status-label ' + ${status}">
+                            <input type="radio"
+                                   th:name="'status_' + ${student.id}"
+                                   th:value="${status}"
+                                   th:checked="${statusMap[student.id] == status || (statusMap[student.id] == null && status == '出勤')}"
+                                   onchange="updateStats()">
+                            <span th:text="${status}"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">保存考勤</button>
+                <a th:href="@{/dashboard}" class="btn btn-secondary">返回首页</a>
+            </div>
         </div>
     </form>
 </div>
+
 <script>
 function setAll(status) {
     document.querySelectorAll('input[type=radio][value="' + status + '"]').forEach(r => r.checked = true);
     updateStats();
 }
+
 function updateStats() {
     let p = 0, a = 0, l = 0;
     document.querySelectorAll('.attendance-row').forEach(row => {
@@ -208,12 +383,14 @@ function updateStats() {
     document.getElementById('cnt-absent').textContent = a;
     document.getElementById('cnt-leave').textContent = l;
 }
+
 document.addEventListener('DOMContentLoaded', updateStats);
 </script>
+
 <footer class="site-footer">
     <th:block th:replace="~{fragments/footer :: version}"></th:block>
     <span class="footer-sep">|</span>
-    <span>© 2026 陈胜杰 版权所有</span>
+    <span>© 2026 陈胜松 版权所有</span>
 </footer>
 </body>
 </html>

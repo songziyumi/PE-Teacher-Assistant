@@ -6,179 +6,51 @@
     <title>班级学生 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        .wrap {
-            max-width: 1100px;
-            margin: 20px auto;
-            padding: 0 16px;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .stats {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-        .stat {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, .06);
-            padding: 12px 16px;
-            min-width: 160px;
-        }
-        .stat b {
-            font-size: 20px;
-            color: #1f2937;
-        }
-        .table-card {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
-            overflow: hidden;
-        }
-        .table-wrap {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .table-card table {
-            margin: 0;
-        }
-        .badge {
-            padding: 3px 8px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-block;
-        }
-        .male {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .female {
-            background: #fce7f3;
-            color: #be185d;
-        }
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, .45);
-            z-index: 999;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.active {
-            display: flex;
-        }
-        .modal {
-            width: 560px;
-            max-width: 94vw;
-            background: #fff;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        .modal-head {
-            background: #2563eb;
-            color: #fff;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .modal-body {
-            padding: 16px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-        }
-        .full {
-            grid-column: 1 / -1;
-        }
-        .field label {
-            display: block;
-            margin-bottom: 4px;
-            color: #4b5563;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        .field input,
-        .field select {
-            width: 100%;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 8px 10px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        .actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            padding-top: 12px;
-        }
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: nowrap;
-        }
+        body { background:#f4f6fb; }
+        .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        .hero-card { background:linear-gradient(135deg,#2563eb,#60a5fa); color:#fff; border-radius:16px; padding:20px 22px; box-shadow:0 12px 28px rgba(37,99,235,.18); margin-bottom:16px; }
+        .hero-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+        .hero-card h2 { margin:0; font-size:1.25rem; }
+        .hero-card p { margin:6px 0 0; opacity:.92; font-size:.88rem; line-height:1.6; }
+        .hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .hero-actions .btn-outline { background:rgba(255,255,255,.18); color:#fff; border-color:rgba(255,255,255,.28); box-shadow:none; }
+        .hero-actions .btn-primary { background:#fff; color:#2563eb; box-shadow:none; }
+        .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+        .stat { background:#fff; border-radius:12px; box-shadow:0 4px 14px rgba(15,23,42,.06); padding:14px 16px; }
+        .stat-label { color:#64748b; font-size:.82rem; margin-bottom:6px; }
+        .stat b { font-size:1.35rem; color:#111827; }
+        .table-card { background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.06); overflow:hidden; border:1px solid #e8eef5; }
+        .table-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid #eef2f7; }
+        .table-head h3 { margin:0; font-size:1rem; color:#1f2937; }
+        .table-head p { margin:4px 0 0; color:#64748b; font-size:.84rem; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-card table { margin: 0; }
+        .badge { padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .male { background: #dbeafe; color: #1e40af; }
+        .female { background: #fce7f3; color: #be185d; }
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:999; align-items:center; justify-content:center; }
+        .modal-overlay.active { display:flex; }
+        .modal { width:560px; max-width:94vw; background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 16px 40px rgba(15,23,42,.18); }
+        .modal-head { background:linear-gradient(135deg,#2563eb,#60a5fa); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+        .modal-body { padding:16px; }
+        .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .field label { display:block; margin-bottom:4px; color:#4b5563; font-size:13px; font-weight:600; }
+        .field input, .field select { width:100%; border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; font-size:14px; box-sizing:border-box; }
+        .actions { display:flex; justify-content:flex-end; gap:8px; padding-top:12px; }
+        .empty-state { padding:28px 20px; text-align:center; color:#64748b; }
         @media (max-width: 768px) {
-            .wrap {
-                margin: 14px auto 20px;
-                padding: 0 12px;
-            }
-            .header {
-                align-items: center;
-            }
-            .header > span {
-                display: none;
-            }
-            .header-actions {
-                margin-left: auto;
-                flex: 0 0 auto;
-                gap: 8px;
-                overflow-x: auto;
-                white-space: nowrap;
-                -webkit-overflow-scrolling: touch;
-            }
-            .header-actions .btn {
-                width: auto;
-                flex: 0 0 auto;
-                padding: 7px 10px;
-                font-size: 12px;
-            }
-            .stats {
-                flex-direction: row;
-                flex-wrap: nowrap;
-                gap: 6px;
-            }
-            .stat {
-                min-width: 0;
-                flex: 1 1 0;
-                padding: 9px 6px;
-                text-align: center;
-                font-size: 12px;
-                white-space: nowrap;
-            }
-            .stat b {
-                font-size: 16px;
-            }
-            .grid {
-                grid-template-columns: 1fr;
-            }
-            .actions {
-                flex-direction: column;
-            }
-            .actions .btn {
-                width: 100%;
-            }
+            .wrap { margin:16px auto 20px; padding:0 12px; }
+            .hero-card { padding:18px 16px; }
+            .hero-actions { flex-direction:row; flex-wrap:nowrap; }
+            .hero-actions .btn { width:auto; flex:1 1 0; min-width:0; }
+            .actions { flex-direction:column; }
+            .actions .btn { width:100%; }
+            .stats { grid-template-columns:repeat(3,minmax(0,1fr)); }
+            .stat { padding:12px 8px; text-align:center; }
+            .stat-label { font-size:.76rem; margin-bottom:4px; }
+            .stat b { font-size:1.08rem; }
+            .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .modal { width:calc(100vw - 20px); }
         }
     </style>
 </head>
@@ -187,7 +59,6 @@
     <div class="nav-brand">体育教师助手</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
-        <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <button type="submit" class="btn-link">退出</button>
         </form>
@@ -198,183 +69,209 @@
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-    <div class="header">
-        <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}">班级</h2>
-        <span style="flex:1"></span>
-        <div class="header-actions">
-            <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">考勤录入</a>
-            <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
+    <div class="hero-card">
+        <div class="hero-top">
+            <div>
+                <h2 th:text="${(schoolClass.grade != null ? schoolClass.grade.name + ' ' : '') + schoolClass.name}">班级</h2>
+                <p>查看学生名单、选课状态，并快速进入考勤录入。</p>
+            </div>
+            <div class="hero-actions">
+                <a th:href="@{/attendance/class/{id}(id=${schoolClass.id})}" class="btn btn-primary">考勤录入</a>
+                <a th:href="@{/dashboard}" class="btn btn-outline">返回首页</a>
+            </div>
         </div>
     </div>
 
     <div class="stats">
-        <div class="stat">总人数：<b th:text="${#lists.size(students)}">0</b></div>
-        <div class="stat">已选课：<b th:text="${withElectiveCount}">0</b></div>
-        <div class="stat">未选课：<b th:text="${noElectiveCount}">0</b></div>
+        <div class="stat">
+            <div class="stat-label">学生总数</div>
+            <b th:text="${#lists.size(students)}">0</b>
+        </div>
+        <div class="stat">
+            <div class="stat-label">已选课</div>
+            <b th:text="${withElectiveCount}">0</b>
+        </div>
+        <div class="stat">
+            <div class="stat-label">未选课</div>
+            <b th:text="${noElectiveCount}">0</b>
+        </div>
     </div>
 
     <div class="table-card">
+        <div class="table-head">
+            <div>
+                <h3>学生列表</h3>
+                <p>查看基础信息、学籍状态和选课班。</p>
+            </div>
+        </div>
         <div class="table-wrap">
-        <table class="table">
-            <thead>
-            <tr>
-                <th>姓名</th>
-                <th>学号</th>
-                <th>性别</th>
-                <th>学籍状态</th>
-                <th>行政班</th>
-                <th>选课班</th>
-                <th>操作</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="s : ${students}">
-                <td th:text="${s.name}">张三</td>
-                <td th:text="${s.studentNo ?: '-'}">20240001</td>
-                <td>
-                    <span class="badge" th:classappend="${s.gender == '女'} ? 'female' : 'male'" th:text="${s.gender ?: '-'}">男</span>
-                </td>
-                <td th:text="${s.studentStatus ?: '在籍'}">在籍</td>
-                <td th:text="${s.schoolClass != null ? ((s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' : '') + s.schoolClass.name) : '-'}">高一1班</td>
-                <td th:text="${s.electiveClass ?: '未选课'}">篮球</td>
-                <td>
-                    <a th:href="@{/attendance/student/{id}(id=${s.id})}" class="btn btn-sm btn-outline">出勤记录</a>
-                    <button type="button" class="btn btn-sm btn-secondary"
-                            th:data-id="${s.id}"
-                            th:data-name="${s.name}"
-                            th:data-gender="${s.gender}"
-                            th:data-studentno="${s.studentNo}"
-                            th:data-studentstatus="${s.studentStatus ?: '在籍'}"
-                            th:data-classid="${s.schoolClass != null ? s.schoolClass.id : ''}"
-                            th:data-gradeid="${s.schoolClass != null && s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}"
-                            th:data-elective="${s.electiveClass}"
-                            onclick="openEdit(this)">
-                        编辑
-                    </button>
-                </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(students)}">
-                <td colspan="7" style="text-align:center;color:#9ca3af;padding:30px 0">暂无学生</td>
-            </tr>
-            </tbody>
-        </table>
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>姓名</th>
+                    <th>学号</th>
+                    <th>性别</th>
+                    <th>学籍状态</th>
+                    <th>行政班</th>
+                    <th>选项班</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(students)}">
+                    <td colspan="7" class="empty-state">当前暂无学生数据</td>
+                </tr>
+                <tr th:each="s : ${students}">
+                    <td th:text="${s.name}">张三</td>
+                    <td th:text="${s.studentNo ?: '-'}">20240001</td>
+                    <td>
+                        <span class="badge" th:classappend="${s.gender == '女'} ? 'female' : 'male'" th:text="${s.gender ?: '-'}">男</span>
+                    </td>
+                    <td th:text="${s.studentStatus ?: '在籍'}">在籍</td>
+                    <td th:text="${s.schoolClass != null ? ((s.schoolClass.grade != null ? s.schoolClass.grade.name + ' ' : '') + s.schoolClass.name) : '-'}">高一1班</td>
+                    <td th:text="${s.electiveClass ?: '未选课'}">篮球</td>
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-outline"
+                                th:data-id="${s.id}"
+                                th:data-name="${s.name}"
+                                th:data-studentno="${s.studentNo}"
+                                th:data-idcard="${s.idCard}"
+                                th:data-gender="${s.gender}"
+                                th:data-status="${s.studentStatus}"
+                                th:data-classid="${s.schoolClass != null ? s.schoolClass.id : ''}"
+                                th:data-gradeid="${s.schoolClass != null && s.schoolClass.grade != null ? s.schoolClass.grade.id : ''}"
+                                th:data-elective="${s.electiveClass}"
+                                onclick="openEdit(this)">编辑</button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<div id="editModal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-head">
-            <strong>编辑学生</strong>
-            <button type="button" class="btn-link" style="color:#fff" onclick="closeEdit()">关闭</button>
-        </div>
-        <form id="editForm" method="post">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-            <input type="hidden" name="classId" th:value="${schoolClass.id}">
-            <div class="modal-body">
-                <div class="grid">
-                    <div class="field">
-                        <label>姓名</label>
-                        <input type="text" id="editName" name="name" required>
-                    </div>
-                    <div class="field">
-                        <label>性别</label>
-                        <select id="editGender" name="gender">
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>学号</label>
-                        <input type="text" id="editStudentNo" name="studentNo">
-                    </div>
-                    <div class="field">
-                        <label>学籍状态</label>
-                        <select id="editStatus" name="studentStatus">
-                            <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"></option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>行政班年级</label>
-                        <select id="editAdminGrade" onchange="filterAdminClasses()">
-                            <option value="">全部年级</option>
-                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>行政班</label>
-                        <select id="editClassId" name="newClassId">
-                            <option th:each="c : ${adminClasses}" th:value="${c.id}" th:attr="data-grade=${c.grade != null ? c.grade.id : ''}" th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>选课班年级</label>
-                        <select id="editElectiveGrade" onchange="filterElectiveClasses()">
-                            <option value="">全部年级</option>
-                            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>选课班</label>
-                        <select id="editElective" name="electiveClass">
-                            <option value="">不参加选课</option>
-                            <option th:each="ec : ${electiveClasses}" th:value="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}" th:attr="data-grade=${ec.grade != null ? ec.grade.id : ''}" th:text="${(ec.grade != null ? ec.grade.name + '/' : '') + ec.name}"></option>
-                        </select>
-                    </div>
-                </div>
-                <div class="actions">
-                    <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
+    <div id="editModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-head">
+                <strong>编辑学生信息</strong>
+                <button type="button" class="btn-link" style="color:#fff;" onclick="closeEdit()">×</button>
             </div>
-        </form>
+            <div class="modal-body">
+                <form id="editForm" th:action="@{/teacher/students/update}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <input type="hidden" name="studentId" id="edit-id">
+                    <input type="hidden" name="classId" th:value="${schoolClass.id}">
+                    <div class="grid">
+                        <div class="field">
+                            <label>姓名</label>
+                            <input type="text" id="edit-name" name="name">
+                        </div>
+                        <div class="field">
+                            <label>学号</label>
+                            <input type="text" id="edit-studentNo" name="studentNo">
+                        </div>
+                        <div class="field">
+                            <label>年级</label>
+                            <select id="edit-grade">
+                                <option value="">请选择年级</option>
+                                <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"></option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>班级</label>
+                            <select id="edit-class" name="newClassId">
+                                <option value="">请选择班级</option>
+                                <option th:each="c : ${adminClasses}"
+                                        th:value="${c.id}"
+                                        th:attr="data-grade-id=${c.grade != null ? c.grade.id : ''}"
+                                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"></option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>性别</label>
+                            <select id="edit-gender" name="gender">
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>身份证号</label>
+                            <input type="text" id="edit-idCard" name="idCard">
+                        </div>
+                        <div class="field">
+                            <label>学籍状态</label>
+                            <select id="edit-status" name="studentStatus">
+                                <option value="">请选择学籍状态</option>
+                                <option th:each="status : ${studentStatuses}" th:value="${status}" th:text="${status}"></option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>选项班</label>
+                            <select id="edit-elective" name="electiveClass">
+                                <option value="">暂不设置</option>
+                                <option th:each="ec : ${electiveClasses}"
+                                        th:value="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"
+                                        th:text="${ec.grade != null ? ec.grade.name + '/' + ec.name : ec.name}"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" class="btn btn-outline" onclick="closeEdit()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    function openEdit(btn) {
-        document.getElementById('editForm').action = '/teacher/students/' + btn.dataset.id + '/edit';
-        document.getElementById('editName').value = btn.dataset.name || '';
-        document.getElementById('editGender').value = btn.dataset.gender || '男';
-        document.getElementById('editStudentNo').value = btn.dataset.studentno || '';
-        document.getElementById('editStatus').value = btn.dataset.studentstatus || '在籍';
-        document.getElementById('editAdminGrade').value = btn.dataset.gradeid || '';
-        filterAdminClasses();
-        document.getElementById('editClassId').value = btn.dataset.classid || '';
-        document.getElementById('editElective').value = btn.dataset.elective || '';
-        document.getElementById('editModal').classList.add('active');
-    }
-    function closeEdit() {
-        document.getElementById('editModal').classList.remove('active');
-    }
-    function filterAdminClasses() {
-        const gradeId = document.getElementById('editAdminGrade').value;
-        const classSel = document.getElementById('editClassId');
-        Array.from(classSel.options).forEach(opt => {
-            opt.hidden = gradeId ? opt.dataset.grade !== gradeId : false;
-        });
-        if (classSel.selectedOptions.length && classSel.selectedOptions[0].hidden) {
-            const first = Array.from(classSel.options).find(o => !o.hidden);
-            if (first) classSel.value = first.value;
+const editGrade = document.getElementById('edit-grade');
+const editClass = document.getElementById('edit-class');
+
+function filterClassOptions(gradeId, selectedClassId) {
+    const normalizedGradeId = gradeId ? String(gradeId) : '';
+    const normalizedSelectedClassId = selectedClassId ? String(selectedClassId) : '';
+
+    Array.from(editClass.options).forEach((option, index) => {
+        if (index === 0) {
+            option.hidden = false;
+            return;
         }
-    }
-    function filterElectiveClasses() {
-        const gradeId = document.getElementById('editElectiveGrade').value;
-        const sel = document.getElementById('editElective');
-        Array.from(sel.options).forEach((opt, idx) => {
-            if (idx === 0) {
-                opt.hidden = false;
-                return;
-            }
-            opt.hidden = gradeId ? opt.dataset.grade !== gradeId : false;
-        });
-        if (sel.selectedOptions.length && sel.selectedOptions[0].hidden) {
-            sel.value = '';
-        }
-    }
-    document.getElementById('editModal').addEventListener('click', function (e) {
-        if (e.target === this) closeEdit();
+
+        const optionGradeId = option.dataset.gradeId ? String(option.dataset.gradeId) : '';
+        option.hidden = !!normalizedGradeId && optionGradeId !== normalizedGradeId;
     });
+
+    const selectedVisible = Array.from(editClass.options).some(option =>
+        option.value === normalizedSelectedClassId && !option.hidden
+    );
+    editClass.value = selectedVisible ? normalizedSelectedClassId : '';
+}
+
+function openEdit(button) {
+    const gradeId = button.dataset.gradeid || '';
+    const classId = button.dataset.classid || '';
+
+    document.getElementById('edit-id').value = button.dataset.id || '';
+    document.getElementById('edit-name').value = button.dataset.name || '';
+    document.getElementById('edit-studentNo').value = button.dataset.studentno || '';
+    document.getElementById('edit-idCard').value = button.dataset.idcard || '';
+    document.getElementById('edit-gender').value = button.dataset.gender || '男';
+    document.getElementById('edit-status').value = button.dataset.status || '';
+    document.getElementById('edit-elective').value = button.dataset.elective || '';
+    editGrade.value = gradeId;
+    filterClassOptions(gradeId, classId);
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeEdit() {
+    document.getElementById('editModal').classList.remove('active');
+}
+
+editGrade.addEventListener('change', function () {
+    filterClassOptions(this.value, '');
+});
 </script>
 </body>
 </html>

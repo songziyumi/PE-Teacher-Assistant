@@ -6,16 +6,26 @@
     <title>管理后台 - 体育教师助手</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
-        @media (max-width: 768px) {
-            .page-header {
-                align-items: stretch;
-            }
+        body { background:#f4f6fb; }
+        .admin-wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
+        .hero-card { background:linear-gradient(135deg,#0f172a,#334155); color:#fff; border-radius:18px; padding:22px 24px; box-shadow:0 14px 30px rgba(15,23,42,.18); margin-bottom:18px; }
+        .hero-card h2 { margin:0; font-size:1.3rem; }
+        .hero-card p { margin:8px 0 0; opacity:.9; font-size:.9rem; line-height:1.6; max-width:640px; }
+        .admin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; }
+        .admin-card { background:#fff; border-radius:14px; padding:20px 16px; text-align:center; box-shadow:0 6px 18px rgba(15,23,42,.06); transition:transform .2s, box-shadow .2s, border-color .2s; color:#1f2937; border:1px solid #e8eef5; }
+        .admin-card:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(15,23,42,.1); text-decoration:none; }
+        .admin-card-icon { width:48px; height:48px; border-radius:14px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:20px; font-weight:700; }
+        .admin-card-title { font-size:14px; font-weight:700; }
+        @media (max-width:768px) {
+            .admin-wrap { margin:16px auto; padding:0 12px; }
+            .hero-card { padding:18px 16px; }
+            .admin-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
         <a th:href="@{/dashboard}">首页</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
@@ -24,10 +34,10 @@
         </form>
     </div>
 </nav>
-<div class="container">
-    <div class="page-header">
+<div class="admin-wrap">
+    <div class="hero-card">
         <h2>管理后台</h2>
-        <p>常用管理入口已按手机屏幕收拢，可直接在手机上操作。</p>
+        <p>集中处理班级、教师、学生、成绩、体测和选课相关管理任务。</p>
     </div>
     <div class="admin-grid">
         <a th:href="@{/admin/classes}" class="admin-card">
@@ -67,7 +77,7 @@
             <div class="admin-card-title">学生选课管理</div>
         </a>
         <a th:href="@{/admin/course-selection-diagnostics}" class="admin-card">
-            <div class="admin-card-icon">📊</div>
+            <div class="admin-card-icon">诊</div>
             <div class="admin-card-title">抢课诊断面板</div>
         </a>
         <a th:href="@{/admin/teacher-permissions}" class="admin-card">

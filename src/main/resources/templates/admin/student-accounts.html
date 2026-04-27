@@ -3,42 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>学生账号管理 - 体育教师助手</title>
+    <title>学生账号管理 - 管理后台</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <style>
+        body { background: #f4f6fb; }
+        .admin-wrap { max-width: 1260px; margin: 24px auto; padding: 0 16px 28px; }
+        .hero-card {
+            background: linear-gradient(135deg, #0f172a, #334155);
+            color: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .18);
+            margin-bottom: 16px;
+        }
+        .hero-card h2 { margin: 0; font-size: 1.3rem; }
+        .hero-card p { margin: 8px 0 0; opacity: .9; font-size: .9rem; line-height: 1.65; max-width: 760px; }
+        .toolbar-card,
+        .table-card {
+            background: #fff;
+            border: 1px solid #e8eef5;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
         .filters {
             display: grid;
-            grid-template-columns: repeat(4, minmax(160px, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
-            margin-bottom: 14px;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 12px;
         }
         .filters input, .filters select {
             width: 100%;
-            padding: 8px 12px;
+            min-height: 42px;
+            padding: 0 12px;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
+            border-radius: 10px;
+            font-size: .92rem;
+            box-sizing: border-box;
         }
         .actions {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 14px;
+            margin-top: 12px;
             padding: 12px;
             border: 1px solid #e5e7eb;
-            border-radius: 10px;
+            border-radius: 12px;
             background: #f8fafc;
         }
         .status-badge {
-            display: inline-block;
-            padding: 2px 10px;
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
             border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: .76rem;
+            font-weight: 700;
         }
         .status-unset { background: #f3f4f6; color: #6b7280; }
         .status-pending { background: #fff7ed; color: #c2410c; }
@@ -47,45 +67,45 @@
         .status-locked { background: #eff6ff; color: #1d4ed8; }
         .subtext {
             color: #6b7280;
-            font-size: 12px;
+            font-size: .8rem;
+            line-height: 1.7;
         }
         .table-actions {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
-        .table-wrap {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .pagination {
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 6px;
             margin-top: 16px;
+            flex-wrap: wrap;
         }
         .pagination a, .pagination span {
             padding: 6px 10px;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border-radius: 8px;
             text-decoration: none;
             color: #374151;
+            background: #fff;
         }
         .pagination .active {
-            background: #4a90e2;
+            background: #2563eb;
             color: #fff;
-            border-color: #4a90e2;
+            border-color: #2563eb;
         }
-        @media (max-width: 980px) {
-            .filters {
-                grid-template-columns: repeat(2, minmax(140px, 1fr));
-            }
+        @media (max-width: 1100px) {
+            .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
-        @media (max-width: 640px) {
-            .filters {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 768px) {
+            .admin-wrap { margin: 16px auto 24px; padding: 0 12px 24px; }
+            .hero-card,
+            .toolbar-card,
+            .table-card { padding: 16px; }
+            .filters { grid-template-columns: 1fr; }
             .actions {
                 flex-direction: column;
             }
@@ -93,18 +113,15 @@
             .actions .btn {
                 width: 100%;
             }
-            .pagination {
-                flex-wrap: wrap;
-            }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <div class="nav-brand">体育教师助手</div>
+    <div class="nav-brand">管理后台</div>
     <div class="nav-links">
-        <a th:href="@{/admin}">管理后台</a>
-        <a th:href="@{/dashboard}">首页</a>
+        <a th:href="@{/admin}">后台首页</a>
+        <a th:href="@{/dashboard}">工作台</a>
         <span class="nav-user" th:if="${currentSchool != null}" th:text="${currentSchool.name}"></span>
         <form th:action="@{/logout}" method="post" style="display:inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -113,122 +130,127 @@
     </div>
 </nav>
 
-<div class="container">
+<div class="admin-wrap">
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
 
-    <div class="page-header">
+    <div class="hero-card">
         <h2>学生账号管理</h2>
+        <p>统一处理学生账号生成、密码重置、启停用和账号导出。</p>
     </div>
 
-    <form method="get" th:action="@{/admin/student-accounts}" class="filters">
-        <select name="gradeId">
-            <option value="" th:selected="${gradeId == null}">全部年级</option>
-            <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
-                    th:selected="${gradeId != null && gradeId == g.id}"></option>
-        </select>
-        <select name="classId">
-            <option value="" th:selected="${classId == null}">全部班级</option>
-            <option th:each="c : ${classes}" th:value="${c.id}"
-                    th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"
-                    th:selected="${classId != null && classId == c.id}"></option>
-        </select>
-        <select name="accountStatus">
-            <option value="" th:selected="${accountStatus == null || accountStatus == ''}">全部账号状态</option>
-            <option value="UNGENERATED" th:selected="${accountStatus == 'UNGENERATED'}">未生成</option>
-            <option value="PENDING" th:selected="${accountStatus == 'PENDING'}">未激活</option>
-            <option value="ACTIVE" th:selected="${accountStatus == 'ACTIVE'}">正常</option>
-            <option value="DISABLED" th:selected="${accountStatus == 'DISABLED'}">已禁用</option>
-            <option value="LOCKED" th:selected="${accountStatus == 'LOCKED'}">已锁定</option>
-        </select>
-        <input type="text" name="keyword" th:value="${keyword}" placeholder="姓名或学号">
-        <input type="hidden" name="size" th:value="${size}">
-        <button type="submit" class="btn btn-secondary">搜索</button>
-        <a th:href="@{/admin/student-accounts}" class="btn btn-outline">重置</a>
-    </form>
+    <div class="toolbar-card">
+        <form method="get" th:action="@{/admin/student-accounts}" class="filters">
+            <select name="gradeId">
+                <option value="" th:selected="${gradeId == null}">全部年级</option>
+                <option th:each="g : ${grades}" th:value="${g.id}" th:text="${g.name}"
+                        th:selected="${gradeId != null && gradeId == g.id}"></option>
+            </select>
+            <select name="classId">
+                <option value="" th:selected="${classId == null}">全部班级</option>
+                <option th:each="c : ${classes}" th:value="${c.id}"
+                        th:text="${(c.grade != null ? c.grade.name + ' ' : '') + c.name}"
+                        th:selected="${classId != null && classId == c.id}"></option>
+            </select>
+            <select name="accountStatus">
+                <option value="" th:selected="${accountStatus == null || accountStatus == ''}">全部账号状态</option>
+                <option value="UNGENERATED" th:selected="${accountStatus == 'UNGENERATED'}">未生成</option>
+                <option value="PENDING" th:selected="${accountStatus == 'PENDING'}">未激活</option>
+                <option value="ACTIVE" th:selected="${accountStatus == 'ACTIVE'}">正常</option>
+                <option value="DISABLED" th:selected="${accountStatus == 'DISABLED'}">已禁用</option>
+                <option value="LOCKED" th:selected="${accountStatus == 'LOCKED'}">已锁定</option>
+            </select>
+            <input type="text" name="keyword" th:value="${keyword}" placeholder="姓名或学号">
+            <input type="hidden" name="size" th:value="${size}">
+            <button type="submit" class="btn btn-secondary">搜索</button>
+            <a th:href="@{/admin/student-accounts}" class="btn btn-outline">重置</a>
+        </form>
 
-    <form id="batchForm" method="post">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-        <input type="hidden" name="gradeId" th:value="${gradeId}">
-        <input type="hidden" name="classId" th:value="${classId}">
-        <input type="hidden" name="keyword" th:value="${keyword}">
-        <input type="hidden" name="accountStatus" th:value="${accountStatus}">
+        <form id="batchForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <input type="hidden" name="gradeId" th:value="${gradeId}">
+            <input type="hidden" name="classId" th:value="${classId}">
+            <input type="hidden" name="keyword" th:value="${keyword}">
+            <input type="hidden" name="accountStatus" th:value="${accountStatus}">
 
-        <div class="actions">
-            <button type="button" class="btn btn-primary" onclick="submitBatch('/admin/student-accounts/generate')">批量生成账号</button>
-            <button type="button" class="btn btn-secondary" onclick="submitBatch('/admin/student-accounts/reset-password')">批量重置密码</button>
-            <button type="button" class="btn btn-secondary" onclick="submitBatch('/admin/student-accounts/enable')">批量启用</button>
-            <button type="button" class="btn btn-danger" onclick="submitBatch('/admin/student-accounts/disable')">批量禁用</button>
-            <button type="button" class="btn btn-outline" onclick="submitBatch('/admin/student-accounts/export', 'get')">导出账号</button>
-            <span class="subtext">导出内容包含系统账号、便捷账号和初始密码，请妥善保管。</span>
-        </div>
+            <div class="actions">
+                <button type="button" class="btn btn-primary" onclick="submitBatch('/admin/student-accounts/generate')">批量生成账号</button>
+                <button type="button" class="btn btn-secondary" onclick="submitBatch('/admin/student-accounts/reset-password')">批量重置密码</button>
+                <button type="button" class="btn btn-secondary" onclick="submitBatch('/admin/student-accounts/enable')">批量启用</button>
+                <button type="button" class="btn btn-danger" onclick="submitBatch('/admin/student-accounts/disable')">批量禁用</button>
+                <button type="button" class="btn btn-outline" onclick="submitBatch('/admin/student-accounts/export', 'get')">导出账号</button>
+                <span class="subtext">导出内容包含系统账号、便捷账号和初始密码，请妥善保管。</span>
+            </div>
 
-        <div class="table-wrap">
-        <table class="table">
-            <thead>
-            <tr>
-                <th><input type="checkbox" id="selectAll"></th>
-                <th>姓名</th>
-                <th>学号</th>
-                <th>班级</th>
-                <th>系统账号</th>
-                <th>便捷账号</th>
-                <th>账号状态</th>
-                <th>已激活</th>
-                <th>已改密</th>
-                <th>最后登录</th>
-                <th>最近重置</th>
-                <th>操作</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:if="${#lists.isEmpty(rows)}">
-                <td colspan="12" style="text-align:center;color:#6b7280;">暂无学生账号数据</td>
-            </tr>
-            <tr th:each="row : ${rows}">
-                <td><input type="checkbox" name="studentIds" th:value="${row.studentId}"></td>
-                <td th:text="${row.name}"></td>
-                <td th:text="${row.studentNo != null && row.studentNo != '' ? row.studentNo : '-'}"></td>
-                <td th:text="${(row.gradeName != null ? row.gradeName : '') + ' ' + (row.className != null ? row.className : '')}"></td>
-                <td th:text="${row.loginId == '' ? '-' : row.loginId}"></td>
-                <td th:text="${row.loginAlias == '' ? '-' : row.loginAlias}"></td>
-                <td>
-                    <span class="status-badge"
-                          th:classappend="${row.status == '未生成'} ? ' status-unset' :
-                                          (${row.status == '未激活'} ? ' status-pending' :
-                                          (${row.status == '正常'} ? ' status-active' :
-                                          (${row.status == '已禁用'} ? ' status-disabled' : ' status-locked')))"
-                          th:text="${row.status}"></span>
-                </td>
-                <td th:text="${row.activated ? '是' : '否'}"></td>
-                <td th:text="${row.passwordChanged ? '是' : '否'}"></td>
-                <td th:text="${row.lastLoginAt != null ? #temporals.format(row.lastLoginAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
-                <td th:text="${row.lastPasswordResetAt != null ? #temporals.format(row.lastPasswordResetAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
-                <td>
-                    <div class="table-actions">
-                        <button type="button" class="btn btn-sm btn-primary"
-                                th:if="${row.loginId == ''}"
-                                th:attr="data-id=${row.studentId}"
-                                onclick="submitSingle('/admin/student-accounts/generate', this.dataset.id)">生成账号</button>
-                        <button type="button" class="btn btn-sm btn-secondary"
-                                th:if="${row.loginId != ''}"
-                                th:attr="data-id=${row.studentId}"
-                                onclick="submitSingle('/admin/student-accounts/reset-password', this.dataset.id)">重置密码</button>
-                        <button type="button" class="btn btn-sm btn-secondary"
-                                th:if="${row.loginId != '' && !row.enabled}"
-                                th:attr="data-id=${row.studentId}"
-                                onclick="submitSingle('/admin/student-accounts/enable', this.dataset.id)">启用</button>
-                        <button type="button" class="btn btn-sm btn-danger"
-                                th:if="${row.loginId != '' && row.enabled}"
-                                th:attr="data-id=${row.studentId}"
-                                onclick="submitSingle('/admin/student-accounts/disable', this.dataset.id)">禁用</button>
-                    </div>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
-    </form>
+            <div class="table-card" style="padding:0; border:none; box-shadow:none; margin:12px 0 0;">
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAll"></th>
+                            <th>姓名</th>
+                            <th>学号</th>
+                            <th>班级</th>
+                            <th>系统账号</th>
+                            <th>便捷账号</th>
+                            <th>账号状态</th>
+                            <th>已激活</th>
+                            <th>已改密</th>
+                            <th>最后登录</th>
+                            <th>最近重置</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(rows)}">
+                            <td colspan="12" style="text-align:center;color:#6b7280;">暂无学生账号数据</td>
+                        </tr>
+                        <tr th:each="row : ${rows}">
+                            <td><input type="checkbox" name="studentIds" th:value="${row.studentId}"></td>
+                            <td th:text="${row.name}"></td>
+                            <td th:text="${row.studentNo != null && row.studentNo != '' ? row.studentNo : '-'}"></td>
+                            <td th:text="${(row.gradeName != null ? row.gradeName : '') + ' ' + (row.className != null ? row.className : '')}"></td>
+                            <td th:text="${row.loginId == '' ? '-' : row.loginId}"></td>
+                            <td th:text="${row.loginAlias == '' ? '-' : row.loginAlias}"></td>
+                            <td>
+                                <span class="status-badge"
+                                      th:classappend="${row.status == '未生成'} ? ' status-unset' :
+                                                      (${row.status == '未激活'} ? ' status-pending' :
+                                                      (${row.status == '正常'} ? ' status-active' :
+                                                      (${row.status == '已禁用'} ? ' status-disabled' : ' status-locked')))"
+                                      th:text="${row.status}"></span>
+                            </td>
+                            <td th:text="${row.activated ? '是' : '否'}"></td>
+                            <td th:text="${row.passwordChanged ? '是' : '否'}"></td>
+                            <td th:text="${row.lastLoginAt != null ? #temporals.format(row.lastLoginAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                            <td th:text="${row.lastPasswordResetAt != null ? #temporals.format(row.lastPasswordResetAt, 'yyyy-MM-dd HH:mm') : '-'}"></td>
+                            <td>
+                                <div class="table-actions">
+                                    <button type="button" class="btn btn-sm btn-primary"
+                                            th:if="${row.loginId == ''}"
+                                            th:attr="data-id=${row.studentId}"
+                                            onclick="submitSingle('/admin/student-accounts/generate', this.dataset.id)">生成账号</button>
+                                    <button type="button" class="btn btn-sm btn-secondary"
+                                            th:if="${row.loginId != ''}"
+                                            th:attr="data-id=${row.studentId}"
+                                            onclick="submitSingle('/admin/student-accounts/reset-password', this.dataset.id)">重置密码</button>
+                                    <button type="button" class="btn btn-sm btn-secondary"
+                                            th:if="${row.loginId != '' && !row.enabled}"
+                                            th:attr="data-id=${row.studentId}"
+                                            onclick="submitSingle('/admin/student-accounts/enable', this.dataset.id)">启用</button>
+                                    <button type="button" class="btn btn-sm btn-danger"
+                                            th:if="${row.loginId != '' && row.enabled}"
+                                            th:attr="data-id=${row.studentId}"
+                                            onclick="submitSingle('/admin/student-accounts/disable', this.dataset.id)">禁用</button>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </form>
+    </div>
 
     <div class="pagination" th:if="${totalPages > 1}">
         <a th:if="${page > 0}"
