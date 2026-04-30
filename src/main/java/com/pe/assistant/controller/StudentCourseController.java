@@ -30,6 +30,32 @@ public class StudentCourseController {
     private final SelectionEventRepository eventRepo;
     private final MessageService messageService;
 
+    private Map<Long, Boolean> buildEligibleCourseMap(List<Course> courses, Student student) {
+        Map<Long, Boolean> eligibleCourseMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            eligibleCourseMap.put(course.getId(), courseService.isStudentEligibleForCourse(student, course));
+        }
+        return eligibleCourseMap;
+    }
+
+    private Map<Long, String> buildGenderLimitLabelMap(List<Course> courses) {
+        Map<Long, String> genderLimitLabelMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            genderLimitLabelMap.put(course.getId(), courseService.getGenderLimitLabel(course.getGenderLimit()));
+        }
+        return genderLimitLabelMap;
+    }
+
+    private Map<Long, String> buildIneligibleMessageMap(List<Course> courses, Student student) {
+        Map<Long, String> ineligibleMessageMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            if (!courseService.isStudentEligibleForCourse(student, course)) {
+                ineligibleMessageMap.put(course.getId(), courseService.getIneligibleCourseMessage(course));
+            }
+        }
+        return ineligibleMessageMap;
+    }
+
     /**
      * 找学生所在学校最近的一个活动（非 CLOSED）。
      * 第三轮页面用：找最近的 CLOSED 活动（若学生无确认选课）。
@@ -128,6 +154,9 @@ public class StudentCourseController {
                             .filter(course -> course.getTeacher() != null)
                             .toList();
                     Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(requestableCourses);
+                    Map<Long, Boolean> eligibleCourseMap = buildEligibleCourseMap(requestableCourses, student);
+                    Map<Long, String> genderLimitLabelMap = buildGenderLimitLabelMap(requestableCourses);
+                    Map<Long, String> ineligibleMessageMap = buildIneligibleMessageMap(requestableCourses, student);
                     Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
                     boolean inRound3 = eventService.isInRound3(closedEvent);
                     model.addAttribute("event", closedEvent);
@@ -147,6 +176,9 @@ public class StudentCourseController {
                     model.addAttribute("round3NotStarted", !inRound3 && isRound3NotStarted(closedEvent));
                     model.addAttribute("round3Ended", !inRound3 && isRound3Ended(closedEvent));
                     model.addAttribute("confirmedCountMap", confirmedCountMap);
+                    model.addAttribute("eligibleCourseMap", eligibleCourseMap);
+                    model.addAttribute("genderLimitLabelMap", genderLimitLabelMap);
+                    model.addAttribute("ineligibleMessageMap", ineligibleMessageMap);
                     model.addAttribute("round3RequestMap", round3RequestMap);
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
@@ -163,6 +195,9 @@ public class StudentCourseController {
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
         Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(courses);
+        Map<Long, Boolean> eligibleCourseMap = buildEligibleCourseMap(courses, student);
+        Map<Long, String> genderLimitLabelMap = buildGenderLimitLabelMap(courses);
+        Map<Long, String> ineligibleMessageMap = buildIneligibleMessageMap(courses, student);
         List<CourseSelection> mySelections = courseService.findMySelections(student, event);
         boolean hasConfirmed = mySelections.stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
         boolean hasPref1 = mySelections.stream()
@@ -198,6 +233,9 @@ public class StudentCourseController {
         model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
         model.addAttribute("confirmedCountMap", confirmedCountMap);
+        model.addAttribute("eligibleCourseMap", eligibleCourseMap);
+        model.addAttribute("genderLimitLabelMap", genderLimitLabelMap);
+        model.addAttribute("ineligibleMessageMap", ineligibleMessageMap);
         model.addAttribute("remainingMap",
                 courses.stream().collect(java.util.stream.Collectors.toMap(
                         Course::getId,

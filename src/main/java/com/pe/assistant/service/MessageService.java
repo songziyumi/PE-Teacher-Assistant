@@ -58,6 +58,7 @@ public class MessageService {
      */
     @Transactional
     public InternalMessage sendCourseRequest(Student student, Course course, String content) {
+        courseService.validateStudentEligibleForCourse(student, course);
         // 防重：同一学生对同一课程不能重复发送待处理的申请
         boolean exists = messageRepo.existsByTypeAndRelatedCourseIdAndSenderIdAndStatusNot(
                 "COURSE_REQUEST", course.getId(), student.getId(), "REJECTED");

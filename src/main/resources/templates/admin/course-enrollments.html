@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -26,12 +26,6 @@
         .hero-card h2 { margin: 0; font-size: 1.28rem; }
         .hero-card p { margin: 8px 0 0; opacity: .9; font-size: .9rem; line-height: 1.65; }
         .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .hero-actions .btn-outline {
-            background: rgba(255,255,255,.16);
-            border-color: rgba(255,255,255,.28);
-            color: #fff;
-            box-shadow: none;
-        }
         .stat-row {
             display: grid;
             grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -46,7 +40,7 @@
             box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
             color: #1f2937;
         }
-        .stat-chip strong { display:block; font-size:1.28rem; margin-top:6px; }
+        .stat-chip strong { display: block; font-size: 1.28rem; margin-top: 6px; }
         .helper-card,
         .table-card {
             background: #fff;
@@ -65,41 +59,57 @@
             font-size: .76rem;
             font-weight: 700;
         }
-        .badge-confirmed { background:#dcfce7; color:#166534; }
-        .badge-pending { background:#fef3c7; color:#92400e; }
-        .badge-fail { background:#fee2e2; color:#b91c1c; }
-        .badge-cancelled { background:#e5e7eb; color:#475569; }
+        .badge-confirmed { background: #dcfce7; color: #166534; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-fail { background: #fee2e2; color: #b91c1c; }
+        .badge-cancelled { background: #e5e7eb; color: #475569; }
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .modal-overlay {
-            display:none; position:fixed; inset:0; background:rgba(15,23,42,.46); z-index:1000; align-items:center; justify-content:center;
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,.46);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
-        .modal-overlay.active { display:flex; }
+        .modal-overlay.active { display: flex; }
         .modal {
-            background:#fff; border-radius:16px; width:460px; max-width:96vw; box-shadow:0 18px 40px rgba(15,23,42,.22);
+            background: #fff;
+            border-radius: 16px;
+            width: 460px;
+            max-width: 96vw;
+            box-shadow: 0 18px 40px rgba(15,23,42,.22);
         }
         .modal-header {
-            display:flex; align-items:center; justify-content:space-between; padding:16px 18px; background:linear-gradient(135deg,#0f172a,#334155); border-radius:16px 16px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            background: linear-gradient(135deg,#0f172a,#334155);
+            border-radius: 16px 16px 0 0;
         }
-        .modal-header h3 { font-size:1rem; color:#fff; margin:0; }
-        .modal-close { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; }
-        .modal-body { padding:18px; }
-        .modal-footer { padding:16px 18px; border-top:1px solid #eee; display:flex; gap:.75rem; justify-content:flex-end; }
-        .form-group { margin-bottom:14px; }
-        .form-group label { display:block; font-size:.85rem; font-weight:600; color:#475569; margin-bottom:.4rem; }
+        .modal-header h3 { font-size: 1rem; color: #fff; margin: 0; }
+        .modal-close { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; }
+        .modal-body { padding: 18px; }
+        .modal-footer { padding: 16px 18px; border-top: 1px solid #eee; display: flex; gap: .75rem; justify-content: flex-end; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: .85rem; font-weight: 600; color: #475569; margin-bottom: .4rem; }
         .form-group select, .form-group textarea {
-            width:100%; padding:.55rem .7rem; border:1px solid #d1d5db; border-radius:10px; font-size:.9rem; box-sizing:border-box;
+            width: 100%;
+            padding: .55rem .7rem;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: .9rem;
+            box-sizing: border-box;
         }
         @media (max-width: 900px) {
             .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 768px) {
             .admin-wrap { margin: 16px auto 24px; padding: 0 12px 24px; }
-            .hero-card,
-            .helper-card,
-            .table-card,
-            .modal-body { padding: 16px; }
-            .hero-actions .btn,
-            .modal-footer { width: 100%; }
+            .hero-card, .helper-card, .table-card, .modal-body { padding: 16px; }
+            .hero-actions .btn, .modal-footer { width: 100%; }
             .modal-footer { flex-direction: column; align-items: stretch; }
             .modal-footer .btn { width: 100%; }
         }
@@ -126,7 +136,7 @@
                 <p>查看课程报名、确认和手动加人情况，并支持管理员手动移除已确认学生。</p>
             </div>
             <div class="hero-actions">
-                <button class="btn btn-primary" onclick="openModal('addModal')">手动加人</button>
+                <button class="btn btn-primary" type="button" onclick="openModal('addModal')">手动加人</button>
             </div>
         </div>
     </div>
@@ -139,7 +149,7 @@
         <div class="stat-chip">已确认<strong th:text="${confirmedEnrollmentCount}"></strong></div>
         <div class="stat-chip">剩余<strong th:text="${remainingEnrollmentCapacity}"></strong></div>
         <div class="stat-chip" th:if="${overflowEnrollmentCount > 0}">超编<strong th:text="${overflowEnrollmentCount}"></strong></div>
-        <div class="stat-chip">名额模式<strong th:text="${course.capacityMode == 'GLOBAL'} ? '全局' : '按班'"></strong></div>
+        <div class="stat-chip">名额模式<strong th:text="${course.capacityMode == 'GLOBAL' ? '全局' : '按班'}"></strong></div>
     </div>
 
     <div th:if="${course.capacityMode == 'PER_CLASS' and not #lists.isEmpty(capacities)}" class="helper-card">
@@ -156,7 +166,15 @@
         <div class="table-wrap">
             <table class="table">
                 <thead>
-                <tr><th>学生姓名</th><th>学号</th><th>班级</th><th>志愿/轮次</th><th>状态</th><th>确认时间</th><th>操作</th></tr>
+                <tr>
+                    <th>学生姓名</th>
+                    <th>学号</th>
+                    <th>班级</th>
+                    <th>志愿/轮次</th>
+                    <th>状态</th>
+                    <th>确认时间</th>
+                    <th>操作</th>
+                </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(enrollments)}">
@@ -165,7 +183,7 @@
                 <tr th:each="sel : ${enrollments}">
                     <td th:text="${sel.student.name}"></td>
                     <td th:text="${sel.student.studentNo}"></td>
-                    <td th:text="${sel.student.schoolClass?.name ?: '-'}"></td>
+                    <td th:text="${sel.student.schoolClass != null ? sel.student.schoolClass.name : '-'}"></td>
                     <td>
                         <span th:if="${sel.round == 1}" th:text="${sel.preference} + '志愿'"></span>
                         <span th:if="${sel.round == 2}">第二轮</span>
@@ -176,16 +194,17 @@
                               th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
                                               (${sel.status == 'PENDING'} ? 'badge-pending' :
                                               (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                              th:text="${sel.status == 'CONFIRMED'} ? '已确认' :
-                                        (${sel.status == 'PENDING'} ? '待结算' :
-                                        (${sel.status == 'LOTTERY_FAIL'} ? '未中签' : '已取消'))}">
+                              th:text="${sel.status == 'CONFIRMED' ? '已确认' :
+                                        (sel.status == 'PENDING' ? '待结算' :
+                                        (sel.status == 'LOTTERY_FAIL' ? '未中签' : '已取消'))}">
                         </span>
                     </td>
-                    <td th:text="${sel.confirmedAt} ? ${#temporals.format(sel.confirmedAt,'MM-dd HH:mm')} : '-'"></td>
+                    <td th:text="${sel.confirmedAt != null ? #temporals.format(sel.confirmedAt,'MM-dd HH:mm') : '-'}"></td>
                     <td>
                         <form th:if="${sel.status == 'CONFIRMED'}"
                               th:action="@{/admin/courses/{eid}/courses/{cid}/enrollments/{sid}/remove(eid=${event.id},cid=${course.id},sid=${sel.id})}"
-                              method="post" style="display:inline"
+                              method="post"
+                              style="display:inline"
                               onsubmit="return confirm('确认移除该学生？')">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                             <button type="submit" class="btn btn-danger btn-xs">移除</button>
@@ -202,7 +221,7 @@
     <div class="modal">
         <div class="modal-header">
             <h3>手动加入学生</h3>
-            <button class="modal-close" onclick="closeModal('addModal')">×</button>
+            <button class="modal-close" type="button" onclick="closeModal('addModal')">×</button>
         </div>
         <form th:action="@{/admin/courses/{eid}/courses/{cid}/enrollments/add(eid=${event.id},cid=${course.id})}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -212,7 +231,7 @@
                     <select name="studentId" required>
                         <option value="">-- 请选择 --</option>
                         <option th:each="s : ${allStudents}" th:value="${s.id}"
-                                th:text="${s.name} + ' (' + ${s.studentNo} + ')'"></option>
+                                th:text="${s.name + ' (' + s.studentNo + ')'}"></option>
                     </select>
                 </div>
                 <div class="form-group">

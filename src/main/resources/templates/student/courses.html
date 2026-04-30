@@ -141,8 +141,32 @@
         .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
         .course-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
         .course-card.request-pending { border: 1px solid #d6eaff; box-shadow: 0 4px 14px rgba(74, 144, 226, .12); }
+        .course-card.course-ineligible { border: 1px solid #fde2e2; background: #fffdfd; }
         .course-card h4 { margin: 0; }
         .muted { color: #666; font-size: .88rem; }
+        .course-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .course-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .course-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: .78rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .course-badge.gender-all { background: #eef2ff; color: #4338ca; }
+        .course-badge.gender-limit { background: #fff1f2; color: #be123c; }
+        .course-alert {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #c2410c;
+            font-size: .84rem;
+            line-height: 1.6;
+        }
         .actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .actions form { margin: 0; }
         .btn-primary, .btn-secondary, .btn-success, .btn-request {
@@ -433,9 +457,17 @@
 
         <div class="course-grid">
             <div th:each="c : ${courses}"
-                 class="course-card"
-                 th:classappend="${inRound3 and round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'PENDING'} ? ' request-pending' : ''">
-                <h4 th:text="${c.name}"></h4>
+                 th:class="${'course-card'
+                    + ((inRound3 and round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'PENDING') ? ' request-pending' : '')
+                    + ((eligibleCourseMap != null and eligibleCourseMap[c.id] == false) ? ' course-ineligible' : '')}">
+                <div class="course-head">
+                    <h4 th:text="${c.name}"></h4>
+                    <div class="course-badges">
+                        <span class="course-badge"
+                              th:classappend="${c.genderLimit == 'ALL'} ? ' gender-all' : ' gender-limit'"
+                              th:text="${genderLimitLabelMap[c.id]}">不限</span>
+                    </div>
+                </div>
                 <div class="muted" th:if="${c.teacher != null}">
                     教师：<span th:text="${c.teacher.name}"></span>
                     <a th:href="@{/student/teachers/{id}(id=${c.teacher.id})}" style="margin-left:8px;color:#4a90e2;">查看教师主页</a>
@@ -445,17 +477,22 @@
                     课程人数现状：已选 <span th:text="${confirmedCountMap[c.id]}"></span> / <span th:text="${c.totalCapacity}"></span>
                     ，当前可选剩余 <span th:text="${remainingMap[c.id]}"></span>
                 </div>
+                <div class="course-alert"
+                     th:if="${ineligibleMessageMap != null and ineligibleMessageMap[c.id] != null}"
+                     th:text="${ineligibleMessageMap[c.id]}">该课程仅限部分学生选择</div>
 
                 <div class="actions" th:if="${inRound1}">
                     <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" name="preference" value="1">
-                        <button type="submit" class="btn-primary">设为第一志愿</button>
+                        <button type="submit" class="btn-primary"
+                                th:disabled="${eligibleCourseMap != null and eligibleCourseMap[c.id] == false}">设为第一志愿</button>
                     </form>
                     <form th:action="@{/student/courses/{id}/prefer(id=${c.id})}" method="post" class="single-submit-form" data-submit-scope="round1-actions">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <input type="hidden" name="preference" value="2">
-                        <button type="submit" class="btn-secondary">设为第二志愿</button>
+                        <button type="submit" class="btn-secondary"
+                                th:disabled="${eligibleCourseMap != null and eligibleCourseMap[c.id] == false}">设为第二志愿</button>
                     </form>
                 </div>
 
@@ -467,7 +504,7 @@
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                         <button type="submit"
                                 class="btn-success round2-select-button"
-                                th:disabled="${remainingMap[c.id] == 0}"
+                                th:disabled="${remainingMap[c.id] == 0 or (eligibleCourseMap != null and eligibleCourseMap[c.id] == false)}"
                                 data-default-text="立即抢课"
                                 data-loading-text="抢课提交中...">立即抢课</button>
                     </form>
@@ -493,6 +530,10 @@
                     <div class="request-help" th:if="${c.teacher == null}">
                         当前课程暂未分配教师，暂时无法提交第三轮申请。
                     </div>
+                    <div class="request-help"
+                         th:if="${eligibleCourseMap != null and eligibleCourseMap[c.id] == false}">
+                        <span th:text="${ineligibleMessageMap[c.id]}">该课程当前不可申请。</span>
+                    </div>
 
                     <form th:if="${c.teacher != null}"
                           th:action="@{/student/courses/{id}/request(id=${c.id})}"
@@ -514,7 +555,7 @@
                         <div class="actions">
                             <button type="submit"
                                     class="btn-request round3-request-button"
-                                    th:disabled="${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'PENDING'}"
+                                    th:disabled="${(round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'PENDING') or (eligibleCourseMap != null and eligibleCourseMap[c.id] == false)}"
                                     th:attr="data-default-text=${round3RequestMap != null and round3RequestMap[c.id] != null and round3RequestMap[c.id].status == 'REJECTED' ? '重新申请' : '提交申请'},
                                              data-loading-text='申请提交中...',
                                              data-submitted-text='已提交申请'">

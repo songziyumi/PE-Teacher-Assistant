@@ -25,6 +25,9 @@ public class Course {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "gender_limit", nullable = false, length = 20)
+    private String genderLimit = "ALL";
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;

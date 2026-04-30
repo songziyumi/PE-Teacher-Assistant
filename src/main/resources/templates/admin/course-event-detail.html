@@ -244,20 +244,31 @@
         <p class="section-tip">先确认参与学生，再配置课程。按班名额仅显示参与范围内的班级，并支持先批量设置、再逐班微调。</p>
         <div class="table-card">
             <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-                <button class="btn btn-primary btn-sm" type="button" onclick="openModal('addCourseModal')">新增课程</button>
+                <button class="btn btn-primary btn-sm" type="button" onclick="openCreateCourseModal()">新增课程</button>
             </div>
             <table class="table">
-                <thead><tr><th>课程名称</th><th>授课教师</th><th>名额模式</th><th>名额</th><th>已确认</th><th>状态</th><th>操作</th></tr></thead>
+                <thead><tr><th>课程名称</th><th>授课教师</th><th>性别限制</th><th>名额模式</th><th>名额</th><th>已确认</th><th>状态</th><th>操作</th></tr></thead>
                 <tbody>
-                <tr th:if="${#lists.isEmpty(courses)}"><td colspan="7" style="text-align:center;color:#94a3b8;">暂无课程</td></tr>
+                <tr th:if="${#lists.isEmpty(courses)}"><td colspan="8" style="text-align:center;color:#94a3b8;">暂无课程</td></tr>
                 <tr th:each="c : ${courses}">
                     <td th:text="${c.name}"></td>
                     <td th:text="${c.teacher != null ? c.teacher.name : '-'}"></td>
+                    <td th:text="${c.genderLimit == 'MALE_ONLY' ? '仅男生' : (c.genderLimit == 'FEMALE_ONLY' ? '仅女生' : '不限')}"></td>
                     <td th:text="${c.capacityMode == 'GLOBAL' ? '全局名额' : '按班名额'}"></td>
                     <td th:text="${c.totalCapacity}"></td>
                     <td th:text="${confirmedCountByCourse[c.id]}"></td>
                     <td><span class="badge" th:classappend="${c.status == 'ACTIVE' ? 'badge-active' : 'badge-draft'}" th:text="${c.status == 'DRAFT' ? '草稿' : (c.status == 'ACTIVE' ? '已发布' : '已关闭')}"></span></td>
                     <td>
+                        <button type="button"
+                                class="btn btn-secondary btn-xs"
+                                th:attr="data-course-id=${c.id},
+                                         data-course-name=${c.name},
+                                         data-course-description=${c.description},
+                                         data-course-teacher-id=${c.teacher != null ? c.teacher.id : ''},
+                                         data-course-capacity-mode=${c.capacityMode},
+                                         data-course-total-capacity=${c.totalCapacity},
+                                         data-course-gender-limit=${c.genderLimit}"
+                                onclick="openEditCourseModal(this)">编辑</button>
                         <a th:href="@{/admin/courses/{eid}/courses/{cid}/enrollments(eid=${event.id},cid=${c.id})}" class="btn btn-secondary btn-xs">名单</a>
                         <form th:if="${c.status == 'DRAFT'}" th:action="@{/admin/courses/{eid}/courses/{cid}/activate(eid=${event.id},cid=${c.id})}" method="post" style="display:inline">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
@@ -287,6 +298,7 @@
         </div>
         <form th:action="@{/admin/courses/{id}/courses/save(id=${event.id})}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <input type="hidden" name="courseId" id="courseIdInput">
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group">
@@ -316,6 +328,16 @@
                             <option value="PER_CLASS">按班名额</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>性别限制</label>
+                        <select name="genderLimit">
+                            <option value="ALL">不限</option>
+                            <option value="MALE_ONLY">仅男生</option>
+                            <option value="FEMALE_ONLY">仅女生</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group" id="addCapacityRows">
                         <label>总名额 *</label>
                         <input type="number" name="totalCapacity" min="1" value="30">
@@ -352,15 +374,86 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addCourseModal')">取消</button>
-                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="submit" class="btn btn-primary" id="courseSubmitButton">保存</button>
             </div>
         </form>
     </div>
 </div>
 
-<script>
+<script th:inline="javascript">
+const courseCapacityMap = /*[[${courseCapacityMap}]]*/ {};
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function resetCourseModalForm() {
+    const form = document.querySelector('#addCourseModal form');
+    if (!form) return;
+    form.reset();
+    const courseIdInput = document.getElementById('courseIdInput');
+    if (courseIdInput) courseIdInput.value = '';
+    const modalTitle = document.querySelector('#addCourseModal .modal-header h3');
+    if (modalTitle) modalTitle.textContent = '新增课程';
+    const submitButton = document.getElementById('courseSubmitButton');
+    if (submitButton) submitButton.textContent = '保存';
+    document.querySelectorAll('#perClassTable input[name="classCapacities"]').forEach(input => {
+        input.value = '0';
+    });
+    const capacityMode = document.getElementById('capacityModeAdd');
+    if (capacityMode) {
+        capacityMode.value = 'GLOBAL';
+        toggleCapacityMode(capacityMode, 'addCapacityRows', 'addPerClass');
+    }
+    const totalCapacityInput = document.querySelector('#addCapacityRows input[name="totalCapacity"]');
+    if (totalCapacityInput) totalCapacityInput.value = '30';
+    const genderLimitSelect = document.querySelector('#addCourseModal select[name="genderLimit"]');
+    if (genderLimitSelect) genderLimitSelect.value = 'ALL';
+    const teacherSelect = document.querySelector('#addCourseModal select[name="teacherId"]');
+    if (teacherSelect) teacherSelect.value = '';
+    const descriptionTextarea = document.querySelector('#addCourseModal textarea[name="description"]');
+    if (descriptionTextarea) updateCharCounter(descriptionTextarea);
+}
+function openCreateCourseModal() {
+    resetCourseModalForm();
+    openModal('addCourseModal');
+}
+function openEditCourseModal(button) {
+    resetCourseModalForm();
+    const form = document.querySelector('#addCourseModal form');
+    if (!form || !button) return;
+    const courseId = button.dataset.courseId || '';
+    const courseIdInput = document.getElementById('courseIdInput');
+    if (courseIdInput) courseIdInput.value = courseId;
+    const nameInput = form.querySelector('input[name="name"]');
+    if (nameInput) nameInput.value = button.dataset.courseName || '';
+    const descriptionTextarea = form.querySelector('textarea[name="description"]');
+    if (descriptionTextarea) {
+        descriptionTextarea.value = button.dataset.courseDescription || '';
+        updateCharCounter(descriptionTextarea);
+    }
+    const teacherSelect = form.querySelector('select[name="teacherId"]');
+    if (teacherSelect) teacherSelect.value = button.dataset.courseTeacherId || '';
+    const capacityModeSelect = document.getElementById('capacityModeAdd');
+    if (capacityModeSelect) {
+        capacityModeSelect.value = button.dataset.courseCapacityMode || 'GLOBAL';
+        toggleCapacityMode(capacityModeSelect, 'addCapacityRows', 'addPerClass');
+    }
+    const totalCapacityInput = form.querySelector('input[name="totalCapacity"]');
+    if (totalCapacityInput) totalCapacityInput.value = button.dataset.courseTotalCapacity || '0';
+    const genderLimitSelect = form.querySelector('select[name="genderLimit"]');
+    if (genderLimitSelect) genderLimitSelect.value = button.dataset.courseGenderLimit || 'ALL';
+    const perClassCapacities = courseCapacityMap[courseId] || {};
+    document.querySelectorAll('#perClassTable .per-class-row').forEach(row => {
+        const classIdInput = row.querySelector('input[name="classIds"]');
+        const capacityInput = row.querySelector('input[name="classCapacities"]');
+        if (!classIdInput || !capacityInput) return;
+        const classId = classIdInput.value;
+        capacityInput.value = perClassCapacities[classId] ?? 0;
+    });
+    const modalTitle = document.querySelector('#addCourseModal .modal-header h3');
+    if (modalTitle) modalTitle.textContent = '编辑课程';
+    const submitButton = document.getElementById('courseSubmitButton');
+    if (submitButton) submitButton.textContent = '保存修改';
+    openModal('addCourseModal');
+}
 function updateCharCounter(textarea) {
     const targetId = textarea?.dataset?.charCountTarget;
     if (!targetId) return;

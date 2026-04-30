@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -174,13 +175,22 @@ public class AdminCourseController {
         List<Course> courses = courseService.findByEvent(event);
         CourseEventReviewStats reviewStats = courseEventReviewService.buildReviewStats(event, courses);
         Map<Long, Integer> confirmedCountByCourse = new LinkedHashMap<>();
+        Map<Long, Map<Long, Integer>> courseCapacityMap = new LinkedHashMap<>();
         for (Course course : courses) {
             confirmedCountByCourse.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
+            Map<Long, Integer> capacityMap = new HashMap<>();
+            capacityRepo.findByCourse(course).forEach(capacity -> {
+                if (capacity.getSchoolClass() != null && capacity.getSchoolClass().getId() != null) {
+                    capacityMap.put(capacity.getSchoolClass().getId(), capacity.getMaxCapacity());
+                }
+            });
+            courseCapacityMap.put(course.getId(), capacityMap);
         }
         model.addAttribute("event", event);
         model.addAttribute("courses", courses);
         model.addAttribute("reviewStats", reviewStats);
         model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
+        model.addAttribute("courseCapacityMap", courseCapacityMap);
         model.addAttribute("round1Summary", round1Summary);
         model.addAttribute("round1ResultAvailable", round1ResultAvailable);
         model.addAttribute("eventStudents", eventService.findEventStudents(event));
@@ -216,6 +226,7 @@ public class AdminCourseController {
                              @RequestParam(required = false) Long courseId,
                              @RequestParam String name,
                              @RequestParam(required = false) String description,
+                             @RequestParam(required = false) String genderLimit,
                              @RequestParam(required = false) Long teacherId,
                              @RequestParam String capacityMode,
                              @RequestParam(defaultValue = "0") int totalCapacity,
@@ -235,6 +246,7 @@ public class AdminCourseController {
             course.setSchool(school);
             course.setName(name);
             course.setDescription(description);
+            course.setGenderLimit(courseService.normalizeGenderLimit(genderLimit));
             course.setCapacityMode(capacityMode);
             if (teacherId != null) {
                 Teacher teacher = new Teacher();

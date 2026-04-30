@@ -24,6 +24,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CourseService {
 
+    public static final String GENDER_LIMIT_ALL = "ALL";
+    public static final String GENDER_LIMIT_MALE_ONLY = "MALE_ONLY";
+    public static final String GENDER_LIMIT_FEMALE_ONLY = "FEMALE_ONLY";
+
     private final CourseRepository courseRepo;
     private final CourseClassCapacityRepository capacityRepo;
     private final CourseSelectionRepository selectionRepo;
@@ -58,8 +62,60 @@ public class CourseService {
         return courseRepo.findById(id).orElseThrow(() -> new RuntimeException("课程不存在"));
     }
 
+    public String normalizeGenderLimit(String genderLimit) {
+        if (genderLimit == null || genderLimit.isBlank()) {
+            return GENDER_LIMIT_ALL;
+        }
+        String normalized = genderLimit.trim().toUpperCase();
+        return switch (normalized) {
+            case GENDER_LIMIT_ALL, GENDER_LIMIT_MALE_ONLY, GENDER_LIMIT_FEMALE_ONLY -> normalized;
+            default -> throw new IllegalArgumentException("课程性别限制不合法");
+        };
+    }
+
+    public boolean isStudentEligibleForCourse(Student student, Course course) {
+        if (student == null || course == null) {
+            return false;
+        }
+        String genderLimit = normalizeGenderLimit(course.getGenderLimit());
+        if (GENDER_LIMIT_ALL.equals(genderLimit)) {
+            return true;
+        }
+        String studentGender = student.getGender() == null ? "" : student.getGender().trim();
+        if (GENDER_LIMIT_MALE_ONLY.equals(genderLimit)) {
+            return "男".equals(studentGender);
+        }
+        if (GENDER_LIMIT_FEMALE_ONLY.equals(genderLimit)) {
+            return "女".equals(studentGender);
+        }
+        return true;
+    }
+
+    public String getGenderLimitLabel(String genderLimit) {
+        return switch (normalizeGenderLimit(genderLimit)) {
+            case GENDER_LIMIT_MALE_ONLY -> "仅男生";
+            case GENDER_LIMIT_FEMALE_ONLY -> "仅女生";
+            default -> "不限";
+        };
+    }
+
+    public String getIneligibleCourseMessage(Course course) {
+        return switch (normalizeGenderLimit(course != null ? course.getGenderLimit() : null)) {
+            case GENDER_LIMIT_MALE_ONLY -> "该课程仅限男生选择";
+            case GENDER_LIMIT_FEMALE_ONLY -> "该课程仅限女生选择";
+            default -> "该课程当前不可选";
+        };
+    }
+
+    public void validateStudentEligibleForCourse(Student student, Course course) {
+        if (!isStudentEligibleForCourse(student, course)) {
+            throw new RuntimeException(getIneligibleCourseMessage(course));
+        }
+    }
+
     @Transactional
     public Course saveCourse(Course course, List<Long> classIds, List<Integer> classCapacities) {
+        course.setGenderLimit(normalizeGenderLimit(course.getGenderLimit()));
         Course saved = courseRepo.save(course);
         if ("PER_CLASS".equals(course.getCapacityMode()) && classIds != null) {
             Map<Long, Integer> existingCounts = new HashMap<>();
@@ -129,6 +185,7 @@ public class CourseService {
         }
 
         Course course = findById(courseId);
+        validateStudentEligibleForCourse(student, course);
         List<CourseSelection> selections = selectionRepo.findByEventAndStudent(event, student);
         if (!"ACTIVE".equals(course.getStatus())) {
             throw new RuntimeException("该课程当前不可选");
@@ -261,6 +318,7 @@ public class CourseService {
             }
 
             course = findById(courseId);
+            validateStudentEligibleForCourse(student, course);
             if (!"ACTIVE".equals(course.getStatus())) {
                 throw new RuntimeException("该课程当前不可选");
             }
@@ -363,7 +421,10 @@ public class CourseService {
             if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
                 continue;
             }
-            CourseSelection selection = tryAutoAssignStudent(event, student, activeCourses);
+            List<Course> eligibleCourses = activeCourses.stream()
+                    .filter(course -> isStudentEligibleForCourse(student, course))
+                    .toList();
+            CourseSelection selection = tryAutoAssignStudent(event, student, eligibleCourses);
             if (selection != null) {
                 assignedCount++;
                 studentNotificationService.notifyRound2AutoAssignment(event, student, selection.getCourse());
@@ -503,6 +564,7 @@ public class CourseService {
         }
         Student student = studentRepo.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("学生不存在"));
+        validateStudentEligibleForCourse(student, course);
         // 检查是否已有确认记录
         if (selectionRepo.existsByEventAndStudentAndStatus(event, student, "CONFIRMED")) {
             throw new RuntimeException("该学生已有确认的选课记录");
