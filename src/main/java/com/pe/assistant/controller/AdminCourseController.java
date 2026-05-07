@@ -11,8 +11,8 @@ import com.pe.assistant.entity.Student;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.repository.CourseClassCapacityRepository;
 import com.pe.assistant.service.ClassService;
-import com.pe.assistant.service.CourseOverflowAuditService;
 import com.pe.assistant.service.CourseEventReviewService;
+import com.pe.assistant.service.CourseOverflowAuditService;
 import com.pe.assistant.service.CourseService;
 import com.pe.assistant.service.CurrentUserService;
 import com.pe.assistant.service.GradeService;
@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -39,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/admin/courses")
@@ -80,9 +78,9 @@ public class AdminCourseController {
                             @RequestParam(required = false) String round3End,
                             RedirectAttributes ra) {
         try {
-            boolean created = (id == null);
+            boolean created = id == null;
             School school = currentUserService.getCurrentSchool();
-            SelectionEvent event = (id != null) ? eventService.findById(id) : new SelectionEvent();
+            SelectionEvent event = created ? new SelectionEvent() : eventService.findById(id);
             event.setSchool(school);
             event.setName(name);
             if (round1Start != null && !round1Start.isBlank()) {
@@ -103,6 +101,7 @@ public class AdminCourseController {
             if (round3End != null && !round3End.isBlank()) {
                 event.setRound3End(LocalDateTime.parse(round3End));
             }
+
             event = eventService.save(event);
             ra.addFlashAttribute("success", "活动保存成功");
             if (created) {
@@ -140,7 +139,7 @@ public class AdminCourseController {
     public String processRound1(@PathVariable Long id, RedirectAttributes ra) {
         try {
             eventService.processRound1(id);
-            ra.addFlashAttribute("success", "第一轮结算已在后台启动，系统将先结算第一志愿，再结算第二志愿，请稍后刷新查看进度");
+            ra.addFlashAttribute("success", "第一轮结算已在后台启动，系统会先结算第一志愿，再结算第二志愿，请稍后刷新查看进度");
         } catch (Exception e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
@@ -176,8 +175,10 @@ public class AdminCourseController {
         Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
         List<Course> courses = courseService.findByEvent(event);
         CourseEventReviewStats reviewStats = courseEventReviewService.buildReviewStats(event, courses);
+
         Map<Long, Integer> confirmedCountByCourse = new LinkedHashMap<>();
         Map<Long, Map<Long, Integer>> courseCapacityMap = new LinkedHashMap<>();
+        Map<Long, String> genderLimitLabelMap = new LinkedHashMap<>();
         for (Course course : courses) {
             confirmedCountByCourse.put(course.getId(), courseService.countConfirmedUniqueEnrollments(course));
             Map<Long, Integer> capacityMap = new HashMap<>();
@@ -187,19 +188,23 @@ public class AdminCourseController {
                 }
             });
             courseCapacityMap.put(course.getId(), capacityMap);
+            genderLimitLabelMap.put(course.getId(), courseService.getGenderLimitLabel(course.getGenderLimit()));
         }
-        model.addAttribute("event", event);
-        model.addAttribute("courses", courses);
-        model.addAttribute("reviewStats", reviewStats);
-        model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
-        model.addAttribute("courseCapacityMap", courseCapacityMap);
-        model.addAttribute("round1Summary", round1Summary);
-        model.addAttribute("round1ResultAvailable", round1ResultAvailable);
+
         boolean showUnassignedReasonPanel = "CLOSED".equals(event.getStatus())
                 || ("ROUND2".equals(event.getStatus())
                 && event.getRound2End() != null
                 && !LocalDateTime.now().isBefore(event.getRound2End()));
         List<Map<String, Object>> unassignedStudentReasonRows = courseService.findUnassignedStudentReasonRows(event);
+
+        model.addAttribute("event", event);
+        model.addAttribute("courses", courses);
+        model.addAttribute("reviewStats", reviewStats);
+        model.addAttribute("confirmedCountByCourse", confirmedCountByCourse);
+        model.addAttribute("courseCapacityMap", courseCapacityMap);
+        model.addAttribute("genderLimitLabelMap", genderLimitLabelMap);
+        model.addAttribute("round1Summary", round1Summary);
+        model.addAttribute("round1ResultAvailable", round1ResultAvailable);
         model.addAttribute("showUnassignedReasonPanel", showUnassignedReasonPanel);
         model.addAttribute("unassignedStudentReasonRows", unassignedStudentReasonRows);
         model.addAttribute("unassignedStudentReasonSummary", courseService.summarizeUnassignedStudentReasons(unassignedStudentReasonRows));
@@ -245,13 +250,14 @@ public class AdminCourseController {
                              RedirectAttributes ra) {
         try {
             if (description != null && description.length() > 500) {
-                ra.addFlashAttribute("error", "课程简介不能超过500字");
+                ra.addFlashAttribute("error", "课程简介不能超过 500 字");
                 return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
             }
+
             SelectionEvent event = eventService.findById(eventId);
             School school = currentUserService.getCurrentSchool();
             Set<Long> participatingClassIds = eventService.findParticipatingClassIds(event);
-            Course course = (courseId != null) ? courseService.findById(courseId) : new Course();
+            Course course = courseId != null ? courseService.findById(courseId) : new Course();
             course.setEvent(event);
             course.setSchool(school);
             course.setName(name);
@@ -268,15 +274,17 @@ public class AdminCourseController {
             if (course.getStatus() == null) {
                 course.setStatus("DRAFT");
             }
+
             if ("GLOBAL".equals(capacityMode)) {
                 course.setTotalCapacity(totalCapacity);
                 courseService.saveCourse(course, null, null);
             } else {
                 courseService.savePerClassCourse(course, classIds, classCapacities, participatingClassIds);
             }
+
             ra.addFlashAttribute("success", "课程保存成功");
         } catch (Exception e) {
-            ra.addFlashAttribute("error", "保存失败：" + e.getMessage());
+            ra.addFlashAttribute("error", CourseSelectionPromptHelper.normalizeAdminPrompt(e.getMessage()));
         }
         return "redirect:/admin/courses/" + eventId + "/detail?tab=courses";
     }
@@ -323,9 +331,10 @@ public class AdminCourseController {
         SelectionEvent event = eventService.findById(eventId);
         Course course = courseService.findById(courseId);
         int confirmedEnrollmentCount = courseService.countConfirmedUniqueEnrollments(course);
+        List<CourseSelection> enrollments = courseService.findEnrollments(course);
+
         model.addAttribute("event", event);
         model.addAttribute("course", course);
-        List<CourseSelection> enrollments = courseService.findEnrollments(course);
         model.addAttribute("enrollments", enrollments);
         model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(enrollments));
         model.addAttribute("selectionStatusLabelMap", courseService.buildAdminSelectionStatusLabelMap(enrollments));

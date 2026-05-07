@@ -30,6 +30,15 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("该班级课程名额已满")) {
             return "该班级课程名额已满，无法通过该申请";
         }
+        if (message.contains("该课程仅限男生选择")) {
+            return "该申请对应的课程仅面向男生，当前学生不符合报名条件";
+        }
+        if (message.contains("该课程仅限女生选择")) {
+            return "该申请对应的课程仅面向女生，当前学生不符合报名条件";
+        }
+        if (message.contains("该课程当前不可选")) {
+            return "当前学生暂时不符合该课程的报名条件，无法通过该申请";
+        }
         if (message.contains("学生未分配行政班")) {
             return "该学生未分配行政班，无法处理按班名额课程申请";
         }
@@ -58,11 +67,32 @@ public final class CourseSelectionPromptHelper {
         if (message.contains("该班级课程名额已满")) {
             return "该班级课程名额已满；如需超编，请勾选“强制超编”并填写原因";
         }
+        if (message.contains("该课程仅限男生选择") || message.contains("该课程仅限女生选择")) {
+            return "当前学生不符合该课程的性别要求，无法手动加入";
+        }
         if (message.contains("学生未分配行政班")) {
             return "该学生未分配行政班，无法加入按班名额课程";
         }
         if (message.contains("该学生所在班级未配置课程名额")) {
             return "该学生所在班级未配置该课程名额";
+        }
+        if (message.contains("当前参与学生没有可用班级")) {
+            return "当前参与范围内暂无可用班级，无法保存按班名额课程";
+        }
+        if (message.contains("请至少为一个参与班级设置名额")) {
+            return "请先为至少一个参与班级设置名额后再保存";
+        }
+        if (message.contains("请为参与班级设置有效名额")) {
+            return "请为参与范围内的班级设置有效名额";
+        }
+        if (message.contains("按班名额至少需要一个班级名额大于 0")) {
+            return "按班名额至少需要为一个班级设置大于 0 的名额";
+        }
+        if (message.contains("班级名额不能小于 0")) {
+            return "班级名额不能小于 0";
+        }
+        if (message.contains("当前课程已有不符合新性别限制的选课记录")) {
+            return "保存失败：当前课程已有与新性别限制不匹配的选课记录，请先处理已有报名后再修改。";
         }
         if (message.contains("课程不属于该选课活动")) {
             return "课程与当前活动不匹配，请刷新页面后重试";
@@ -115,6 +145,12 @@ public final class CourseSelectionPromptHelper {
         }
         if (message.contains("当前仅支持第一轮已确认课程在第二轮期间退课")) {
             return "当前仅支持第一轮已确认课程在第二轮期间退课";
+        }
+        if (message.contains("该课程仅限男生选择") || message.contains("该课程仅限女生选择")) {
+            return "当前不符合该课程的性别要求，暂时无法选报";
+        }
+        if (message.contains("该课程当前不可选")) {
+            return "当前暂时不符合该课程的报名条件";
         }
         return message;
     }

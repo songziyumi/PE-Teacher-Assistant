@@ -139,6 +139,10 @@
             <div class="summary-value" th:text="${course.totalCapacity}">0</div>
         </div>
         <div class="summary-card">
+            <div class="summary-label">报名范围</div>
+            <div class="summary-value" style="font-size:1rem;" th:text="${genderLimitLabel}">不限</div>
+        </div>
+        <div class="summary-card">
             <div class="summary-label">已确认人数</div>
             <div class="summary-value" th:text="${confirmedEnrollmentCount}">0</div>
         </div>

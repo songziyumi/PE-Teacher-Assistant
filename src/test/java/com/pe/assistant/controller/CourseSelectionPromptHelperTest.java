@@ -15,6 +15,8 @@ class CourseSelectionPromptHelperTest {
                 CourseSelectionPromptHelper.normalizeTeacherPrompt("\u65e0\u6743\u5904\u7406\u4ed6\u4eba\u7684\u7533\u8bf7"));
         assertEquals("\u5ba1\u6279\u8bb0\u5f55\u4e0d\u5b58\u5728\u6216\u5df2\u88ab\u5220\u9664\uff0c\u8bf7\u5237\u65b0\u540e\u91cd\u8bd5",
                 CourseSelectionPromptHelper.normalizeTeacherPrompt("\u6d88\u606f\u4e0d\u5b58\u5728"));
+        assertEquals("\u8be5\u7533\u8bf7\u5bf9\u5e94\u7684\u8bfe\u7a0b\u4ec5\u9762\u5411\u7537\u751f\uff0c\u5f53\u524d\u5b66\u751f\u4e0d\u7b26\u5408\u62a5\u540d\u6761\u4ef6",
+                CourseSelectionPromptHelper.normalizeTeacherPrompt("\u8be5\u8bfe\u7a0b\u4ec5\u9650\u7537\u751f\u9009\u62e9"));
     }
 
     @Test
@@ -25,6 +27,10 @@ class CourseSelectionPromptHelperTest {
                 CourseSelectionPromptHelper.normalizeAdminPrompt("\u5b66\u751f\u672a\u5206\u914d\u884c\u653f\u73ed"));
         assertEquals("\u52fe\u9009\u5f3a\u5236\u8d85\u7f16\u540e\uff0c\u5fc5\u987b\u586b\u5199\u8d85\u7f16\u539f\u56e0",
                 CourseSelectionPromptHelper.normalizeAdminPrompt("\u5f3a\u5236\u8d85\u7f16\u65f6\u5fc5\u987b\u586b\u5199\u539f\u56e0"));
+        assertEquals("\u6309\u73ed\u540d\u989d\u81f3\u5c11\u9700\u8981\u4e3a\u4e00\u4e2a\u73ed\u7ea7\u8bbe\u7f6e\u5927\u4e8e 0 \u7684\u540d\u989d",
+                CourseSelectionPromptHelper.normalizeAdminPrompt("\u6309\u73ed\u540d\u989d\u81f3\u5c11\u9700\u8981\u4e00\u4e2a\u73ed\u7ea7\u540d\u989d\u5927\u4e8e 0"));
+        assertEquals("\u4fdd\u5b58\u5931\u8d25\uff1a\u5f53\u524d\u8bfe\u7a0b\u5df2\u6709\u4e0e\u65b0\u6027\u522b\u9650\u5236\u4e0d\u5339\u914d\u7684\u9009\u8bfe\u8bb0\u5f55\uff0c\u8bf7\u5148\u5904\u7406\u5df2\u6709\u62a5\u540d\u540e\u518d\u4fee\u6539\u3002",
+                CourseSelectionPromptHelper.normalizeAdminPrompt("\u5f53\u524d\u8bfe\u7a0b\u5df2\u6709\u4e0d\u7b26\u5408\u65b0\u6027\u522b\u9650\u5236\u7684\u9009\u8bfe\u8bb0\u5f55"));
     }
 
     @Test
@@ -39,5 +45,7 @@ class CourseSelectionPromptHelperTest {
                 CourseSelectionPromptHelper.normalizeStudentPrompt("\u53ea\u80fd\u9000\u5df2\u786e\u8ba4\u7684\u8bfe\u7a0b"));
         assertEquals("\u5f53\u524d\u4ec5\u652f\u6301\u7b2c\u4e00\u8f6e\u5df2\u786e\u8ba4\u8bfe\u7a0b\u5728\u7b2c\u4e8c\u8f6e\u671f\u95f4\u9000\u8bfe",
                 CourseSelectionPromptHelper.normalizeStudentPrompt("\u5f53\u524d\u4ec5\u652f\u6301\u7b2c\u4e00\u8f6e\u5df2\u786e\u8ba4\u8bfe\u7a0b\u5728\u7b2c\u4e8c\u8f6e\u671f\u95f4\u9000\u8bfe"));
+        assertEquals("\u5f53\u524d\u4e0d\u7b26\u5408\u8be5\u8bfe\u7a0b\u7684\u6027\u522b\u8981\u6c42\uff0c\u6682\u65f6\u65e0\u6cd5\u9009\u62a5",
+                CourseSelectionPromptHelper.normalizeStudentPrompt("\u8be5\u8bfe\u7a0b\u4ec5\u9650\u5973\u751f\u9009\u62e9"));
     }
 }

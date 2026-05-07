@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -110,6 +111,36 @@ class MessageServiceRegressionTest {
         assertEquals("APPROVED", audit.getAfterStatus());
         assertEquals("ok", audit.getRemark());
         assertEquals(teacher.getId(), audit.getOperatorTeacherId());
+    }
+
+    @Test
+    void approveShouldKeepRequestPendingWhenStudentBecomesIneligibleBeforeApproval() {
+        InternalMessage msg = buildCourseRequestMessage("PENDING", 10L);
+        Teacher teacher = buildTeacher(10L, "Teacher-A");
+        Course course = new Course();
+        course.setId(3L);
+        course.setTeacher(teacher);
+        SelectionEvent event = new SelectionEvent();
+        event.setId(4L);
+        course.setEvent(event);
+
+        when(messageRepo.findById(1L)).thenReturn(Optional.of(msg));
+        when(courseService.findById(3L)).thenReturn(course);
+        doThrow(new RuntimeException("该课程仅限女生选择"))
+                .when(courseService).adminEnroll(3L, 99L, 4L);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> messageService.approveRequest(1L, teacher, "ok"));
+
+        assertEquals("该课程仅限女生选择", ex.getMessage());
+        assertEquals("PENDING", msg.getStatus());
+        assertEquals(Boolean.FALSE, msg.getIsRead());
+        assertNull(msg.getHandledById());
+        assertNull(msg.getHandledByName());
+        assertNull(msg.getHandledAt());
+        assertNull(msg.getHandleRemark());
+        verify(messageRepo, never()).save(any());
+        verify(courseRequestAuditRepo, never()).save(any());
     }
 
     @Test

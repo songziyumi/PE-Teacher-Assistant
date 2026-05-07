@@ -362,8 +362,10 @@
                             <option value="MALE_ONLY">仅男生</option>
                             <option value="FEMALE_ONLY">仅女生</option>
                         </select>
+                        <div class="helper-text" id="genderLimitHint">未限制性别时，所有参与学生都可报名本课程。</div>
                     </div>
                 </div>
+                <div class="helper-text" id="courseConfigSummary" style="margin:-2px 0 12px;">当前为全局名额，不限性别。</div>
                 <div class="form-row">
                     <div class="form-group" id="addCapacityRows">
                         <label>总名额 *</label>
@@ -409,6 +411,32 @@
 
 <script th:inline="javascript">
 const courseCapacityMap = /*[[${courseCapacityMap}]]*/ {};
+function getGenderLimitText(value) {
+    if (value === 'MALE_ONLY') return '仅男生可报名';
+    if (value === 'FEMALE_ONLY') return '仅女生可报名';
+    return '不限性别';
+}
+function getCapacityModeText(value) {
+    return value === 'PER_CLASS' ? '按班名额' : '全局名额';
+}
+function updateCourseConfigHint() {
+    const form = document.querySelector('#addCourseModal form');
+    if (!form) return;
+    const genderLimitSelect = form.querySelector('select[name="genderLimit"]');
+    const capacityModeSelect = form.querySelector('select[name="capacityMode"]');
+    const genderHint = document.getElementById('genderLimitHint');
+    const summary = document.getElementById('courseConfigSummary');
+    const genderValue = genderLimitSelect ? genderLimitSelect.value : 'ALL';
+    const capacityModeValue = capacityModeSelect ? capacityModeSelect.value : 'GLOBAL';
+    if (genderHint) {
+        genderHint.textContent = genderValue === 'ALL'
+                ? '未限制性别时，所有参与学生都可报名本课程。'
+                : `当前设置为${getGenderLimitText(genderValue)}。若已有不符合条件的报名记录，保存时会被拦截。`;
+    }
+    if (summary) {
+        summary.textContent = `当前为${getCapacityModeText(capacityModeValue)}，${getGenderLimitText(genderValue)}。`;
+    }
+}
 function openModal(id) { document.getElementById(id).classList.add('active'); }
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function resetCourseModalForm() {
@@ -437,9 +465,11 @@ function resetCourseModalForm() {
     if (teacherSelect) teacherSelect.value = '';
     const descriptionTextarea = document.querySelector('#addCourseModal textarea[name="description"]');
     if (descriptionTextarea) updateCharCounter(descriptionTextarea);
+    updateCourseConfigHint();
 }
 function openCreateCourseModal() {
     resetCourseModalForm();
+    updateCourseConfigHint();
     openModal('addCourseModal');
 }
 function openEditCourseModal(button) {
@@ -494,6 +524,9 @@ document.querySelectorAll('textarea[data-char-count-target]').forEach(textarea =
     updateCharCounter(textarea);
     textarea.addEventListener('input', () => updateCharCounter(textarea));
 });
+document.querySelectorAll('#addCourseModal select[name="genderLimit"], #addCourseModal select[name="capacityMode"]').forEach(select => {
+    select.addEventListener('change', updateCourseConfigHint);
+});
 function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(tabBtn => tabBtn.classList.remove('active'));
@@ -514,6 +547,7 @@ function toggleCapacityMode(select, globalRowId, perClassId) {
     const isGlobal = select.value === 'GLOBAL';
     document.getElementById(globalRowId).style.display = isGlobal ? '' : 'none';
     document.getElementById(perClassId).classList.toggle('active', !isGlobal);
+    updateCourseConfigHint();
 }
 function onGradeChange() {
     const gradeId = document.getElementById('gradeFilter').value;
