@@ -67,6 +67,60 @@ def find_student_with_gender_and_account(
     raise RuntimeError(f"no {expected_gender} student with usable account found")
 
 
+def find_class_gender_targets(
+    client: RemoteClient,
+    admin_token: str,
+    accounts: dict[str, Account],
+) -> dict:
+    classes = fetch_all_classes(client, admin_token)
+    female_spare = None
+    for class_row in classes:
+        payload = client.api_request(
+            "GET",
+            f"/api/admin/students?classId={class_row['id']}&page=0&size=200",
+            token=admin_token,
+        )
+        males = []
+        females = []
+        for item in payload.get("data", {}).get("content", []):
+            student_no = str(item.get("studentNo", "")).strip()
+            if student_no not in accounts:
+                continue
+            merged = {"student": item, "account": accounts[student_no], "classId": class_row["id"], "className": class_row["name"]}
+            if item.get("gender") == "男":
+                males.append(merged)
+            elif item.get("gender") == "女":
+                females.append(merged)
+        if males and females:
+            for other_class in classes:
+                if other_class["id"] == class_row["id"]:
+                    continue
+                other_payload = client.api_request(
+                    "GET",
+                    f"/api/admin/students?classId={other_class['id']}&page=0&size=200",
+                    token=admin_token,
+                )
+                for item in other_payload.get("data", {}).get("content", []):
+                    student_no = str(item.get("studentNo", "")).strip()
+                    if student_no in accounts and item.get("gender") == "女":
+                        female_spare = {
+                            "student": item,
+                            "account": accounts[student_no],
+                            "classId": other_class["id"],
+                            "className": other_class["name"],
+                        }
+                        break
+                if female_spare is not None:
+                    break
+            if female_spare is not None:
+                return {
+                    "maleSameClass": males[0],
+                    "femaleSameClass": females[0],
+                    "femaleOtherClass": female_spare,
+                }
+    raise RuntimeError("no suitable same-class male/female plus other-class female test targets found")
+
+
 def fetch_student_by_id(client: RemoteClient, admin_token: str, student_id: int) -> dict:
     for class_row in fetch_all_classes(client, admin_token):
         payload = client.api_request(
@@ -154,6 +208,36 @@ def create_course(
     match = re.search(r'data-course-id="(\d+)"[^>]*data-course-name="' + re.escape(name) + '"', page)
     if not match:
         raise RuntimeError(f"failed to find created course id for {name}")
+    return int(match.group(1))
+
+
+def create_per_class_course(
+    client: RemoteClient,
+    event_id: int,
+    csrf: str,
+    name: str,
+    *,
+    gender_limit: str,
+    class_capacities: list[tuple[int, int]],
+    teacher_id: int | None = None,
+) -> int:
+    fields = [
+        ("_csrf", csrf),
+        ("name", name),
+        ("description", f"{name} gender-limit per-class regression"),
+        ("capacityMode", "PER_CLASS"),
+        ("genderLimit", gender_limit),
+    ]
+    if teacher_id is not None:
+        fields.append(("teacherId", str(teacher_id)))
+    for class_id, capacity in class_capacities:
+        fields.append(("classIds", str(class_id)))
+        fields.append(("classCapacities", str(capacity)))
+    client.post_form_quick(f"/admin/courses/{event_id}/courses/save", fields)
+    page, _ = client.get_text(f"/admin/courses/{event_id}/detail?tab=courses")
+    match = re.search(r'data-course-id="(\d+)"[^>]*data-course-name="' + re.escape(name) + '"', page)
+    if not match:
+        raise RuntimeError(f"failed to find created per-class course id for {name}")
     return int(match.group(1))
 
 
@@ -532,6 +616,134 @@ def run_admin_enroll_guard_scenario(
     }
 
 
+def run_per_class_gender_combo_scenario(
+    admin_client: RemoteClient,
+    admin_courses_csrf: str,
+    admin_token: str,
+    teacher: dict,
+    accounts: dict[str, Account],
+    base_url: str,
+) -> dict:
+    targets = find_class_gender_targets(admin_client, admin_token, accounts)
+    male_same = targets["maleSameClass"]
+    female_same = targets["femaleSameClass"]
+    female_other = targets["femaleOtherClass"]
+
+    event_name = f"Gender-Per-Class-{datetime.now().strftime('%H%M%S')}"
+    girls_course_name = f"Girls-Per-Class-{datetime.now().strftime('%H%M%S')}"
+    boys_course_name = f"Boys-Per-Class-{datetime.now().strftime('%H%M%S')}"
+    event_id = create_event(admin_client, admin_courses_csrf, event_name)
+    save_event_students(
+        admin_client,
+        event_id,
+        [
+            int(male_same["student"]["id"]),
+            int(female_same["student"]["id"]),
+            int(female_other["student"]["id"]),
+        ],
+        admin_courses_csrf,
+    )
+    girls_course_id = create_per_class_course(
+        admin_client,
+        event_id,
+        admin_courses_csrf,
+        girls_course_name,
+        gender_limit="FEMALE_ONLY",
+        class_capacities=[(int(male_same["classId"]), 1)],
+        teacher_id=int(teacher["id"]),
+    )
+    boys_course_id = create_per_class_course(
+        admin_client,
+        event_id,
+        admin_courses_csrf,
+        boys_course_name,
+        gender_limit="MALE_ONLY",
+        class_capacities=[(int(male_same["classId"]), 1)],
+        teacher_id=int(teacher["id"]),
+    )
+    activate_course(admin_client, event_id, girls_course_id, admin_courses_csrf)
+    activate_course(admin_client, event_id, boys_course_id, admin_courses_csrf)
+    start_round1(admin_client, event_id, admin_courses_csrf)
+
+    male_courses = summarize_courses(fetch_student_courses(male_same["account"], base_url))
+    female_courses = summarize_courses(fetch_student_courses(female_same["account"], base_url))
+    female_other_courses = summarize_courses(fetch_student_courses(female_other["account"], base_url))
+
+    male_prefer = submit_round1_preference(male_same["account"], boys_course_id, base_url)
+    male_confirm = confirm_round1_preference(male_same["account"], base_url)
+    female_prefer = submit_round1_preference(female_same["account"], girls_course_id, base_url)
+    female_confirm = confirm_round1_preference(female_same["account"], base_url)
+    process_round1(admin_client, event_id, admin_courses_csrf)
+
+    update_event_times_for_finalize(admin_client, admin_courses_csrf, event_id, event_name)
+    trigger_finalize(female_other["account"], base_url)
+
+    male_after = fetch_student_my_selections(male_same["account"], base_url)
+    female_after = fetch_student_my_selections(female_same["account"], base_url)
+    female_other_after = fetch_student_my_selections(female_other["account"], base_url)
+
+    male_confirmed = get_confirmed_course_name(male_after)
+    female_confirmed = get_confirmed_course_name(female_after)
+    female_other_confirmed = get_confirmed_course_name(female_other_after)
+
+    passed = (
+        male_prefer.get("code") == 200
+        and male_confirm.get("code") == 200
+        and female_prefer.get("code") == 200
+        and female_confirm.get("code") == 200
+        and male_confirmed == boys_course_name
+        and female_confirmed == girls_course_name
+        and female_other_confirmed not in {girls_course_name, boys_course_name}
+        and boys_course_name in male_courses
+        and girls_course_name in male_courses
+        and male_courses[girls_course_name].get("eligible") is False
+        and male_courses[boys_course_name].get("eligible") is True
+        and female_courses[girls_course_name].get("eligible") is True
+        and female_courses[boys_course_name].get("eligible") is False
+        and girls_course_name in female_other_courses
+        and boys_course_name in female_other_courses
+        and female_other_courses[girls_course_name].get("eligible") is True
+        and int(female_other_courses[girls_course_name].get("remaining") or 0) == 0
+        and female_other_courses[boys_course_name].get("eligible") is False
+    )
+
+    return {
+        "eventId": event_id,
+        "sameClassId": male_same["classId"],
+        "sameClassName": male_same["className"],
+        "otherClassId": female_other["classId"],
+        "otherClassName": female_other["className"],
+        "girlsCourseId": girls_course_id,
+        "girlsCourseName": girls_course_name,
+        "boysCourseId": boys_course_id,
+        "boysCourseName": boys_course_name,
+        "maleSameClass": {
+            "studentId": male_same["student"]["id"],
+            "studentNo": male_same["account"].student_no,
+            "preferResult": male_prefer,
+            "confirmResult": male_confirm,
+            "courses": male_courses,
+            "confirmedCourseName": male_confirmed,
+        },
+        "femaleSameClass": {
+            "studentId": female_same["student"]["id"],
+            "studentNo": female_same["account"].student_no,
+            "preferResult": female_prefer,
+            "confirmResult": female_confirm,
+            "courses": female_courses,
+            "confirmedCourseName": female_confirmed,
+        },
+        "femaleOtherClass": {
+            "studentId": female_other["student"]["id"],
+            "studentNo": female_other["account"].student_no,
+            "courses": female_other_courses,
+            "confirmedCourseName": female_other_confirmed,
+            "afterSelections": female_other_after,
+        },
+        "passed": passed,
+    }
+
+
 def run_visibility_script(script_path: Path) -> dict:
     result = subprocess.run(
         [sys.executable, str(script_path)],
@@ -568,6 +780,14 @@ def main() -> None:
 
     accounts = refresh_accounts_from_export(admin_client, run_dir / "student_accounts.xlsx")
     teacher = create_teacher(admin_client, admin_courses_csrf, "gender-limit-suite", args.teacher_password)
+    visibility = run_visibility_script(ROOT / "scripts" / "regression" / "run_gender_reason_visibility_regression.py")
+    admin_client = RemoteClient(args.base_url)
+    admin_client.login_web(args.admin_username, args.admin_password)
+    admin_courses_page, _ = admin_client.get_text("/admin/courses")
+    admin_courses_csrf = parse_csrf_token(admin_courses_page)
+    admin_students_page, _ = admin_client.get_text("/admin/students")
+    admin_students_csrf = parse_csrf_token(admin_students_page)
+    admin_token = admin_client.api_login(args.admin_username, args.admin_password)["data"]["token"]
 
     edit_guard = run_edit_guard_scenario(admin_client, admin_courses_csrf, admin_token, accounts, args.base_url)
     pending_filter = run_pending_filter_scenario(
@@ -595,7 +815,14 @@ def main() -> None:
         accounts,
         args.base_url,
     )
-    visibility = run_visibility_script(ROOT / "scripts" / "regression" / "run_gender_reason_visibility_regression.py")
+    per_class_gender_combo = run_per_class_gender_combo_scenario(
+        admin_client,
+        admin_courses_csrf,
+        admin_token,
+        teacher,
+        accounts,
+        args.base_url,
+    )
 
     summary = {
         "teacher": teacher,
@@ -603,6 +830,7 @@ def main() -> None:
         "round1PendingFilter": pending_filter,
         "round2HistoricalInvalid": historical_invalid,
         "adminEnrollGuard": admin_enroll_guard,
+        "perClassGenderCombo": per_class_gender_combo,
         "visibilityRegression": visibility,
         "passed": all(
             [
@@ -610,6 +838,7 @@ def main() -> None:
                 pending_filter["passed"],
                 historical_invalid["passed"],
                 admin_enroll_guard["passed"],
+                per_class_gender_combo["passed"],
                 visibility["passed"],
             ]
         ),
