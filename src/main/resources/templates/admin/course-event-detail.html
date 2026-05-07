@@ -185,6 +185,33 @@
         </div>
     </div>
 
+    <div class="review-panel" th:if="${showUnassignedReasonPanel}">
+        <h3>暂未完成分配</h3>
+        <p>第二轮结束后，以下学生仍未确认课程。这里展示当前最接近实际情况的原因，便于快速跟进。</p>
+        <div class="summary-grid" th:if="${not #lists.isEmpty(unassignedStudentReasonSummary)}">
+            <div class="summary-card" th:each="item : ${unassignedStudentReasonSummary}">
+                <strong th:text="${item.count}">0</strong>
+                <span th:text="${item.reasonLabel}">未分配原因</span>
+            </div>
+        </div>
+        <div class="review-table-wrap" style="margin-top:14px;">
+            <table class="review-table">
+                <thead>
+                <tr><th>学生</th><th>学号</th><th>班级</th><th>当前提示</th></tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(unassignedStudentReasonRows)}"><td colspan="4" class="muted">当前所有参与学生都已完成分配。</td></tr>
+                <tr th:each="item : ${unassignedStudentReasonRows}">
+                    <td th:text="${item.student.name}">张三</td>
+                    <td th:text="${item.student.studentNo}">20240001</td>
+                    <td th:text="${item.student.schoolClass != null ? item.student.schoolClass.name : '-'}">高一1班</td>
+                    <td th:text="${item.reasonLabel}">受性别限制影响，无可分配课程</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="tab-bar">
         <button type="button" class="tab-btn" th:classappend="${activeTab == 'students' ? ' active' : ''}" onclick="switchTab('tabStudents', this)">1. 参与学生</button>
         <button type="button" class="tab-btn" th:classappend="${activeTab == 'courses' ? ' active' : ''}" onclick="switchTab('tabCourses', this)">2. 课程与名额</button>

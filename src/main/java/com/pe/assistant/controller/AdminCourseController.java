@@ -4,6 +4,7 @@ import com.pe.assistant.controller.support.CourseSelectionPromptHelper;
 import com.pe.assistant.dto.CourseEventReviewStats;
 import com.pe.assistant.dto.Round1LotterySummary;
 import com.pe.assistant.entity.Course;
+import com.pe.assistant.entity.CourseSelection;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.SelectionEvent;
 import com.pe.assistant.entity.Student;
@@ -38,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/admin/courses")
@@ -193,6 +195,14 @@ public class AdminCourseController {
         model.addAttribute("courseCapacityMap", courseCapacityMap);
         model.addAttribute("round1Summary", round1Summary);
         model.addAttribute("round1ResultAvailable", round1ResultAvailable);
+        boolean showUnassignedReasonPanel = "CLOSED".equals(event.getStatus())
+                || ("ROUND2".equals(event.getStatus())
+                && event.getRound2End() != null
+                && !LocalDateTime.now().isBefore(event.getRound2End()));
+        List<Map<String, Object>> unassignedStudentReasonRows = courseService.findUnassignedStudentReasonRows(event);
+        model.addAttribute("showUnassignedReasonPanel", showUnassignedReasonPanel);
+        model.addAttribute("unassignedStudentReasonRows", unassignedStudentReasonRows);
+        model.addAttribute("unassignedStudentReasonSummary", courseService.summarizeUnassignedStudentReasons(unassignedStudentReasonRows));
         model.addAttribute("eventStudents", eventService.findEventStudents(event));
         model.addAttribute("participatingStudents", participatingStudents);
         model.addAttribute("participatingClasses", classService.findAll(school).stream()
@@ -315,7 +325,10 @@ public class AdminCourseController {
         int confirmedEnrollmentCount = courseService.countConfirmedUniqueEnrollments(course);
         model.addAttribute("event", event);
         model.addAttribute("course", course);
-        model.addAttribute("enrollments", courseService.findEnrollments(course));
+        List<CourseSelection> enrollments = courseService.findEnrollments(course);
+        model.addAttribute("enrollments", enrollments);
+        model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(enrollments));
+        model.addAttribute("selectionStatusLabelMap", courseService.buildAdminSelectionStatusLabelMap(enrollments));
         model.addAttribute("confirmedEnrollmentCount", confirmedEnrollmentCount);
         model.addAttribute("remainingEnrollmentCapacity", Math.max(0, course.getTotalCapacity() - confirmedEnrollmentCount));
         model.addAttribute("overflowEnrollmentCount", Math.max(0, confirmedEnrollmentCount - course.getTotalCapacity()));

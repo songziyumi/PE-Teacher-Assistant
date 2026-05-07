@@ -55,9 +55,12 @@ public class TeacherCourseController {
         SelectionEvent event = eventService.findById(eventId);
         Course course = courseService.findById(courseId);
         int confirmedEnrollmentCount = courseService.countConfirmedUniqueEnrollments(course);
+        List<CourseSelection> enrollments = courseService.findEnrollments(course);
         model.addAttribute("event", event);
         model.addAttribute("course", course);
-        model.addAttribute("enrollments", courseService.findConfirmedUniqueEnrollments(course));
+        model.addAttribute("enrollments", enrollments);
+        model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(enrollments));
+        model.addAttribute("selectionStatusLabelMap", courseService.buildTeacherSelectionStatusLabelMap(enrollments));
         model.addAttribute("confirmedEnrollmentCount", confirmedEnrollmentCount);
         model.addAttribute("remainingEnrollmentCapacity", Math.max(0, course.getTotalCapacity() - confirmedEnrollmentCount));
         model.addAttribute("overflowEnrollmentCount", Math.max(0, confirmedEnrollmentCount - course.getTotalCapacity()));

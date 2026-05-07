@@ -45,6 +45,8 @@ class LotteryServiceRegressionTest {
     private StudentNotificationService studentNotificationService;
     @Mock
     private StudentService studentService;
+    @Mock
+    private CourseService courseService;
 
     @InjectMocks
     private LotteryService lotteryService;
@@ -187,11 +189,38 @@ class LotteryServiceRegressionTest {
         verify(studentService).assignElectiveClassFromCourse(winner, alpha);
     }
 
+    @Test
+    void shouldCancelPendingSelectionsThatBecomeIneligibleAfterGenderLimitChange() throws Exception {
+        SelectionEvent event = buildEvent(5L);
+
+        Course girlsOnly = buildGlobalCourse(51L, event, "Girls Only", 1);
+        girlsOnly.setGenderLimit(CourseService.GENDER_LIMIT_FEMALE_ONLY);
+
+        SchoolClass schoolClass = buildClass(5L, "Class 5");
+        Student maleStudent = buildStudent(501L, schoolClass);
+        maleStudent.setGender("男");
+
+        CourseSelection pendingSelection = buildSelection(5001L, event, girlsOnly, maleStudent, 1, "PENDING");
+        List<CourseSelection> selections = new ArrayList<>(List.of(pendingSelection));
+
+        stubCommonEventAndCourseQueries(event, List.of(girlsOnly));
+        stubConfirmedSelections(event, selections);
+        stubGlobalSelectionQueries(selections);
+        stubSavePassthrough();
+        when(courseService.isStudentEligibleForCourse(maleStudent, girlsOnly)).thenReturn(false);
+
+        lotteryService.doRunLottery(event.getId());
+
+        assertEquals("CANCELLED", pendingSelection.getStatus());
+        assertEquals(0, girlsOnly.getCurrentCount());
+    }
+
     private void stubCommonEventAndCourseQueries(SelectionEvent event, List<Course> courses) {
         when(eventRepo.findById(event.getId())).thenReturn(Optional.of(event));
         when(courseRepo.findByEventOrderByNameAsc(event)).thenReturn(courses.stream()
                 .sorted(Comparator.comparing(Course::getName))
                 .toList());
+        when(courseService.isStudentEligibleForCourse(any(Student.class), any(Course.class))).thenReturn(true);
     }
 
     private void stubConfirmedSelections(SelectionEvent event, List<CourseSelection> selections) {

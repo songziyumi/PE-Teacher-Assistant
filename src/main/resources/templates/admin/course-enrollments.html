@@ -172,13 +172,14 @@
                     <th>班级</th>
                     <th>志愿/轮次</th>
                     <th>状态</th>
+                    <th>原因说明</th>
                     <th>确认时间</th>
                     <th>操作</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(enrollments)}">
-                    <td colspan="7" style="text-align:center;color:#94a3b8;">暂无报名记录</td>
+                    <td colspan="8" style="text-align:center;color:#94a3b8;">暂无报名记录</td>
                 </tr>
                 <tr th:each="sel : ${enrollments}">
                     <td th:text="${sel.student.name}"></td>
@@ -194,11 +195,10 @@
                               th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
                                               (${sel.status == 'PENDING'} ? 'badge-pending' :
                                               (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                              th:text="${sel.status == 'CONFIRMED' ? '已确认' :
-                                        (sel.status == 'PENDING' ? '待结算' :
-                                        (sel.status == 'LOTTERY_FAIL' ? '未中签' : '已取消'))}">
+                              th:text="${selectionStatusLabelMap[sel.id]}">
                         </span>
                     </td>
+                    <td th:text="${selectionReasonMap[sel.id]}">-</td>
                     <td th:text="${sel.confirmedAt != null ? #temporals.format(sel.confirmedAt,'MM-dd HH:mm') : '-'}"></td>
                     <td>
                         <form th:if="${sel.status == 'CONFIRMED'}"

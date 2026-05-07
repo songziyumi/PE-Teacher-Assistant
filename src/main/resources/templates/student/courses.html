@@ -89,6 +89,13 @@
         }
         .sel-course { font-weight: 700; font-size: .96rem; color: #111827; line-height: 1.4; }
         .sel-meta { font-size: .8rem; color: #94a3b8; margin-top: 4px; }
+        .sel-reason {
+            width: 100%;
+            font-size: .82rem;
+            line-height: 1.6;
+            color: #64748b;
+            padding-top: 2px;
+        }
         .status {
             display: inline-flex;
             align-items: center;
@@ -291,6 +298,11 @@
     <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
     <div id="ajaxFeedback" class="ajax-feedback"></div>
 
+    <div th:if="${studentUnassignedReason != null}" class="banner waiting">
+        <h3>暂未完成选课</h3>
+        <p th:text="${studentUnassignedReason}">受性别限制影响，无可分配课程</p>
+    </div>
+
     <div class="panel my-course-card">
         <div class="my-course-card-header">
             <div class="my-course-title">
@@ -319,12 +331,10 @@
                                      (${sel.status == 'PENDING'} ? ' status-pending' :
                                      (${sel.status == 'CONFIRMED'} ? ' status-confirmed' :
                                      (${sel.status == 'LOTTERY_FAIL'} ? ' status-fail' : ' status-cancelled')) )">
-                    <span th:if="${sel.status == 'DRAFT'}">草稿</span>
-                    <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
-                    <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
-                    <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
-                    <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
+                    <span th:text="${selectionStatusLabelMap[sel.id]}">状态</span>
                 </div>
+
+                <div class="sel-reason" th:text="${selectionReasonMap[sel.id]}">原因说明</div>
 
                 <form th:if="${#lists.contains(droppableSelectionIds, sel.id)}"
                       th:action="@{/student/selections/{id}/drop(id=${sel.id})}"
@@ -423,11 +433,7 @@
                     <span th:if="${sel.preference == 2}">第二志愿</span>
                     <span th:if="${sel.preference == 0}">第二轮/管理员分配</span>
                     -
-                    <span th:if="${sel.status == 'DRAFT'}">草稿</span>
-                    <span th:if="${sel.status == 'PENDING'}">已确认填报</span>
-                    <span th:if="${sel.status == 'CONFIRMED'}">已确认选中</span>
-                    <span th:if="${sel.status == 'LOTTERY_FAIL'}">未中签</span>
-                    <span th:if="${sel.status == 'CANCELLED'}">已取消</span>
+                    <span th:text="${selectionStatusLabelMap[sel.id]}">状态</span>
                 </li>
             </ul>
         </div>
