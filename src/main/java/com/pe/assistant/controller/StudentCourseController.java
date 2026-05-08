@@ -30,6 +30,32 @@ public class StudentCourseController {
     private final SelectionEventRepository eventRepo;
     private final MessageService messageService;
 
+    private Map<Long, Boolean> buildEligibleCourseMap(List<Course> courses, Student student) {
+        Map<Long, Boolean> eligibleCourseMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            eligibleCourseMap.put(course.getId(), courseService.isStudentEligibleForCourse(student, course));
+        }
+        return eligibleCourseMap;
+    }
+
+    private Map<Long, String> buildGenderLimitLabelMap(List<Course> courses) {
+        Map<Long, String> genderLimitLabelMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            genderLimitLabelMap.put(course.getId(), courseService.getGenderLimitLabel(course.getGenderLimit()));
+        }
+        return genderLimitLabelMap;
+    }
+
+    private Map<Long, String> buildIneligibleMessageMap(List<Course> courses, Student student) {
+        Map<Long, String> ineligibleMessageMap = new LinkedHashMap<>();
+        for (Course course : courses) {
+            if (!courseService.isStudentEligibleForCourse(student, course)) {
+                ineligibleMessageMap.put(course.getId(), courseService.getIneligibleCourseMessage(course));
+            }
+        }
+        return ineligibleMessageMap;
+    }
+
     /**
      * 找学生所在学校最近的一个活动（非 CLOSED）。
      * 第三轮页面用：找最近的 CLOSED 活动（若学生无确认选课）。
@@ -106,11 +132,13 @@ public class StudentCourseController {
         model.addAttribute("hasPref2", false);
         model.addAttribute("round1SubmissionConfirmed", false);
         model.addAttribute("mySelections", List.of());
+        model.addAttribute("selectionReasonMap", Map.of());
         model.addAttribute("droppableSelectionIds", List.of());
         model.addAttribute("confirmedSelectionCount", 0L);
         model.addAttribute("pendingSelectionCount", 0L);
         model.addAttribute("lotteryFailSelectionCount", 0L);
         model.addAttribute("courses", List.of());
+        model.addAttribute("studentUnassignedReason", null);
         try {
             SelectionEvent event = findActiveEvent(student);
 
@@ -128,11 +156,16 @@ public class StudentCourseController {
                             .filter(course -> course.getTeacher() != null)
                             .toList();
                     Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(requestableCourses);
+                    Map<Long, Boolean> eligibleCourseMap = buildEligibleCourseMap(requestableCourses, student);
+                    Map<Long, String> genderLimitLabelMap = buildGenderLimitLabelMap(requestableCourses);
+                    Map<Long, String> ineligibleMessageMap = buildIneligibleMessageMap(requestableCourses, student);
                     Map<Long, InternalMessage> round3RequestMap = messageService.getLatestStudentCourseRequests(student, closedEvent);
                     boolean inRound3 = eventService.isInRound3(closedEvent);
                     model.addAttribute("event", closedEvent);
                     model.addAttribute("courses", requestableCourses);
                     model.addAttribute("mySelections", mySelections);
+                    model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(mySelections));
+                    model.addAttribute("selectionStatusLabelMap", courseService.buildStudentSelectionStatusLabelMap(mySelections));
                     model.addAttribute("droppableSelectionIds", mySelections.stream()
                             .filter(courseService::canDropSelection)
                             .map(CourseSelection::getId)
@@ -147,6 +180,9 @@ public class StudentCourseController {
                     model.addAttribute("round3NotStarted", !inRound3 && isRound3NotStarted(closedEvent));
                     model.addAttribute("round3Ended", !inRound3 && isRound3Ended(closedEvent));
                     model.addAttribute("confirmedCountMap", confirmedCountMap);
+                    model.addAttribute("eligibleCourseMap", eligibleCourseMap);
+                    model.addAttribute("genderLimitLabelMap", genderLimitLabelMap);
+                    model.addAttribute("ineligibleMessageMap", ineligibleMessageMap);
                     model.addAttribute("round3RequestMap", round3RequestMap);
                     model.addAttribute("unreadCount",
                             messageService.getUnreadCount("STUDENT", student.getId()));
@@ -154,6 +190,7 @@ public class StudentCourseController {
                             requestableCourses.stream().collect(java.util.stream.Collectors.toMap(
                                     Course::getId,
                                     c -> courseService.getRemainingCapacity(c, student))));
+                    model.addAttribute("studentUnassignedReason", courseService.resolveUnassignedReasonLabel(closedEvent, student));
                     return "student/courses";
                 }
             }
@@ -163,6 +200,9 @@ public class StudentCourseController {
 
         List<Course> courses = courseService.findActiveCoursesForStudent(event, student);
         Map<Long, Integer> confirmedCountMap = buildConfirmedCountMap(courses);
+        Map<Long, Boolean> eligibleCourseMap = buildEligibleCourseMap(courses, student);
+        Map<Long, String> genderLimitLabelMap = buildGenderLimitLabelMap(courses);
+        Map<Long, String> ineligibleMessageMap = buildIneligibleMessageMap(courses, student);
         List<CourseSelection> mySelections = courseService.findMySelections(student, event);
         boolean hasConfirmed = mySelections.stream().anyMatch(s -> "CONFIRMED".equals(s.getStatus()));
         boolean hasPref1 = mySelections.stream()
@@ -177,6 +217,8 @@ public class StudentCourseController {
         model.addAttribute("event", event);
         model.addAttribute("courses", courses);
         model.addAttribute("mySelections", mySelections);
+        model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(mySelections));
+        model.addAttribute("selectionStatusLabelMap", courseService.buildStudentSelectionStatusLabelMap(mySelections));
         model.addAttribute("droppableSelectionIds", mySelections.stream()
                 .filter(courseService::canDropSelection)
                 .map(CourseSelection::getId)
@@ -198,10 +240,20 @@ public class StudentCourseController {
         model.addAttribute("round1SubmissionConfirmed", round1SubmissionConfirmed);
         model.addAttribute("unreadCount", messageService.getUnreadCount("STUDENT", student.getId()));
         model.addAttribute("confirmedCountMap", confirmedCountMap);
+        model.addAttribute("eligibleCourseMap", eligibleCourseMap);
+        model.addAttribute("genderLimitLabelMap", genderLimitLabelMap);
+        model.addAttribute("ineligibleMessageMap", ineligibleMessageMap);
         model.addAttribute("remainingMap",
                 courses.stream().collect(java.util.stream.Collectors.toMap(
                         Course::getId,
                         c -> courseService.getRemainingCapacity(c, student))));
+        boolean noConfirmedSelection = mySelections.stream().noneMatch(s -> "CONFIRMED".equals(s.getStatus()));
+        boolean showUnassignedReason = noConfirmedSelection
+                && ("CLOSED".equals(event.getStatus())
+                || ("ROUND2".equals(event.getStatus()) && event.getRound2End() != null && !LocalDateTime.now().isBefore(event.getRound2End())));
+        model.addAttribute("studentUnassignedReason", showUnassignedReason
+                ? courseService.resolveUnassignedReasonLabel(event, student)
+                : null);
         return "student/courses";
         } catch (Exception ex) {
             log.error("student.courses.render.failed studentId={} schoolId={} message={}",
@@ -311,10 +363,19 @@ public class StudentCourseController {
             List<CourseSelection> mySelections = courseService.findMySelections(student, event);
             model.addAttribute("event", event);
             model.addAttribute("mySelections", mySelections);
+            model.addAttribute("selectionReasonMap", courseService.buildSelectionReasonMap(mySelections));
+            model.addAttribute("selectionStatusLabelMap", courseService.buildStudentSelectionStatusLabelMap(mySelections));
             model.addAttribute("droppableSelectionIds", mySelections.stream()
                     .filter(courseService::canDropSelection)
                     .map(CourseSelection::getId)
                     .collect(Collectors.toList()));
+            boolean noConfirmedSelection = mySelections.stream().noneMatch(s -> "CONFIRMED".equals(s.getStatus()));
+            boolean showUnassignedReason = noConfirmedSelection
+                    && ("CLOSED".equals(event.getStatus())
+                    || ("ROUND2".equals(event.getStatus()) && event.getRound2End() != null && !LocalDateTime.now().isBefore(event.getRound2End())));
+            model.addAttribute("studentUnassignedReason", showUnassignedReason
+                    ? courseService.resolveUnassignedReasonLabel(event, student)
+                    : null);
         }
         return "student/my-courses";
     }

@@ -241,6 +241,55 @@ class CourseServiceRegressionTest {
     }
 
     @Test
+    void saveCourseShouldRejectGenderLimitChangeWhenActiveSelectionsConflict() {
+        Course persisted = new Course();
+        persisted.setId(20L);
+        persisted.setGenderLimit(CourseService.GENDER_LIMIT_ALL);
+
+        Course updating = new Course();
+        updating.setId(20L);
+        updating.setGenderLimit(CourseService.GENDER_LIMIT_FEMALE_ONLY);
+        updating.setName("啦啦操");
+
+        Student maleStudent = buildStudent(301L);
+        maleStudent.setGender("男");
+        CourseSelection pendingSelection = buildSelection(updating, maleStudent, "PENDING");
+
+        when(courseRepo.findById(20L)).thenReturn(Optional.of(persisted));
+        when(selectionRepo.findByCourseOrderBySelectedAtAsc(updating)).thenReturn(List.of(pendingSelection));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> courseService.saveCourse(updating, null, null));
+
+        assertTrue(ex.getMessage().contains("无法保存"));
+        verify(courseRepo, never()).save(updating);
+    }
+
+    @Test
+    void saveCourseShouldAllowGenderLimitChangeWhenOnlyCancelledSelectionsConflict() {
+        Course persisted = new Course();
+        persisted.setId(21L);
+        persisted.setGenderLimit(CourseService.GENDER_LIMIT_ALL);
+
+        Course updating = new Course();
+        updating.setId(21L);
+        updating.setGenderLimit(CourseService.GENDER_LIMIT_FEMALE_ONLY);
+
+        Student maleStudent = buildStudent(302L);
+        maleStudent.setGender("男");
+        CourseSelection cancelledSelection = buildSelection(updating, maleStudent, "CANCELLED");
+
+        when(courseRepo.findById(21L)).thenReturn(Optional.of(persisted));
+        when(selectionRepo.findByCourseOrderBySelectedAtAsc(updating)).thenReturn(List.of(cancelledSelection));
+        when(courseRepo.save(updating)).thenReturn(updating);
+
+        Course result = courseService.saveCourse(updating, null, null);
+
+        assertSame(updating, result);
+        verify(courseRepo).save(updating);
+    }
+
+    @Test
     void findEnrollmentsShouldReturnAllSelectionsForAdminView() {
         Course course = new Course();
         course.setId(10L);
@@ -555,7 +604,6 @@ class CourseServiceRegressionTest {
         when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
         when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
         when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
-        when(selectionRepo.findByEvent(event)).thenReturn(List.of(failSelection));
         when(courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE")).thenReturn(List.of(course));
         when(courseRepo.incrementCurrentCountIfAvailable(10L)).thenReturn(1);
         when(selectionRepo.saveAndFlush(any(CourseSelection.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -596,7 +644,6 @@ class CourseServiceRegressionTest {
         when(eventRepo.findById(1L)).thenReturn(Optional.of(event));
         when(eventStudentRepo.existsByEvent(event)).thenReturn(true);
         when(eventStudentRepo.findStudentsByEvent(event)).thenReturn(List.of(student));
-        when(selectionRepo.findByEvent(event)).thenReturn(List.of(failSelection));
         when(courseRepo.findByEventAndStatusOrderByNameAsc(event, "ACTIVE")).thenReturn(List.of());
 
         int assigned = courseService.finalizeEndedRound2Event(1L);
@@ -696,6 +743,7 @@ class CourseServiceRegressionTest {
     private Student buildStudent(Long id) {
         Student student = new Student();
         student.setId(id);
+        student.setName("student-" + id);
         return student;
     }
 

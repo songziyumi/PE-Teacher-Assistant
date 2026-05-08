@@ -503,9 +503,14 @@ public class StudentApiController {
     private Map<String, Object> toCourseMap(Course course, Student student) {
         Map<String, Object> result = new LinkedHashMap<>();
         int confirmedCount = courseService.countConfirmedUniqueEnrollments(course);
+        boolean eligible = courseService.isStudentEligibleForCourse(student, course);
         result.put("id", course.getId());
         result.put("name", course.getName());
         result.put("description", course.getDescription());
+        result.put("genderLimit", courseService.normalizeGenderLimit(course.getGenderLimit()));
+        result.put("genderLimitLabel", courseService.getGenderLimitLabel(course.getGenderLimit()));
+        result.put("eligible", eligible);
+        result.put("ineligibleMessage", eligible ? null : courseService.getIneligibleCourseMessage(course));
         result.put("teacherName", course.getTeacher() != null ? course.getTeacher().getName() : null);
         result.put("teacherAssigned", course.getTeacher() != null);
         result.put("totalCapacity", course.getTotalCapacity());

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -139,6 +139,10 @@
             <div class="summary-value" th:text="${course.totalCapacity}">0</div>
         </div>
         <div class="summary-card">
+            <div class="summary-label">报名范围</div>
+            <div class="summary-value" style="font-size:1rem;" th:text="${genderLimitLabel}">不限</div>
+        </div>
+        <div class="summary-card">
             <div class="summary-label">已确认人数</div>
             <div class="summary-value" th:text="${confirmedEnrollmentCount}">0</div>
         </div>
@@ -169,12 +173,13 @@
                     <th>班级</th>
                     <th>志愿/轮次</th>
                     <th>状态</th>
+                    <th>原因说明</th>
                     <th>确认时间</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(enrollments)}">
-                    <td colspan="6" class="empty-tip">当前暂无报名记录</td>
+                    <td colspan="7" class="empty-tip">当前暂无报名记录</td>
                 </tr>
                 <tr th:each="sel : ${enrollments}">
                     <td th:text="${sel.student.name}">张三</td>
@@ -190,10 +195,9 @@
                               th:classappend="${sel.status == 'CONFIRMED'} ? 'badge-confirmed' :
                                               (${sel.status == 'PENDING'} ? 'badge-pending' :
                                               (${sel.status == 'LOTTERY_FAIL'} ? 'badge-fail' : 'badge-cancelled'))"
-                              th:text="${sel.status == 'CONFIRMED' ? '已确认' :
-                                        (sel.status == 'PENDING' ? '待处理' :
-                                        (sel.status == 'LOTTERY_FAIL' ? '未中签' : '已取消'))}">已确认</span>
+                              th:text="${selectionStatusLabelMap[sel.id]}">已确认</span>
                     </td>
+                    <td th:text="${selectionReasonMap[sel.id]}">-</td>
                     <td th:text="${sel.confirmedAt != null ? #temporals.format(sel.confirmedAt,'MM-dd HH:mm') : '-'}">-</td>
                 </tr>
                 </tbody>

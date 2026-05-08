@@ -53,6 +53,7 @@ class TeacherCourseTemplatesRenderTest {
         context.setVariable("events", List.of(event));
         context.setVariable("coursesByEvent", Map.of(event.getId(), List.of(course)));
         context.setVariable("confirmedCountByCourse", Map.of(course.getId(), 118));
+        context.setVariable("genderLimitLabelMap", Map.of(course.getId(), "不限"));
         context.setVariable("teacher", null);
 
         engine.process("teacher/courses", context);
@@ -85,6 +86,7 @@ class TeacherCourseTemplatesRenderTest {
         student.setSchoolClass(schoolClass);
 
         CourseSelection selection = new CourseSelection();
+        selection.setId(100L);
         selection.setCourse(course);
         selection.setStudent(student);
         selection.setRound(2);
@@ -96,9 +98,12 @@ class TeacherCourseTemplatesRenderTest {
         context.setVariable("event", event);
         context.setVariable("course", course);
         context.setVariable("enrollments", List.of(selection));
+        context.setVariable("selectionReasonMap", Map.of(selection.getId(), "第二轮补位成功"));
+        context.setVariable("selectionStatusLabelMap", Map.of(selection.getId(), "已确认"));
         context.setVariable("confirmedEnrollmentCount", 1);
         context.setVariable("remainingEnrollmentCapacity", 119);
         context.setVariable("overflowEnrollmentCount", 0);
+        context.setVariable("genderLimitLabel", "不限");
 
         engine.process("teacher/course-enrollments", context);
     }
