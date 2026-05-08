@@ -1,0 +1,21 @@
+spring:
+  profiles:
+    default: ${APP_SERVER_PROFILE:server-low}
+  config:
+    import: classpath:app-public.yml
+  datasource:
+    url: jdbc:mysql://localhost:3306/pe_assistant?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# 安全配置（生产环境请通过环境变量覆盖）
+# DB_PASSWORD=<your-db-password>
+# APP_ADMIN_DEFAULT_PASSWORD=<strong-password>
+# APP_SUPER_ADMIN_DEFAULT_PASSWORD=<strong-password>
+app:
+  admin:
+    default-password: ${APP_ADMIN_DEFAULT_PASSWORD}
+  super-admin:
+    default-password: ${APP_SUPER_ADMIN_DEFAULT_PASSWORD}
+  upload-dir: ${APP_UPLOAD_DIR:${user.home}/.pe-teacher-assistant/uploads}
