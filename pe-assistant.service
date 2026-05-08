@@ -5,6 +5,7 @@ After=network.target mysqld.service
 [Service]
 User=root
 WorkingDirectory=/opt/pe-assistant
+EnvironmentFile=-/opt/pe-assistant/pe-assistant.env
 ExecStart=/usr/bin/java -jar /opt/pe-assistant/app.jar --spring.config.additional-location=/opt/pe-assistant/application.yml
 SuccessExitStatus=143
 Restart=on-failure

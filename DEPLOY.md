@@ -164,11 +164,11 @@ systemctl start pe-assistant
 
 ```bash
 # 1. 本地编译/打包
-mvn -q -Dmaven.repo.local=.m2repo -DskipTests compile
+mvn -q "-Dmaven.repo.local=.m2repo" -DskipTests compile
 mvn clean package -DskipTests
 
 # 2. 上传新包
-scp target/pe-teacher-assistant-*.jar root@175.24.131.74:/opt/pe-assistant/app.jar
+scp target/pe-teacher-assistant-4.0.0.jar root@175.24.131.74:/opt/pe-assistant/app.jar
 
 # 3. 重启服务
 ssh root@175.24.131.74 "systemctl restart pe-assistant"

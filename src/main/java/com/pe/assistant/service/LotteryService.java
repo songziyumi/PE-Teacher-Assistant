@@ -43,6 +43,7 @@ public class LotteryService {
     private final CourseSelectionRepository selectionRepo;
     private final StudentNotificationService studentNotificationService;
     private final StudentService studentService;
+    private final CourseService courseService;
 
     @Async
     public void runLottery(Long eventId) {
@@ -142,9 +143,11 @@ public class LotteryService {
         }
 
         cancelExcludedSelections(targetSelections, excludedStudentIds);
+        cancelIneligibleSelections(targetSelections, course);
 
         List<CourseSelection> eligibleSelections = targetSelections.stream()
                 .filter(cs -> !excludedStudentIds.contains(cs.getStudent().getId()))
+                .filter(cs -> courseService.isStudentEligibleForCourse(cs.getStudent(), course))
                 .collect(Collectors.toCollection(ArrayList::new));
 
         int confirmed = course.getCurrentCount();
@@ -178,9 +181,11 @@ public class LotteryService {
             }
 
             cancelExcludedSelections(targetSelections, excludedStudentIds);
+            cancelIneligibleSelections(targetSelections, course);
 
             List<CourseSelection> eligibleSelections = targetSelections.stream()
                     .filter(cs -> !excludedStudentIds.contains(cs.getStudent().getId()))
+                    .filter(cs -> courseService.isStudentEligibleForCourse(cs.getStudent(), course))
                     .collect(Collectors.toCollection(ArrayList::new));
 
             int beforeConfirmed = cap.getCurrentCount();
@@ -202,6 +207,16 @@ public class LotteryService {
                 .filter(cs -> excludedStudentIds.contains(cs.getStudent().getId()))
                 .forEach(cs -> {
                     cs.setStatus("CANCELLED");
+                    selectionRepo.save(cs);
+                });
+    }
+
+    private void cancelIneligibleSelections(List<CourseSelection> selections, Course course) {
+        selections.stream()
+                .filter(cs -> !courseService.isStudentEligibleForCourse(cs.getStudent(), course))
+                .forEach(cs -> {
+                    cs.setStatus("CANCELLED");
+                    cs.setConfirmedAt(null);
                     selectionRepo.save(cs);
                 });
     }
