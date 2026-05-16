@@ -123,6 +123,30 @@ function fetchTeacherProfileStats() {
   });
 }
 
+function fetchTeacherStudentAttendanceHistory(studentId, days) {
+  return request({
+    path: `/api/teacher/students/${studentId}/attendance-history?days=${days || 90}`
+  });
+}
+
+function checkTeacherStudentNo(studentNo, excludeId) {
+  const params = [`studentNo=${encodeURIComponent(studentNo || '')}`];
+  if (excludeId) {
+    params.push(`excludeId=${excludeId}`);
+  }
+  return request({
+    path: `/api/teacher/students/check-student-no?${params.join('&')}`
+  });
+}
+
+function updateTeacherStudent(studentId, payload) {
+  return request({
+    path: `/api/teacher/students/${studentId}`,
+    method: 'PUT',
+    data: payload
+  });
+}
+
 function updateTeacherProfile(payload) {
   return request({
     path: '/api/teacher/profile',
@@ -180,6 +204,9 @@ module.exports = {
   fetchTeacherClassStudents,
   fetchTeacherAttendance,
   saveTeacherAttendance,
+  fetchTeacherStudentAttendanceHistory,
+  checkTeacherStudentNo,
+  updateTeacherStudent,
   fetchTeacherProfile,
   fetchTeacherProfileStats,
   updateTeacherProfile,

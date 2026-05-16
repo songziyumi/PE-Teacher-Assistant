@@ -4,7 +4,8 @@
     "pages/home/index",
     "pages/teacher/profile/index",
     "pages/teacher/attendance/index",
-    "pages/teacher/attendance-edit/index"
+    "pages/teacher/attendance-edit/index",
+    "pages/teacher/student-list/index"
   ],
   "window": {
     "navigationBarTitleText": "体育教师助手",
