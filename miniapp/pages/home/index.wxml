@@ -1,0 +1,120 @@
+<view class="page-shell">
+  <view class="hero-card home-hero">
+    <view class="hero-top">
+      <view>
+        <view class="page-title">{{user ? user.name : '工作台'}}</view>
+        <view class="page-subtitle">
+          {{user ? user.role : ''}}
+          <text wx:if="{{user && user.schoolName}}"> · {{user.schoolName}}</text>
+        </view>
+      </view>
+      <view class="hero-actions" wx:if="{{isTeacher}}">
+        <button class="secondary-button small-button" bindtap="goTeacherProfile">个人主页</button>
+        <button class="secondary-button small-button" bindtap="handleLogout">退出</button>
+      </view>
+      <button wx:elif="{{user}}" class="secondary-button small-button" bindtap="handleLogout">退出</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载首页数据...</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="handleRefresh">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{isStudent}}" class="panel-card">
+      <view class="section-title">学生端摘要</view>
+      <view class="metrics-grid">
+        <view class="metric-box">
+          <view class="metric-value">{{home.currentCourseCount || 0}}</view>
+          <view class="metric-label">当前课程数</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.confirmedCourseCount || 0}}</view>
+          <view class="metric-label">已确认课程</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.pendingSelectionCount || 0}}</view>
+          <view class="metric-label">待处理志愿</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.unreadMessageCount || 0}}</view>
+          <view class="metric-label">未读消息</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{isTeacher}}" class="panel-card">
+      <view class="section-title">教师端摘要</view>
+      <view class="metrics-grid">
+        <view class="metric-box">
+          <view class="metric-value">{{home.classCount || 0}}</view>
+          <view class="metric-label">班级数</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.pendingCourseRequestCount || 0}}</view>
+          <view class="metric-label">待审批</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.unreadMessageCount || 0}}</view>
+          <view class="metric-label">未读消息</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{home.currentEvent}}" class="panel-card">
+      <view class="section-title">当前活动</view>
+      <view class="info-row">
+        <text class="info-label">名称</text>
+        <text class="info-value">{{home.currentEvent.name}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">状态</text>
+        <text class="info-value">{{home.currentEvent.status}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{isTeacher && home.classes && home.classes.length}}" class="panel-card">
+      <view class="section-title">我的班级</view>
+      <view class="tag-list">
+        <view wx:for="{{home.classes}}" wx:key="id" class="tag-item">
+          <view class="tag-name">{{item.name}}</view>
+          <view class="tag-meta">{{item.gradeName || '未分年级'}} · {{item.type || '班级'}}</view>
+          <view class="class-action-grid">
+            <view class="class-action-button class-action-button-primary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherAttendanceForClass">考勤录入</view>
+            <view class="class-action-button class-action-button-secondary" data-label="学生列表" bindtap="showTodoFeature">学生列表</view>
+            <view class="class-action-button class-action-button-secondary" data-label="体质录入" bindtap="showTodoFeature">体质录入</view>
+            <view class="class-action-button class-action-button-secondary" data-label="成绩录入" bindtap="showTodoFeature">成绩录入</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">最近消息</view>
+      <view wx:if="{{home.recentMessages && home.recentMessages.length}}">
+        <view wx:for="{{home.recentMessages}}" wx:key="id" class="message-item">
+          <view class="message-subject">{{item.subject || '未命名消息'}}</view>
+          <view class="message-meta">
+            {{item.senderName || '系统'}}
+            <text wx:if="{{item.sentAt}}"> · {{item.sentAt}}</text>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty-text">暂无最近消息。</view>
+    </view>
+
+    <view wx:if="{{isTeacher && home.recentActivities && home.recentActivities.length}}" class="panel-card">
+      <view class="section-title">最近操作</view>
+      <view wx:for="{{home.recentActivities}}" wx:key="index" class="message-item">
+        <view class="message-subject">{{item.title || item.action}}</view>
+        <view class="message-meta">{{item.description || '-'}}</view>
+      </view>
+    </view>
+  </block>
+</view>

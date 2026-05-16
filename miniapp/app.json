@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/home/index",
+    "pages/teacher/profile/index",
+    "pages/teacher/attendance/index",
+    "pages/teacher/attendance-edit/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "体育教师助手",
+    "navigationBarBackgroundColor": "#16324f",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f4f7fb",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

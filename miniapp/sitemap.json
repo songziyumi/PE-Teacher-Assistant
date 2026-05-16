@@ -1,0 +1,9 @@
+{
+  "desc": "PE Teacher Assistant mini program sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

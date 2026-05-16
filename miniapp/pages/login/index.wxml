@@ -1,0 +1,39 @@
+<view class="page-shell">
+  <view class="hero-card login-hero">
+    <view class="page-title">体育教师助手</view>
+    <view class="page-subtitle">先接通小程序登录，再逐步补齐学生端和教师端工作台。</view>
+  </view>
+
+  <view class="panel-card">
+    <view class="field-label">服务器地址</view>
+    <input
+      class="input-field"
+      placeholder="例如 https://www.jsqyty.com"
+      value="{{baseUrl}}"
+      bindinput="onBaseUrlInput"
+    />
+
+    <view class="field-label">账号</view>
+    <input
+      class="input-field"
+      placeholder="请输入账号"
+      value="{{username}}"
+      bindinput="onUsernameInput"
+    />
+
+    <view class="field-label">密码</view>
+    <input
+      class="input-field"
+      password="{{true}}"
+      placeholder="请输入密码"
+      value="{{password}}"
+      bindinput="onPasswordInput"
+    />
+
+    <view wx:if="{{errorMessage}}" class="error-box">{{errorMessage}}</view>
+
+    <button class="primary-button login-button" loading="{{loading}}" bindtap="handleLogin">
+      登录
+    </button>
+  </view>
+</view>
