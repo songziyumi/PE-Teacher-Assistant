@@ -95,7 +95,7 @@
           <view class="class-action-grid">
             <view class="class-action-button class-action-button-primary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherAttendanceForClass">{{text.attendanceEntry}}</view>
             <view class="class-action-button class-action-button-secondary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherStudentList">{{text.studentList}}</view>
-            <view class="class-action-button class-action-button-secondary" data-label="{{text.physicalEntry}}" bindtap="showTodoFeature">{{text.physicalEntry}}</view>
+            <view class="class-action-button class-action-button-secondary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherPhysicalEntry">{{text.physicalEntry}}</view>
             <view class="class-action-button class-action-button-secondary" data-label="{{text.gradeEntry}}" bindtap="showTodoFeature">{{text.gradeEntry}}</view>
           </view>
         </view>

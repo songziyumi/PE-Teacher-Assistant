@@ -116,6 +116,17 @@ Page({
     });
   },
 
+  goTeacherPhysicalEntry(event) {
+    const classId = event.currentTarget.dataset.classId;
+    const className = event.currentTarget.dataset.className || '';
+    if (!classId) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/teacher/physical-entry/index?classId=${classId}&className=${encodeURIComponent(className)}`
+    });
+  },
+
   goTeacherProfile() {
     wx.navigateTo({
       url: '/pages/teacher/profile/index'

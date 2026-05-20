@@ -1,0 +1,101 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="page-title">{{className || text.title}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
+  </view>
+
+  <view class="panel-card">
+    <view class="filter-grid">
+      <view class="filter-item">
+        <view class="filter-label">{{text.academicYear}}</view>
+        <input class="filter-input" value="{{academicYear}}" bindinput="onAcademicYearInput" />
+      </view>
+      <view class="filter-item">
+        <view class="filter-label">{{text.semester}}</view>
+        <picker mode="selector" range="{{semesterOptions}}" value="{{semester === semesterOptions[1] ? 1 : 0}}" bindchange="onSemesterChange">
+          <view class="filter-picker">{{semester}}</view>
+        </picker>
+      </view>
+      <view class="filter-item filter-item-full">
+        <view class="filter-label">{{text.testDate}}</view>
+        <picker mode="date" value="{{testDate}}" bindchange="onDateChange">
+          <view class="filter-picker">{{testDate}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="filter-action-row">
+      <button class="secondary-button filter-action-button" bindtap="handleQuery">{{text.query}}</button>
+      <button class="primary-button filter-action-button" loading="{{saving}}" bindtap="saveData">{{text.save}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">{{text.loading}}</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">{{text.loadFailed}}</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">{{text.reload}}</button>
+  </view>
+
+  <view wx:elif="{{!students.length}}" class="panel-card">
+    <view class="empty-text">{{text.empty}}</view>
+  </view>
+
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">{{text.projectSelect}}</view>
+      <scroll-view scroll-x class="project-tabs">
+        <view class="project-tab-row">
+          <view
+            wx:for="{{projects}}"
+            wx:key="key"
+            class="project-tab {{projectIndex === index ? 'project-tab-active' : ''}}"
+            data-index="{{index}}"
+            bindtap="onProjectChange"
+          >
+            {{item.label}}
+          </view>
+        </view>
+      </scroll-view>
+      <view class="current-project-tip">{{text.currentProject}}: {{projects[projectIndex].label}}</view>
+      <view class="filter-switch-row">
+        <view class="filter-switch-label">{{text.onlyUnfilled}}</view>
+        <switch color="#16324f" checked="{{onlyUnfilled}}" bindchange="onOnlyUnfilledChange" />
+      </view>
+    </view>
+
+    <view class="student-list-header">
+      <view class="section-title student-list-title">{{text.studentList}}</view>
+      <view class="student-list-count">{{text.studentCount}} {{students.length}} {{text.personUnit}}</view>
+    </view>
+    <view class="student-list">
+      <view wx:for="{{students}}" wx:key="id" class="student-item-card">
+        <view class="student-item-top">
+          <view class="student-summary">
+            <view class="student-item-name-row">
+              <view class="student-item-name">{{item.name}}</view>
+              <view class="gender-badge">{{item.displayGender}}</view>
+              <view class="student-no-inline">{{item.displayStudentNo}}</view>
+              <block wx:if="{{item.inputEnabled}}">
+                <view class="student-input-inline">
+                  <input
+                    class="score-input score-input-inline"
+                    type="{{projects[projectIndex].keyboard}}"
+                    value="{{item.inputValue}}"
+                    placeholder="{{text.valuePlaceholder}}"
+                    data-student-id="{{item.id}}"
+                    data-project-key="{{projects[projectIndex].key}}"
+                    bindinput="onProjectValueInput"
+                  />
+                </view>
+              </block>
+              <view wx:else class="not-applicable-inline">{{text.notApplicable}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

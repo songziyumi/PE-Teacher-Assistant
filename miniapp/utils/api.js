@@ -26,21 +26,21 @@ function request(options) {
         const payload = response.data;
         if (statusCode === 401) {
           auth.clearAll();
-          reject(new Error('登录已失效，请重新登录'));
+          reject(new Error('\u767b\u5f55\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'));
           return;
         }
         if (!payload || typeof payload !== 'object') {
-          reject(new Error(`接口返回异常 (${statusCode})`));
+          reject(new Error(`\u63a5\u53e3\u8fd4\u56de\u5f02\u5e38 (${statusCode})`));
           return;
         }
         if (payload.code !== 200) {
-          reject(new Error(payload.message || '请求失败'));
+          reject(new Error(payload.message || '\u8bf7\u6c42\u5931\u8d25'));
           return;
         }
         resolve(payload.data);
       },
       fail(error) {
-        reject(new Error(error.errMsg || '网络请求失败'));
+        reject(new Error(error.errMsg || '\u7f51\u7edc\u8bf7\u6c42\u5931\u8d25'));
       }
     });
   });
@@ -108,6 +108,20 @@ function saveTeacherAttendance(classId, date, records) {
       date,
       records
     }
+  });
+}
+
+function fetchTeacherPhysicalTests(classId, academicYear, semester) {
+  return request({
+    path: `/api/teacher/physical-tests?classId=${classId}&academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}`
+  });
+}
+
+function saveTeacherPhysicalTests(items) {
+  return request({
+    path: '/api/teacher/physical-tests/save-batch',
+    method: 'POST',
+    data: items
   });
 }
 
@@ -179,17 +193,17 @@ function uploadTeacherProfilePhoto(filePath) {
         try {
           payload = JSON.parse(response.data);
         } catch (error) {
-          reject(new Error('头像上传返回异常'));
+          reject(new Error('\u5934\u50cf\u4e0a\u4f20\u8fd4\u56de\u5f02\u5e38'));
           return;
         }
         if (!payload || payload.code !== 200) {
-          reject(new Error(payload && payload.message ? payload.message : '头像上传失败'));
+          reject(new Error(payload && payload.message ? payload.message : '\u5934\u50cf\u4e0a\u4f20\u5931\u8d25'));
           return;
         }
         resolve(payload.data || {});
       },
       fail(error) {
-        reject(new Error(error.errMsg || '头像上传失败'));
+        reject(new Error(error.errMsg || '\u5934\u50cf\u4e0a\u4f20\u5931\u8d25'));
       }
     });
   });
@@ -204,6 +218,8 @@ module.exports = {
   fetchTeacherClassStudents,
   fetchTeacherAttendance,
   saveTeacherAttendance,
+  fetchTeacherPhysicalTests,
+  saveTeacherPhysicalTests,
   fetchTeacherStudentAttendanceHistory,
   checkTeacherStudentNo,
   updateTeacherStudent,
