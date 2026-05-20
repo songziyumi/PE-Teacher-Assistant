@@ -117,11 +117,36 @@ function fetchTeacherPhysicalTests(classId, academicYear, semester) {
   });
 }
 
+function fetchTeacherPhysicalDetail(classId, studentId, academicYear, semester) {
+  return request({
+    path: `/api/teacher/physical-tests/${studentId}?classId=${classId}&academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}`
+  });
+}
+
 function saveTeacherPhysicalTests(items) {
   return request({
     path: '/api/teacher/physical-tests/save-batch',
     method: 'POST',
     data: items
+  });
+}
+
+function fetchTeacherTermGrades(classId, academicYear, semester) {
+  return request({
+    path: `/api/teacher/term-grades?classId=${classId}&academicYear=${encodeURIComponent(academicYear)}&semester=${encodeURIComponent(semester)}`
+  });
+}
+
+function saveTeacherTermGrades(classId, academicYear, semester, items) {
+  return request({
+    path: '/api/teacher/term-grades/save-batch',
+    method: 'POST',
+    data: {
+      classId,
+      academicYear,
+      semester,
+      items
+    }
   });
 }
 
@@ -219,7 +244,10 @@ module.exports = {
   fetchTeacherAttendance,
   saveTeacherAttendance,
   fetchTeacherPhysicalTests,
+  fetchTeacherPhysicalDetail,
   saveTeacherPhysicalTests,
+  fetchTeacherTermGrades,
+  saveTeacherTermGrades,
   fetchTeacherStudentAttendanceHistory,
   checkTeacherStudentNo,
   updateTeacherStudent,

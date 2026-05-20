@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
     void deleteByStudent(Student student);
@@ -47,6 +48,8 @@ public interface TermGradeRepository extends JpaRepository<TermGrade, Long> {
 
     Optional<TermGrade> findByStudentAndAcademicYearAndSemester(
             Student student, String academicYear, String semester);
+
+    List<TermGrade> findByStudentInOrderByAcademicYearDescSemesterDesc(Collection<Student> students);
 
     @Query("SELECT DISTINCT t.academicYear FROM TermGrade t WHERE t.school = :school ORDER BY t.academicYear DESC")
     List<String> findDistinctAcademicYears(@Param("school") School school);

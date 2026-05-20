@@ -1,0 +1,61 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="page-title">{{studentName || text.title}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
+    <view class="hero-meta-row">
+      <view class="hero-meta-pill">{{text.classInfo}}: {{className || '-'}}</view>
+      <view class="hero-meta-pill">{{text.termInfo}}: {{academicYear}} {{semester}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">{{text.loading}}</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">{{text.loadFailed}}</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadDetail">{{text.reload}}</button>
+  </view>
+
+  <view wx:elif="{{!record}}" class="panel-card">
+    <view class="empty-text">{{text.empty}}</view>
+  </view>
+
+  <block wx:else>
+    <view class="summary-grid">
+      <view class="summary-card">
+        <view class="summary-label">{{text.totalScore}}</view>
+        <view class="summary-value">{{record.displayTotalScore}}</view>
+      </view>
+      <view class="summary-card">
+        <view class="summary-label">{{text.level}}</view>
+        <view class="summary-value level-text {{record.levelClass}}">{{record.displayLevel}}</view>
+      </view>
+      <view class="summary-card">
+        <view class="summary-label">{{text.bmi}}</view>
+        <view class="summary-value">{{record.displayBmi}}</view>
+      </view>
+      <view class="summary-card">
+        <view class="summary-label">{{text.testDate}}</view>
+        <view class="summary-value summary-date">{{record.displayTestDate}}</view>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">{{text.detail}}</view>
+      <view class="detail-list">
+        <view wx:for="{{breakdownItems}}" wx:key="key" class="detail-item {{item.multiline ? 'detail-item-multiline' : ''}}">
+          <view class="detail-label">{{item.label}}</view>
+          <view class="detail-main">
+            <view class="detail-inline-row">
+              <view class="detail-value">{{item.value}}</view>
+              <view wx:if="{{item.score}}" class="detail-extra">{{item.score}}</view>
+              <view wx:if="{{item.level}}" class="detail-level-badge {{item.levelClass}}">{{item.level}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

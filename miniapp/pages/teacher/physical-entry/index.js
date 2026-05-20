@@ -38,6 +38,29 @@ function normalizeValue(value) {
   return String(value);
 }
 
+function parseOptionalNumber(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalInteger(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function formatRate(count, total) {
+  if (!total) {
+    return '0%';
+  }
+  return `${((count / total) * 100).toFixed(1)}%`;
+}
+
 function sortStudents(students) {
   return [...students].sort((left, right) => {
     const leftClass = left.adminClassName || '';
@@ -89,8 +112,53 @@ function buildStudentViewModel(student, existingMap, project) {
     displayClassName: student.adminClassName || '\u672a\u5206\u73ed',
     displayGender: student.gender || '\u672a\u77e5',
     inputValue: enabled ? normalizeValue(projectValue) : '',
-    inputEnabled: enabled
+    inputEnabled: enabled,
+    hasPhysicalRecord: !!existing.id || existing.totalScore !== undefined || existing.level !== undefined
   });
+}
+
+function buildLevelStats(students, existingMap) {
+  const total = students.length;
+  let excellent = 0;
+  let good = 0;
+  let pass = 0;
+  let fail = 0;
+
+  students.forEach((student) => {
+    const existing = existingMap[String(student.id)] || existingMap[student.id] || {};
+    const level = existing.level || '';
+    if (level === '\u4f18\u79c0') {
+      excellent += 1;
+    } else if (level === '\u826f\u597d') {
+      good += 1;
+    } else if (level === '\u53ca\u683c') {
+      pass += 1;
+    } else if (level === '\u4e0d\u53ca\u683c') {
+      fail += 1;
+    }
+  });
+
+  return {
+    excellentRate: formatRate(excellent, total),
+    goodRate: formatRate(good, total),
+    passRate: formatRate(pass, total),
+    failRate: formatRate(fail, total)
+  };
+}
+
+function setBeforeUnloadAlert(enabled, message) {
+  if (enabled) {
+    if (typeof wx.enableAlertBeforeUnload === 'function') {
+      wx.enableAlertBeforeUnload({
+        message
+      });
+    }
+    return;
+  }
+
+  if (typeof wx.disableAlertBeforeUnload === 'function') {
+    wx.disableAlertBeforeUnload();
+  }
 }
 
 Page({
@@ -103,6 +171,7 @@ Page({
     testDate: '',
     loading: true,
     saving: false,
+    hasUnsavedChanges: false,
     errorMessage: '',
     projectIndex: 0,
     onlyUnfilled: false,
@@ -110,6 +179,12 @@ Page({
     rawStudents: [],
     students: [],
     existingMap: {},
+    levelStats: {
+      excellentRate: '0%',
+      goodRate: '0%',
+      passRate: '0%',
+      failRate: '0%'
+    },
     text: {
       title: '\u4f53\u8d28\u5f55\u5165',
       subtitle: '\u6309\u9879\u76ee\u9010\u9879\u5f55\u5165\uff0c\u9002\u7528\u4e8e\u884c\u653f\u73ed\u6216\u9009\u9879\u73ed\u3002',
@@ -130,9 +205,16 @@ Page({
       studentCount: '\u5f53\u524d\u663e\u793a',
       personUnit: '\u4eba',
       valuePlaceholder: '\u8bf7\u8f93\u5165',
+      overview: '\u67e5\u770b\u672c\u73ed\u4f53\u8d28\u5065\u5eb7\u6210\u7ee9',
       studentList: '\u5b66\u751f\u5217\u8868',
+      viewDetail: '\u67e5\u770b\u6210\u7ee9',
+      excellentRate: '\u4f18\u79c0\u7387',
+      goodRate: '\u826f\u597d\u7387',
+      passRate: '\u53ca\u683c\u7387',
+      failRate: '\u4e0d\u53ca\u683c\u7387',
       classAndNo: '\u73ed\u7ea7 / \u5b66\u53f7',
-      missingClassParam: '\u7f3a\u5c11\u73ed\u7ea7\u53c2\u6570'
+      missingClassParam: '\u7f3a\u5c11\u73ed\u7ea7\u53c2\u6570',
+      unsavedLeaveMessage: '\u5df2\u8f93\u5165\u6210\u7ee9\u4f46\u5c1a\u672a\u4fdd\u5b58\uff0c\u786e\u5b9a\u79bb\u5f00\u5417\uff1f'
     }
   },
 
@@ -155,6 +237,29 @@ Page({
       return;
     }
     this.loadData();
+  },
+
+  onUnload() {
+    this.disableLeaveAlert();
+  },
+
+  setDirtyState(hasUnsavedChanges) {
+    this.setData({
+      hasUnsavedChanges
+    });
+    if (hasUnsavedChanges) {
+      this.enableLeaveAlert();
+      return;
+    }
+    this.disableLeaveAlert();
+  },
+
+  enableLeaveAlert() {
+    setBeforeUnloadAlert(true, this.data.text.unsavedLeaveMessage);
+  },
+
+  disableLeaveAlert() {
+    setBeforeUnloadAlert(false);
   },
 
   onAcademicYearInput(event) {
@@ -190,6 +295,26 @@ Page({
     this.rebuildStudentView();
   },
 
+  goPhysicalDetail(event) {
+    const studentId = Number(event.currentTarget.dataset.studentId || 0);
+    const studentName = event.currentTarget.dataset.studentName || '';
+    if (!studentId || !this.data.classId) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/teacher/physical-detail/index?classId=${this.data.classId}&studentId=${studentId}&studentName=${encodeURIComponent(studentName)}&className=${encodeURIComponent(this.data.className || '')}&academicYear=${encodeURIComponent(this.data.academicYear)}&semester=${encodeURIComponent(this.data.semester)}`
+    });
+  },
+
+  goPhysicalOverview() {
+    if (!this.data.classId) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/teacher/physical-overview/index?classId=${this.data.classId}&className=${encodeURIComponent(this.data.className || '')}&academicYear=${encodeURIComponent(this.data.academicYear)}&semester=${encodeURIComponent(this.data.semester)}`
+    });
+  },
+
   onProjectValueInput(event) {
     const studentId = Number(event.currentTarget.dataset.studentId || 0);
     const projectKey = event.currentTarget.dataset.projectKey || '';
@@ -201,6 +326,7 @@ Page({
     this.setData({
       existingMap
     });
+    this.setDirtyState(true);
   },
 
   rebuildStudentView() {
@@ -213,7 +339,10 @@ Page({
       students = students.filter((student) => student.inputEnabled && !student.inputValue);
     }
 
-    this.setData({ students });
+    this.setData({
+      students,
+      levelStats: buildLevelStats(this.data.rawStudents, this.data.existingMap)
+    });
   },
 
   async loadData() {
@@ -242,6 +371,7 @@ Page({
         students: [],
         existingMap: existingMap || {}
       });
+      this.setDirtyState(false);
       this.rebuildStudentView();
     } catch (error) {
       this.setData({
@@ -259,16 +389,16 @@ Page({
         academicYear: this.data.academicYear,
         semester: this.data.semester,
         testDate: this.data.testDate,
-        height: existing.height === '' ? null : Number(existing.height),
-        weight: existing.weight === '' ? null : Number(existing.weight),
-        lungCapacity: existing.lungCapacity === '' ? null : Number(existing.lungCapacity),
-        sprint50m: existing.sprint50m === '' ? null : Number(existing.sprint50m),
-        sitReach: existing.sitReach === '' ? null : Number(existing.sitReach),
-        standingJump: existing.standingJump === '' ? null : Number(existing.standingJump),
-        pullUps: existing.pullUps === '' ? null : Number(existing.pullUps),
-        sitUps: existing.sitUps === '' ? null : Number(existing.sitUps),
-        run800m: existing.run800m === '' ? null : Number(existing.run800m),
-        run1000m: existing.run1000m === '' ? null : Number(existing.run1000m),
+        height: parseOptionalNumber(existing.height),
+        weight: parseOptionalNumber(existing.weight),
+        lungCapacity: parseOptionalInteger(existing.lungCapacity),
+        sprint50m: parseOptionalNumber(existing.sprint50m),
+        sitReach: parseOptionalNumber(existing.sitReach),
+        standingJump: parseOptionalNumber(existing.standingJump),
+        pullUps: parseOptionalInteger(existing.pullUps),
+        sitUps: parseOptionalInteger(existing.sitUps),
+        run800m: parseOptionalNumber(existing.run800m),
+        run1000m: parseOptionalNumber(existing.run1000m),
         remark: existing.remark || null
       };
     });
@@ -290,6 +420,7 @@ Page({
 
     try {
       await api.saveTeacherPhysicalTests(this.buildItems());
+      this.setDirtyState(false);
       wx.showToast({
         title: this.data.text.saveSuccess,
         icon: 'success'

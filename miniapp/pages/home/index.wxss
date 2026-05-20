@@ -95,6 +95,79 @@
   margin-top: 18rpx;
 }
 
+.teacher-export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.teacher-export-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1rpx solid rgba(22, 50, 79, 0.14);
+  color: #16324f;
+  font-size: 22rpx;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.popup-mask {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  background: rgba(15, 23, 42, 0.38);
+  z-index: 99;
+  box-sizing: border-box;
+}
+
+.popup-card {
+  width: 100%;
+  max-height: 80vh;
+  padding: 28rpx 24rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.popup-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #16324f;
+}
+
+.popup-picker {
+  margin-top: 12rpx;
+}
+
+.popup-action-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.popup-action-button {
+  flex: 1;
+  min-width: 0;
+}
+
+.export-popup-card {
+  max-width: 680rpx;
+}
+
+.popup-field-label {
+  margin-top: 16rpx;
+}
+
 .tag-item {
   padding: 20rpx 22rpx;
   margin-bottom: 14rpx;

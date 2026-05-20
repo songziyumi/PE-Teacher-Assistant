@@ -1,6 +1,56 @@
 const api = require('../../utils/api');
 const auth = require('../../utils/auth');
 
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildGradeOptions(classes, allLabel) {
+  const gradeNames = [];
+  (classes || []).forEach((item) => {
+    if (item && item.gradeName && !gradeNames.includes(item.gradeName)) {
+      gradeNames.push(item.gradeName);
+    }
+  });
+  return [allLabel].concat(gradeNames);
+}
+
+function buildClassOptions(classes, gradeName, allGradeLabel, allClassLabel) {
+  const filtered = (classes || []).filter((item) => gradeName === allGradeLabel || item.gradeName === gradeName);
+  return [{
+    id: 0,
+    name: allClassLabel
+  }].concat(filtered.map((item) => ({
+    id: item.id,
+    name: item.name
+  })));
+}
+
+function parseContentDispositionFilename(header = {}) {
+  const disposition = header['Content-Disposition'] || header['content-disposition'] || '';
+  if (!disposition) {
+    return '';
+  }
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch (error) {
+      return utf8Match[1];
+    }
+  }
+  const plainMatch = disposition.match(/filename="?([^\";]+)"?/i);
+  return plainMatch && plainMatch[1] ? plainMatch[1] : '';
+}
+
+function sanitizeLocalFilename(filename) {
+  const cleaned = (filename || '').replace(/[\\/:*?"<>|]/g, '_').trim();
+  return cleaned || 'export.xlsx';
+}
+
 Page({
   data: {
     loading: true,
@@ -9,6 +59,16 @@ Page({
     user: null,
     isStudent: false,
     isTeacher: false,
+    exporting: false,
+    attendanceExportVisible: false,
+    attendanceStartDate: '',
+    attendanceEndDate: '',
+    attendanceGradeOptions: [],
+    attendanceGradeIndex: 0,
+    attendanceClassOptions: [],
+    attendanceClassIndex: 0,
+    attendanceStatusOptions: [],
+    attendanceStatusIndex: 0,
     text: {
       workbench: '\u5de5\u4f5c\u53f0',
       profile: '\u4e2a\u4eba\u4e3b\u9875',
@@ -28,6 +88,26 @@ Page({
       eventName: '\u540d\u79f0',
       eventStatus: '\u72b6\u6001',
       myClasses: '\u6211\u7684\u73ed\u7ea7',
+      exportData: '\u5bfc\u51fa\u6570\u636e',
+      exportAttendance: '\u5bfc\u51fa\u8003\u52e4\u8bb0\u5f55',
+      exportStudents: '\u5bfc\u51fa\u5b66\u751f\u540d\u5355',
+      exportTermGrades: '\u5bfc\u51fa\u4f53\u80b2\u6210\u7ee9',
+      exportApprovals: '\u5bfc\u51fa\u5ba1\u6279\u8bb0\u5f55',
+      exportHint: '\u5bfc\u51fa\u81ea\u5df1\u6240\u5e26\u73ed\u7ea7\u6570\u636e',
+      exportAttendanceTitle: '\u5bfc\u51fa\u8003\u52e4\u8bb0\u5f55',
+      startDate: '\u5f00\u59cb\u65e5\u671f',
+      endDate: '\u7ed3\u675f\u65e5\u671f',
+      gradeFilter: '\u5e74\u7ea7',
+      classFilter: '\u73ed\u7ea7',
+      attendanceStatus: '\u51fa\u52e4\u60c5\u51b5',
+      allGrades: '\u5168\u90e8\u5e74\u7ea7',
+      allClasses: '\u5168\u90e8\u73ed\u7ea7',
+      allStatuses: '\u5168\u90e8\u60c5\u51b5',
+      present: '\u51fa\u52e4',
+      absent: '\u7f3a\u52e4',
+      leave: '\u8bf7\u5047',
+      cancel: '\u53d6\u6d88',
+      confirmExport: '\u786e\u8ba4\u5bfc\u51fa',
       noGrade: '\u672a\u5206\u5e74\u7ea7',
       classType: '\u73ed\u7ea7',
       attendanceEntry: '\u8003\u52e4\u5f55\u5165',
@@ -67,6 +147,23 @@ Page({
       ]);
       const user = me.user || null;
       const role = user ? user.role : '';
+      const now = new Date();
+      const defaultStartDate = formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      const defaultEndDate = formatDate(now);
+      const teacherClasses = home && home.classes ? home.classes : [];
+      const attendanceGradeOptions = buildGradeOptions(teacherClasses, this.data.text.allGrades);
+      const attendanceClassOptions = buildClassOptions(
+        teacherClasses,
+        attendanceGradeOptions[0] || this.data.text.allGrades,
+        this.data.text.allGrades,
+        this.data.text.allClasses
+      );
+      const attendanceStatusOptions = [
+        this.data.text.allStatuses,
+        this.data.text.present,
+        this.data.text.absent,
+        this.data.text.leave
+      ];
       getApp().globalData.user = user;
       getApp().globalData.home = home;
       this.setData({
@@ -74,7 +171,15 @@ Page({
         home,
         user,
         isStudent: role === 'STUDENT',
-        isTeacher: role !== 'STUDENT'
+        isTeacher: role !== 'STUDENT',
+        attendanceStartDate: defaultStartDate,
+        attendanceEndDate: defaultEndDate,
+        attendanceGradeOptions,
+        attendanceGradeIndex: 0,
+        attendanceClassOptions,
+        attendanceClassIndex: 0,
+        attendanceStatusOptions,
+        attendanceStatusIndex: 0
       });
     } catch (error) {
       this.setData({
@@ -127,10 +232,200 @@ Page({
     });
   },
 
+  goTeacherTermGradeEntry(event) {
+    const classId = event.currentTarget.dataset.classId;
+    const className = event.currentTarget.dataset.className || '';
+    if (!classId) {
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/teacher/term-grade-entry/index?classId=${classId}&className=${encodeURIComponent(className)}`
+    });
+  },
+
   goTeacherProfile() {
     wx.navigateTo({
       url: '/pages/teacher/profile/index'
     });
+  },
+
+  async exportTeacherFile(path, successTitle) {
+    if (this.data.exporting) {
+      return;
+    }
+    this.setData({ exporting: true });
+    try {
+      const token = auth.getToken();
+      const baseUrl = api.getBaseUrl();
+      const result = await new Promise((resolve, reject) => {
+        wx.downloadFile({
+          url: `${baseUrl}${path}`,
+          header: token ? { Authorization: `Bearer ${token}` } : {},
+          success: resolve,
+          fail: reject
+        });
+      });
+      if (result.statusCode !== 200 || !result.tempFilePath) {
+        throw new Error('\u5bfc\u51fa\u5931\u8d25');
+      }
+      const responseFilename = parseContentDispositionFilename(result.header);
+      const targetFilename = sanitizeLocalFilename(responseFilename);
+      let filePath = result.tempFilePath;
+      if (targetFilename) {
+        const savedFilePath = `${wx.env.USER_DATA_PATH}/${targetFilename}`;
+        try {
+          await new Promise((resolve, reject) => {
+            wx.getFileSystemManager().unlink({
+              filePath: savedFilePath,
+              success: resolve,
+              fail: () => resolve()
+            });
+          });
+          await new Promise((resolve, reject) => {
+            wx.saveFile({
+              tempFilePath: result.tempFilePath,
+              filePath: savedFilePath,
+              success: resolve,
+              fail: reject
+            });
+          });
+          filePath = savedFilePath;
+        } catch (error) {
+          filePath = result.tempFilePath;
+        }
+      }
+      await new Promise((resolve, reject) => {
+        wx.openDocument({
+          filePath,
+          showMenu: true,
+          success: resolve,
+          fail: reject
+        });
+      });
+      wx.showToast({
+        title: successTitle,
+        icon: 'success'
+      });
+    } catch (error) {
+      wx.showToast({
+        title: error.errMsg || error.message || '\u5bfc\u51fa\u5931\u8d25',
+        icon: 'none'
+      });
+    } finally {
+      this.setData({ exporting: false });
+    }
+  },
+
+  openAttendanceExport() {
+    this.setData({
+      attendanceExportVisible: true
+    });
+  },
+
+  closeAttendanceExport() {
+    if (this.data.exporting) {
+      return;
+    }
+    this.setData({
+      attendanceExportVisible: false
+    });
+  },
+
+  noop() {},
+
+  onAttendanceStartDateChange(event) {
+    this.setData({
+      attendanceStartDate: event.detail.value
+    });
+  },
+
+  onAttendanceEndDateChange(event) {
+    this.setData({
+      attendanceEndDate: event.detail.value
+    });
+  },
+
+  onAttendanceGradeChange(event) {
+    const index = Number(event.detail.value || 0);
+    const gradeName = this.data.attendanceGradeOptions[index] || this.data.text.allGrades;
+    const attendanceClassOptions = buildClassOptions(
+      this.data.home && this.data.home.classes ? this.data.home.classes : [],
+      gradeName,
+      this.data.text.allGrades,
+      this.data.text.allClasses
+    );
+    this.setData({
+      attendanceGradeIndex: index,
+      attendanceClassOptions,
+      attendanceClassIndex: 0
+    });
+  },
+
+  onAttendanceClassChange(event) {
+    this.setData({
+      attendanceClassIndex: Number(event.detail.value || 0)
+    });
+  },
+
+  onAttendanceStatusChange(event) {
+    this.setData({
+      attendanceStatusIndex: Number(event.detail.value || 0)
+    });
+  },
+
+  exportAttendanceRecords() {
+    const startDate = this.data.attendanceStartDate;
+    const endDate = this.data.attendanceEndDate;
+    const gradeName = this.data.attendanceGradeOptions[this.data.attendanceGradeIndex] || this.data.text.allGrades;
+    const selectedClass = this.data.attendanceClassOptions[this.data.attendanceClassIndex] || { id: 0 };
+    const status = this.data.attendanceStatusOptions[this.data.attendanceStatusIndex] || this.data.text.allStatuses;
+    if (!startDate || !endDate) {
+      wx.showToast({
+        title: '\u8bf7\u9009\u62e9\u65e5\u671f',
+        icon: 'none'
+      });
+      return;
+    }
+    const params = [
+      `startDate=${encodeURIComponent(startDate)}`,
+      `endDate=${encodeURIComponent(endDate)}`
+    ];
+    if (selectedClass.id) {
+      params.push(`classId=${selectedClass.id}`);
+    } else if (gradeName && gradeName !== this.data.text.allGrades) {
+      params.push(`gradeName=${encodeURIComponent(gradeName)}`);
+    }
+    if (status && status !== this.data.text.allStatuses) {
+      params.push(`status=${encodeURIComponent(status)}`);
+    }
+    this.exportTeacherFile(
+      `/api/teacher/attendance/export?${params.join('&')}`,
+      '\u8003\u52e4\u5bfc\u51fa\u6210\u529f'
+    );
+    this.setData({
+      attendanceExportVisible: false
+    });
+  },
+
+  exportStudentRoster() {
+    this.exportTeacherFile(
+      '/api/teacher/students/export',
+      '\u540d\u5355\u5bfc\u51fa\u6210\u529f'
+    );
+  },
+
+  exportTeacherTermGrades() {
+    this.exportTeacherFile(
+      '/api/teacher/term-grades/export',
+      '\u4f53\u80b2\u6210\u7ee9\u5bfc\u51fa\u6210\u529f'
+    );
+  },
+
+  exportApprovalRecords() {
+    this.exportTeacherFile(
+      '/api/teacher/course-requests/export',
+      '\u5ba1\u6279\u8bb0\u5f55\u5bfc\u51fa\u6210\u529f'
+    );
   },
 
   showTodoFeature(event) {

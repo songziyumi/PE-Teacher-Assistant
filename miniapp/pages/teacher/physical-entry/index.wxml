@@ -2,6 +2,25 @@
   <view class="hero-card">
     <view class="page-title">{{className || text.title}}</view>
     <view class="page-subtitle">{{text.subtitle}}</view>
+    <view class="hero-stats-grid">
+      <view class="hero-stat-card">
+        <view class="hero-stat-label">{{text.excellentRate}}</view>
+        <view class="hero-stat-value">{{levelStats.excellentRate}}</view>
+      </view>
+      <view class="hero-stat-card">
+        <view class="hero-stat-label">{{text.goodRate}}</view>
+        <view class="hero-stat-value">{{levelStats.goodRate}}</view>
+      </view>
+      <view class="hero-stat-card">
+        <view class="hero-stat-label">{{text.passRate}}</view>
+        <view class="hero-stat-value">{{levelStats.passRate}}</view>
+      </view>
+      <view class="hero-stat-card">
+        <view class="hero-stat-label">{{text.failRate}}</view>
+        <view class="hero-stat-value">{{levelStats.failRate}}</view>
+      </view>
+    </view>
+    <view class="hero-overview-button" bindtap="goPhysicalOverview">{{text.overview}}</view>
   </view>
 
   <view class="panel-card">
@@ -78,6 +97,7 @@
               <view class="student-item-name">{{item.name}}</view>
               <view class="gender-badge">{{item.displayGender}}</view>
               <view class="student-no-inline">{{item.displayStudentNo}}</view>
+              <view class="student-detail-link" data-student-id="{{item.id}}" data-student-name="{{item.name}}" bindtap="goPhysicalDetail">{{text.viewDetail}}</view>
               <block wx:if="{{item.inputEnabled}}">
                 <view class="student-input-inline">
                   <input
