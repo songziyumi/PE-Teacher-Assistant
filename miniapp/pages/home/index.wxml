@@ -90,7 +90,7 @@
       <view class="teacher-export-grid">
         <view class="teacher-export-button" bindtap="openAttendanceExport">{{text.exportAttendance}}</view>
         <view class="teacher-export-button" bindtap="exportStudentRoster">{{text.exportStudents}}</view>
-        <view class="teacher-export-button" bindtap="exportTeacherTermGrades">{{text.exportTermGrades}}</view>
+        <view class="teacher-export-button" bindtap="openTermGradeExport">{{text.exportTermGrades}}</view>
         <view class="teacher-export-button" bindtap="exportApprovalRecords">{{text.exportApprovals}}</view>
       </view>
     </view>
@@ -137,6 +137,26 @@
         <view class="popup-action-row">
           <button class="secondary-button popup-action-button" bindtap="closeAttendanceExport">{{text.cancel}}</button>
           <button class="primary-button popup-action-button" loading="{{exporting}}" bindtap="exportAttendanceRecords">{{text.confirmExport}}</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{termGradeExportVisible}}" class="popup-mask" bindtap="closeTermGradeExport">
+      <view class="popup-card export-popup-card" catchtap="noop">
+        <view class="popup-title">{{text.exportTermGradesTitle}}</view>
+        <view class="filter-label">{{text.academicYear}}</view>
+        <input class="filter-input popup-picker" value="{{termGradeAcademicYear}}" bindinput="onTermGradeAcademicYearInput" />
+        <view class="filter-label popup-field-label">{{text.semester}}</view>
+        <picker mode="selector" range="{{termGradeSemesterOptions}}" value="{{termGradeSemester === termGradeSemesterOptions[1] ? 1 : 0}}" bindchange="onTermGradeSemesterChange">
+          <view class="picker-field popup-picker">{{termGradeSemester}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.classFilter}}</view>
+        <picker mode="selector" range="{{termGradeClassOptions}}" range-key="name" value="{{termGradeClassIndex}}" bindchange="onTermGradeClassChange">
+          <view class="picker-field popup-picker">{{termGradeClassOptions[termGradeClassIndex].name}}</view>
+        </picker>
+        <view class="popup-action-row">
+          <button class="secondary-button popup-action-button" bindtap="closeTermGradeExport">{{text.cancel}}</button>
+          <button class="primary-button popup-action-button" loading="{{exporting}}" bindtap="exportTeacherTermGrades">{{text.confirmExport}}</button>
         </view>
       </view>
     </view>

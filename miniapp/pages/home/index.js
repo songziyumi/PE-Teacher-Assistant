@@ -8,6 +8,15 @@ function formatDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+function buildAcademicYear(date) {
+  const year = date.getFullYear();
+  return date.getMonth() + 1 >= 9 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+}
+
+function buildSemester(date) {
+  return date.getMonth() + 1 >= 2 && date.getMonth() + 1 <= 7 ? '\u4e0b\u5b66\u671f' : '\u4e0a\u5b66\u671f';
+}
+
 function buildGradeOptions(classes, allLabel) {
   const gradeNames = [];
   (classes || []).forEach((item) => {
@@ -61,6 +70,7 @@ Page({
     isTeacher: false,
     exporting: false,
     attendanceExportVisible: false,
+    termGradeExportVisible: false,
     attendanceStartDate: '',
     attendanceEndDate: '',
     attendanceGradeOptions: [],
@@ -69,6 +79,11 @@ Page({
     attendanceClassIndex: 0,
     attendanceStatusOptions: [],
     attendanceStatusIndex: 0,
+    termGradeAcademicYear: '',
+    termGradeSemester: '',
+    termGradeSemesterOptions: ['\u4e0a\u5b66\u671f', '\u4e0b\u5b66\u671f'],
+    termGradeClassOptions: [],
+    termGradeClassIndex: 0,
     text: {
       workbench: '\u5de5\u4f5c\u53f0',
       profile: '\u4e2a\u4eba\u4e3b\u9875',
@@ -95,8 +110,11 @@ Page({
       exportApprovals: '\u5bfc\u51fa\u5ba1\u6279\u8bb0\u5f55',
       exportHint: '\u5bfc\u51fa\u81ea\u5df1\u6240\u5e26\u73ed\u7ea7\u6570\u636e',
       exportAttendanceTitle: '\u5bfc\u51fa\u8003\u52e4\u8bb0\u5f55',
+      exportTermGradesTitle: '\u5bfc\u51fa\u4f53\u80b2\u6210\u7ee9',
       startDate: '\u5f00\u59cb\u65e5\u671f',
       endDate: '\u7ed3\u675f\u65e5\u671f',
+      academicYear: '\u5b66\u5e74',
+      semester: '\u5b66\u671f',
       gradeFilter: '\u5e74\u7ea7',
       classFilter: '\u73ed\u7ea7',
       attendanceStatus: '\u51fa\u52e4\u60c5\u51b5',
@@ -164,6 +182,13 @@ Page({
         this.data.text.absent,
         this.data.text.leave
       ];
+      const termGradeClassOptions = [{
+        id: 0,
+        name: this.data.text.allClasses
+      }].concat(teacherClasses.map((item) => ({
+        id: item.id,
+        name: item.gradeName ? `${item.gradeName} ${item.name}` : item.name
+      })));
       getApp().globalData.user = user;
       getApp().globalData.home = home;
       this.setData({
@@ -179,7 +204,11 @@ Page({
         attendanceClassOptions,
         attendanceClassIndex: 0,
         attendanceStatusOptions,
-        attendanceStatusIndex: 0
+        attendanceStatusIndex: 0,
+        termGradeAcademicYear: buildAcademicYear(now),
+        termGradeSemester: buildSemester(now),
+        termGradeClassOptions,
+        termGradeClassIndex: 0
       });
     } catch (error) {
       this.setData({
@@ -322,12 +351,27 @@ Page({
     });
   },
 
+  openTermGradeExport() {
+    this.setData({
+      termGradeExportVisible: true
+    });
+  },
+
   closeAttendanceExport() {
     if (this.data.exporting) {
       return;
     }
     this.setData({
       attendanceExportVisible: false
+    });
+  },
+
+  closeTermGradeExport() {
+    if (this.data.exporting) {
+      return;
+    }
+    this.setData({
+      termGradeExportVisible: false
     });
   },
 
@@ -373,6 +417,25 @@ Page({
     });
   },
 
+  onTermGradeAcademicYearInput(event) {
+    this.setData({
+      termGradeAcademicYear: event.detail.value || ''
+    });
+  },
+
+  onTermGradeSemesterChange(event) {
+    const index = Number(event.detail.value || 0);
+    this.setData({
+      termGradeSemester: this.data.termGradeSemesterOptions[index] || this.data.termGradeSemesterOptions[0]
+    });
+  },
+
+  onTermGradeClassChange(event) {
+    this.setData({
+      termGradeClassIndex: Number(event.detail.value || 0)
+    });
+  },
+
   exportAttendanceRecords() {
     const startDate = this.data.attendanceStartDate;
     const endDate = this.data.attendanceEndDate;
@@ -415,10 +478,30 @@ Page({
   },
 
   exportTeacherTermGrades() {
+    const academicYear = this.data.termGradeAcademicYear;
+    const semester = this.data.termGradeSemester;
+    const selectedClass = this.data.termGradeClassOptions[this.data.termGradeClassIndex] || { id: 0 };
+    if (!academicYear || !semester) {
+      wx.showToast({
+        title: '\u8bf7\u9009\u62e9\u5b66\u5e74\u5b66\u671f',
+        icon: 'none'
+      });
+      return;
+    }
+    const params = [
+      `academicYear=${encodeURIComponent(academicYear)}`,
+      `semester=${encodeURIComponent(semester)}`
+    ];
+    if (selectedClass.id) {
+      params.push(`classId=${selectedClass.id}`);
+    }
     this.exportTeacherFile(
-      '/api/teacher/term-grades/export',
+      `/api/teacher/term-grades/export?${params.join('&')}`,
       '\u4f53\u80b2\u6210\u7ee9\u5bfc\u51fa\u6210\u529f'
     );
+    this.setData({
+      termGradeExportVisible: false
+    });
   },
 
   exportApprovalRecords() {

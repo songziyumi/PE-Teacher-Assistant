@@ -1065,10 +1065,13 @@ public class TeacherApiController {
     @GetMapping(value = "/term-grades/export",
             produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     public ResponseEntity<byte[]> exportTeacherTermGrades(
+            @RequestParam String academicYear,
+            @RequestParam String semester,
             @RequestParam(required = false) Long classId) throws IOException {
         Teacher teacher = currentUserService.getCurrentTeacher();
         School school = currentUserService.getCurrentSchool();
         List<Student> students;
+        String filenameClass = "全部班级";
         if (classId != null) {
             SchoolClass selectedClass = classService.findById(classId);
             if (selectedClass.getSchool() != null && school != null
@@ -1078,8 +1081,10 @@ public class TeacherApiController {
                 String electiveClass = selectedClass.getGrade() != null
                         ? selectedClass.getGrade().getName() + "/" + selectedClass.getName()
                         : selectedClass.getName();
+                filenameClass = !isBlank(electiveClass) ? electiveClass : filenameClass;
                 students = studentService.findByElectiveClassForTeacher(school, electiveClass);
             } else {
+                filenameClass = !isBlank(selectedClass.getName()) ? selectedClass.getName() : filenameClass;
                 students = studentService.findByClassIdForTeacher(school, classId);
             }
         } else {
@@ -1097,11 +1102,19 @@ public class TeacherApiController {
                             Collectors.toMap(Student::getId, s -> s, (left, right) -> left, LinkedHashMap::new),
                             map -> new ArrayList<>(map.values())));
         }
-        List<TermGrade> grades = students.isEmpty()
+        List<TermGrade> grades = students.isEmpty() || isBlank(academicYear) || isBlank(semester)
                 ? List.of()
-                : termGradeRepository.findByStudentInOrderByAcademicYearDescSemesterDesc(students);
+                : termGradeRepository.findByStudentInOrderByAcademicYearDescSemesterDesc(students).stream()
+                .filter(g -> academicYear.trim().equals(g.getAcademicYear()) && semester.trim().equals(g.getSemester()))
+                .collect(Collectors.toList());
         byte[] bytes = termGradeService.exportRecords(grades);
-        String filename = URLEncoder.encode("体育成绩_" + teacher.getName() + ".xlsx", StandardCharsets.UTF_8);
+        String filename = URLEncoder.encode(
+                String.join("_",
+                        sanitizeFilenamePart("体育成绩"),
+                        sanitizeFilenamePart(academicYear),
+                        sanitizeFilenamePart(semester),
+                        sanitizeFilenamePart(filenameClass)) + ".xlsx",
+                StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
                 .body(bytes);
