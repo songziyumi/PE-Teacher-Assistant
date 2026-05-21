@@ -25,6 +25,21 @@ function parseOptionalNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function setBeforeUnloadAlert(enabled, message) {
+  if (enabled) {
+    if (typeof wx.enableAlertBeforeUnload === 'function') {
+      wx.enableAlertBeforeUnload({
+        message
+      });
+    }
+    return;
+  }
+
+  if (typeof wx.disableAlertBeforeUnload === 'function') {
+    wx.disableAlertBeforeUnload();
+  }
+}
+
 function sortStudents(students) {
   return [...students].sort((left, right) => {
     const leftClass = left.adminClassName || '';
@@ -74,6 +89,7 @@ Page({
     semesterOptions: ['\u4e0a\u5b66\u671f', '\u4e0b\u5b66\u671f'],
     loading: true,
     saving: false,
+    hasUnsavedChanges: false,
     errorMessage: '',
     students: [],
     existingMap: {},
@@ -100,7 +116,9 @@ Page({
       saveSuccess: '\u4f53\u80b2\u6210\u7ee9\u5df2\u4fdd\u5b58',
       missingClassParam: '\u7f3a\u5c11\u73ed\u7ea7\u53c2\u6570',
       absenceRule: '\u7f3a\u52e4 5 \u6b21\u53ca\u4ee5\u4e0a',
-      failMark: '\u603b\u5206\u4e0d\u53ca\u683c'
+      failMark: '\u603b\u5206\u4e0d\u53ca\u683c',
+      bottomSave: '\u4fdd\u5b58',
+      unsavedLeaveMessage: '\u5df2\u8f93\u5165\u6210\u7ee9\u4f46\u5c1a\u672a\u4fdd\u5b58\uff0c\u786e\u5b9a\u79bb\u5f00\u5417\uff1f'
     }
   },
 
@@ -124,10 +142,34 @@ Page({
     this.loadData();
   },
 
+  onUnload() {
+    this.disableLeaveAlert();
+  },
+
+  setDirtyState(hasUnsavedChanges) {
+    this.setData({
+      hasUnsavedChanges
+    });
+    if (hasUnsavedChanges) {
+      this.enableLeaveAlert();
+      return;
+    }
+    this.disableLeaveAlert();
+  },
+
+  enableLeaveAlert() {
+    setBeforeUnloadAlert(true, this.data.text.unsavedLeaveMessage);
+  },
+
+  disableLeaveAlert() {
+    setBeforeUnloadAlert(false);
+  },
+
   onAcademicYearInput(event) {
     this.setData({
       academicYear: event.detail.value || ''
     });
+    this.setDirtyState(true);
   },
 
   onSemesterChange(event) {
@@ -135,6 +177,7 @@ Page({
     this.setData({
       semester: this.data.semesterOptions[index] || this.data.semesterOptions[0]
     });
+    this.setDirtyState(true);
   },
 
   onSkillScoreInput(event) {
@@ -165,6 +208,7 @@ Page({
     existingMap[key] = Object.assign(current, patch);
     this.setData({ existingMap });
     this.rebuildStudents();
+    this.setDirtyState(true);
   },
 
   rebuildStudents() {
@@ -196,6 +240,7 @@ Page({
         students: students.map((student) => buildStudentViewModel(student, existingMap || {})),
         existingMap: existingMap || {}
       });
+      this.setDirtyState(false);
     } catch (error) {
       this.setData({
         loading: false,
@@ -224,6 +269,7 @@ Page({
     this.setData({ saving: true });
     try {
       await api.saveTeacherTermGrades(this.data.classId, this.data.academicYear, this.data.semester, items);
+      this.setDirtyState(false);
       wx.showToast({
         title: this.data.text.saveSuccess,
         icon: 'success'

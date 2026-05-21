@@ -12,7 +12,7 @@
 .field-label {
   margin-top: 14rpx;
   margin-bottom: 12rpx;
-  font-size: 24rpx;
+  font-size: 14px;
   font-weight: 600;
   color: #35526f;
 }
@@ -23,7 +23,7 @@
   background: #f8fbff;
   border: 1rpx solid rgba(22, 50, 79, 0.12);
   border-radius: 20rpx;
-  font-size: 28rpx;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
@@ -33,10 +33,11 @@
   background: #fff1f2;
   border-radius: 18rpx;
   color: #be123c;
-  font-size: 24rpx;
+  font-size: 14px;
   line-height: 1.6;
 }
 
 .login-button {
   margin-top: 28rpx;
 }
+

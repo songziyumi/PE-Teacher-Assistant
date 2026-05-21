@@ -10,7 +10,7 @@
   border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.72);
   color: #16324f;
-  font-size: 22rpx;
+  font-size: 13px;
 }
 
 .summary-grid {
@@ -28,7 +28,7 @@
 }
 
 .summary-label {
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -42,7 +42,7 @@
 }
 
 .summary-date {
-  font-size: 28rpx;
+  font-size: 16px;
 }
 
 .level-text {
@@ -97,7 +97,7 @@
 }
 
 .detail-label {
-  font-size: 24rpx;
+  font-size: 14px;
   color: #64748b;
 }
 
@@ -122,7 +122,7 @@
 }
 
 .detail-extra {
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -133,3 +133,4 @@
   font-weight: 700;
   line-height: 1.4;
 }
+

@@ -540,6 +540,7 @@ public class TeacherApiController {
         String name = body.get("name") != null ? String.valueOf(body.get("name")) : current.getName();
         String gender = body.get("gender") != null ? String.valueOf(body.get("gender")) : current.getGender();
         String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
+        String idCard = body.get("idCard") != null ? String.valueOf(body.get("idCard")) : current.getIdCard();
         String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
         Long version = body.get("version") != null ? Long.valueOf(body.get("version").toString()) : null;
@@ -547,7 +548,7 @@ public class TeacherApiController {
                 ? (String) body.get("electiveClass")
                 : current.getElectiveClass();
         try {
-            studentService.update(id, name, gender, studentNo, current.getIdCard(),
+            studentService.update(id, name, gender, studentNo, idCard,
                     electiveClass, classId, studentStatus, version);
             Teacher teacher = currentUserService.getCurrentTeacher();
             teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),

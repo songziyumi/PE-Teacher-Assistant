@@ -101,14 +101,53 @@
   <view wx:if="{{editPopupVisible}}" class="popup-mask" bindtap="closeEditPopup">
     <view class="popup-card" catchtap="noop">
       <view class="popup-title">{{text.editTitle}}</view>
-      <input class="popup-input" placeholder="{{text.namePlaceholder}}" value="{{editName}}" bindinput="onEditNameInput" />
-      <input class="popup-input" placeholder="{{text.studentNoPlaceholder}}" value="{{editStudentNo}}" bindinput="onEditStudentNoInput" />
-      <picker mode="selector" range="{{genderOptions}}" value="{{editGenderIndex}}" bindchange="onEditGenderChange">
-        <view class="picker-field popup-picker">{{genderOptions[editGenderIndex]}}</view>
-      </picker>
-      <picker mode="selector" range="{{editStatusOptions}}" value="{{editStatusIndex}}" bindchange="onEditStatusChange">
-        <view class="picker-field popup-picker">{{editStatusOptions[editStatusIndex]}}</view>
-      </picker>
+      <view class="popup-form-grid">
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.namePlaceholder}}</view>
+          <input class="popup-input" type="text" placeholder="{{text.namePlaceholder}}" value="{{editName}}" bindinput="onEditNameInput"></input>
+        </view>
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.genderPlaceholder}}</view>
+          <picker mode="selector" range="{{genderOptions}}" value="{{editGenderIndex}}" bindchange="onEditGenderChange">
+            <view class="picker-field popup-picker">{{genderOptions[editGenderIndex]}}</view>
+          </picker>
+        </view>
+
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.studentNoPlaceholder}}</view>
+          <input class="popup-input" type="text" placeholder="{{text.studentNoPlaceholder}}" value="{{editStudentNo}}" bindinput="onEditStudentNoInput"></input>
+        </view>
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.idCardPlaceholder}}</view>
+          <input class="popup-input" type="text" placeholder="{{text.idCardPlaceholder}}" value="{{editIdCard}}" bindinput="onEditIdCardInput"></input>
+        </view>
+
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.gradePlaceholder}}</view>
+          <picker mode="selector" range="{{editGradeOptions}}" range-key="name" value="{{editGradeIndex}}" bindchange="onEditGradeChange">
+            <view class="picker-field popup-picker">{{editGradeOptions[editGradeIndex].name}}</view>
+          </picker>
+        </view>
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.classPlaceholder}}</view>
+          <picker mode="selector" range="{{editClassOptions}}" range-key="name" value="{{editClassIndex}}" bindchange="onEditClassChange">
+            <view class="picker-field popup-picker">{{editClassOptions[editClassIndex].name}}</view>
+          </picker>
+        </view>
+
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.electiveClassPlaceholder}}</view>
+          <picker mode="selector" range="{{editElectiveOptions}}" range-key="name" value="{{editElectiveIndex}}" bindchange="onEditElectiveClassChange">
+            <view class="picker-field popup-picker">{{editElectiveOptions[editElectiveIndex].name}}</view>
+          </picker>
+        </view>
+        <view class="popup-form-item">
+          <view class="popup-field-label">{{text.statusPlaceholder}}</view>
+          <picker mode="selector" range="{{editStatusOptions}}" value="{{editStatusIndex}}" bindchange="onEditStatusChange">
+            <view class="picker-field popup-picker">{{editStatusOptions[editStatusIndex]}}</view>
+          </picker>
+        </view>
+      </view>
       <view class="popup-action-row">
         <button class="secondary-button popup-action-button" bindtap="closeEditPopup">{{text.cancel}}</button>
         <button class="primary-button popup-action-button" loading="{{editSaving}}" bindtap="saveEditStudent">{{text.save}}</button>

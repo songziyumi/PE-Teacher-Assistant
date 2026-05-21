@@ -1,24 +1,38 @@
 page {
   background: #f4f7fb;
   color: #1f2937;
-  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+view,
+text,
+button,
+input,
+textarea,
+picker,
+label {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .page-shell {
   min-height: 100vh;
   padding: 32rpx 24rpx 48rpx;
   box-sizing: border-box;
-  background:
-    radial-gradient(circle at top right, #d7e8ff 0, #f4f7fb 35%),
-    linear-gradient(180deg, #eef4fb 0%, #f7f9fc 100%);
+  background: #f4f7fb;
 }
 
 .hero-card,
 .panel-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
   border: 1rpx solid rgba(22, 50, 79, 0.08);
   border-radius: 28rpx;
-  box-shadow: 0 18rpx 48rpx rgba(22, 50, 79, 0.08);
+  box-shadow: 0 8rpx 24rpx rgba(22, 50, 79, 0.05);
 }
 
 .hero-card {
@@ -32,27 +46,27 @@ page {
 }
 
 .page-title {
-  font-size: 44rpx;
+  font-size: 22px;
   font-weight: 700;
   color: #16324f;
 }
 
 .page-subtitle {
   margin-top: 10rpx;
-  font-size: 24rpx;
+  font-size: 14px;
   line-height: 1.6;
   color: #5c6b7a;
 }
 
 .section-title {
-  font-size: 30rpx;
+  font-size: 17px;
   font-weight: 700;
   color: #16324f;
 }
 
 .section-caption {
   margin-top: 6rpx;
-  font-size: 22rpx;
+  font-size: 13px;
   color: #7b8794;
 }
 
@@ -60,7 +74,7 @@ page {
   background: linear-gradient(135deg, #16324f 0%, #265d8c 100%);
   color: #ffffff;
   border-radius: 20rpx;
-  font-size: 30rpx;
+  font-size: 16px;
   font-weight: 600;
   padding: 6rpx 0;
 }
@@ -70,7 +84,8 @@ page {
   color: #16324f;
   border: 1rpx solid rgba(22, 50, 79, 0.18);
   border-radius: 20rpx;
-  font-size: 28rpx;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .muted-text {
@@ -78,7 +93,7 @@ page {
 }
 
 .empty-text {
-  font-size: 24rpx;
+  font-size: 14px;
   color: #7b8794;
   line-height: 1.7;
 }

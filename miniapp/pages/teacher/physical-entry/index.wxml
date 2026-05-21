@@ -117,5 +117,9 @@
         </view>
       </view>
     </view>
+
+    <view class="bottom-save-bar">
+      <button class="primary-button bottom-save-button" loading="{{saving}}" bindtap="saveData">{{text.save}}</button>
+    </view>
   </block>
 </view>

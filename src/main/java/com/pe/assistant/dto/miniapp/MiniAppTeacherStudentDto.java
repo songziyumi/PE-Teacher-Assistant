@@ -13,6 +13,7 @@ public class MiniAppTeacherStudentDto {
     private Long id;
     private String name;
     private String studentNo;
+    private String idCard;
     private Long version;
     private String gender;
     private String studentStatus;

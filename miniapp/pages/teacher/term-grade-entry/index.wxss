@@ -17,7 +17,7 @@
 
 .filter-label {
   margin-bottom: 10rpx;
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -48,7 +48,7 @@
 }
 
 .student-list-count {
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -86,7 +86,7 @@
 }
 
 .student-item-name {
-  font-size: 28rpx;
+  font-size: 16px;
   font-weight: 700;
   color: #16324f;
 }
@@ -100,7 +100,7 @@
 }
 
 .student-no-inline {
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -116,7 +116,7 @@
   border-radius: 999rpx;
   background: #eef5fb;
   color: #16324f;
-  font-size: 22rpx;
+  font-size: 13px;
 }
 
 .student-level-badge {
@@ -151,7 +151,7 @@
 
 .score-label {
   margin-bottom: 10rpx;
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -177,3 +177,17 @@
   border: 1rpx solid rgba(148, 163, 184, 0.2);
   color: #475569;
 }
+
+.bottom-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 20rpx;
+  padding: 20rpx 0 calc(8rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(244, 247, 251, 0) 0%, #f4f7fb 28rpx, #f4f7fb 100%);
+}
+
+.bottom-save-button {
+  width: 100%;
+}
+

@@ -12,6 +12,48 @@ const STATUS_OPTIONS = [
 ];
 const EDIT_STATUS_OPTIONS = STATUS_OPTIONS.slice(1);
 const GENDER_OPTIONS = ['\u7537', '\u5973'];
+const EMPTY_OPTION = '\u4e0d\u9009\u62e9';
+
+function buildGradeOptions(adminClasses, electiveClasses) {
+  const seen = new Set();
+  const items = [];
+  [...(adminClasses || []), ...(electiveClasses || [])].forEach((item) => {
+    if (!item || !item.gradeName) {
+      return;
+    }
+    const key = `${item.gradeId || ''}::${item.gradeName}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    items.push({
+      id: item.gradeId || 0,
+      name: item.gradeName
+    });
+  });
+  return [{ id: 0, name: EMPTY_OPTION }].concat(items);
+}
+
+function buildAdminClassOptions(adminClasses, gradeId) {
+  const filtered = (adminClasses || []).filter((item) => !gradeId || Number(item.gradeId || 0) === Number(gradeId));
+  return [{ id: 0, name: EMPTY_OPTION }].concat(filtered.map((item) => ({
+    id: item.id,
+    name: item.name
+  })));
+}
+
+function buildElectiveClassOptions(electiveClasses, gradeId) {
+  const filtered = (electiveClasses || []).filter((item) => !gradeId || Number(item.gradeId || 0) === Number(gradeId));
+  return [{ storedName: '', name: EMPTY_OPTION }].concat(filtered.map((item) => ({
+    storedName: item.storedName || '',
+    name: item.gradeName ? `${item.gradeName} ${item.name}` : item.name
+  })));
+}
+
+function findOptionIndex(options, matcher) {
+  const index = (options || []).findIndex(matcher);
+  return index >= 0 ? index : 0;
+}
 
 function sortStudents(students) {
   return [...students].sort((left, right) => {
@@ -79,6 +121,14 @@ Page({
     statusIndex: 0,
     genderOptions: GENDER_OPTIONS,
     editStatusOptions: EDIT_STATUS_OPTIONS,
+    schoolClasses: [],
+    electiveClasses: [],
+    editGradeOptions: [{ id: 0, name: EMPTY_OPTION }],
+    editGradeIndex: 0,
+    editClassOptions: [{ id: 0, name: EMPTY_OPTION }],
+    editClassIndex: 0,
+    editElectiveOptions: [{ storedName: '', name: EMPTY_OPTION }],
+    editElectiveIndex: 0,
     students: [],
     totalCount: 0,
     maleCount: 0,
@@ -110,6 +160,12 @@ Page({
       editTitle: '\u7f16\u8f91\u5b66\u751f',
       namePlaceholder: '\u59d3\u540d',
       studentNoPlaceholder: '\u5b66\u53f7',
+      idCardPlaceholder: '\u8eab\u4efd\u8bc1',
+      electiveClassPlaceholder: '\u9009\u9879\u73ed',
+      gradePlaceholder: '\u5e74\u7ea7',
+      classPlaceholder: '\u73ed\u7ea7',
+      genderPlaceholder: '\u6027\u522b',
+      statusPlaceholder: '\u5b66\u7c4d',
       cancel: '\u53d6\u6d88',
       save: '\u4fdd\u5b58'
     },
@@ -124,6 +180,8 @@ Page({
     editVersion: 0,
     editName: '',
     editStudentNo: '',
+    editIdCard: '',
+    editElectiveClass: '',
     editGenderIndex: 0,
     editStatusIndex: 0
   },
@@ -142,7 +200,28 @@ Page({
       });
       return;
     }
+    this.loadEditOptions();
     this.loadStudents();
+  },
+
+  async loadEditOptions() {
+    try {
+      const [schoolClasses, electiveClasses] = await Promise.all([
+        api.fetchTeacherSchoolClasses(),
+        api.fetchTeacherElectiveClasses()
+      ]);
+      const editGradeOptions = buildGradeOptions(schoolClasses, electiveClasses);
+      this.setData({
+        schoolClasses: schoolClasses || [],
+        electiveClasses: electiveClasses || [],
+        editGradeOptions
+      });
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '\u52a0\u8f7d\u7f16\u8f91\u9009\u9879\u5931\u8d25',
+        icon: 'none'
+      });
+    }
   },
 
   onKeywordInput(event) {
@@ -219,6 +298,18 @@ Page({
     if (!student) {
       return;
     }
+    const schoolClasses = this.data.schoolClasses || [];
+    const electiveClasses = this.data.electiveClasses || [];
+    const matchedAdminClass = schoolClasses.find((item) => Number(item.id) === Number(student.adminClassId || 0));
+    const matchedElectiveClass = electiveClasses.find((item) => (item.storedName || '') === (student.electiveClass || ''));
+    const gradeId = matchedAdminClass
+      ? Number(matchedAdminClass.gradeId || 0)
+      : matchedElectiveClass
+        ? Number(matchedElectiveClass.gradeId || 0)
+        : 0;
+    const editGradeOptions = buildGradeOptions(schoolClasses, electiveClasses);
+    const editClassOptions = buildAdminClassOptions(schoolClasses, gradeId);
+    const editElectiveOptions = buildElectiveClassOptions(electiveClasses, gradeId);
     const genderIndex = GENDER_OPTIONS.indexOf(student.gender || '');
     const statusIndex = EDIT_STATUS_OPTIONS.indexOf(student.studentStatus || '');
     this.setData({
@@ -228,6 +319,14 @@ Page({
       editVersion: Number(student.version || 0),
       editName: student.name || '',
       editStudentNo: student.studentNo || '',
+      editIdCard: student.idCard || '',
+      editElectiveClass: student.electiveClass || '',
+      editGradeOptions,
+      editGradeIndex: findOptionIndex(editGradeOptions, (item) => Number(item.id || 0) === gradeId),
+      editClassOptions,
+      editClassIndex: findOptionIndex(editClassOptions, (item) => Number(item.id || 0) === Number(student.adminClassId || 0)),
+      editElectiveOptions,
+      editElectiveIndex: findOptionIndex(editElectiveOptions, (item) => (item.storedName || '') === (student.electiveClass || '')),
       editGenderIndex: genderIndex >= 0 ? genderIndex : 0,
       editStatusIndex: statusIndex >= 0 ? statusIndex : 0
     });
@@ -254,6 +353,41 @@ Page({
     });
   },
 
+  onEditIdCardInput(event) {
+    this.setData({
+      editIdCard: event.detail.value || ''
+    });
+  },
+
+  onEditGradeChange(event) {
+    const editGradeIndex = Number(event.detail.value || 0);
+    const selectedGrade = this.data.editGradeOptions[editGradeIndex] || { id: 0 };
+    const gradeId = Number(selectedGrade.id || 0);
+    this.setData({
+      editGradeIndex,
+      editClassOptions: buildAdminClassOptions(this.data.schoolClasses, gradeId),
+      editClassIndex: 0,
+      editElectiveOptions: buildElectiveClassOptions(this.data.electiveClasses, gradeId),
+      editElectiveIndex: 0,
+      editElectiveClass: ''
+    });
+  },
+
+  onEditClassChange(event) {
+    this.setData({
+      editClassIndex: Number(event.detail.value || 0)
+    });
+  },
+
+  onEditElectiveClassChange(event) {
+    const editElectiveIndex = Number(event.detail.value || 0);
+    const selected = this.data.editElectiveOptions[editElectiveIndex] || { storedName: '' };
+    this.setData({
+      editElectiveIndex,
+      editElectiveClass: selected.storedName || ''
+    });
+  },
+
   onEditGenderChange(event) {
     this.setData({
       editGenderIndex: Number(event.detail.value || 0)
@@ -272,6 +406,10 @@ Page({
     }
     const name = (this.data.editName || '').trim();
     const studentNo = (this.data.editStudentNo || '').trim();
+    const idCard = (this.data.editIdCard || '').trim();
+    const electiveClass = (this.data.editElectiveClass || '').trim();
+    const selectedClass = this.data.editClassOptions[this.data.editClassIndex] || { id: 0 };
+    const classId = selectedClass.id ? Number(selectedClass.id) : null;
     const gender = this.data.genderOptions[this.data.editGenderIndex] || GENDER_OPTIONS[0];
     const studentStatus = this.data.editStatusOptions[this.data.editStatusIndex] || EDIT_STATUS_OPTIONS[0];
 
@@ -302,6 +440,9 @@ Page({
       await api.updateTeacherStudent(this.data.editStudentId, {
         name,
         studentNo,
+        idCard,
+        electiveClass,
+        classId,
         gender,
         studentStatus,
         version: this.data.editVersion

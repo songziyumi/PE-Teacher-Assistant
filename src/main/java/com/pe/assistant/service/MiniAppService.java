@@ -425,6 +425,7 @@ public class MiniAppService {
                 .id(student.getId())
                 .name(student.getName())
                 .studentNo(student.getStudentNo())
+                .idCard(student.getIdCard())
                 .version(student.getVersion() == null ? -1L : student.getVersion())
                 .gender(student.getGender())
                 .studentStatus(student.getStudentStatus())

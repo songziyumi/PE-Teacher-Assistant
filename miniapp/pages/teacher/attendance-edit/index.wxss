@@ -4,7 +4,7 @@
   background: #f8fbff;
   border: 1rpx solid rgba(22, 50, 79, 0.12);
   border-radius: 20rpx;
-  font-size: 28rpx;
+  font-size: 16px;
   color: #16324f;
 }
 
@@ -46,14 +46,14 @@
 }
 
 .student-name {
-  font-size: 28rpx;
+  font-size: 16px;
   font-weight: 700;
   color: #16324f;
 }
 
 .student-meta {
   margin-top: 8rpx;
-  font-size: 22rpx;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -82,7 +82,7 @@
   border-radius: 999rpx;
   background: #f2f5f9;
   color: #4b5563;
-  font-size: 22rpx;
+  font-size: 13px;
   border: 1rpx solid transparent;
 }
 
@@ -95,3 +95,4 @@
 .save-button {
   margin-top: 28rpx;
 }
+

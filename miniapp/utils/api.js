@@ -168,6 +168,18 @@ function fetchTeacherStudentAttendanceHistory(studentId, days) {
   });
 }
 
+function fetchTeacherSchoolClasses() {
+  return request({
+    path: '/api/teacher/school-classes'
+  });
+}
+
+function fetchTeacherElectiveClasses() {
+  return request({
+    path: '/api/teacher/elective-classes'
+  });
+}
+
 function checkTeacherStudentNo(studentNo, excludeId) {
   const params = [`studentNo=${encodeURIComponent(studentNo || '')}`];
   if (excludeId) {
@@ -249,6 +261,8 @@ module.exports = {
   fetchTeacherTermGrades,
   saveTeacherTermGrades,
   fetchTeacherStudentAttendanceHistory,
+  fetchTeacherSchoolClasses,
+  fetchTeacherElectiveClasses,
   checkTeacherStudentNo,
   updateTeacherStudent,
   fetchTeacherProfile,
