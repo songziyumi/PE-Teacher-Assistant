@@ -1,0 +1,41 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="page-title">{{className || text.title}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
+    <view class="hero-meta-pill">{{academicYear}} {{semester}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">{{text.loading}}</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">{{text.loadFailed}}</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">{{text.reload}}</button>
+  </view>
+
+  <view wx:elif="{{!students.length}}" class="panel-card">
+    <view class="empty-text">{{text.empty}}</view>
+  </view>
+
+  <block wx:else>
+    <view class="overview-header">
+      <view class="section-title">{{text.count}}</view>
+      <view class="overview-count">{{students.length}}</view>
+    </view>
+
+    <view class="overview-list">
+      <view wx:for="{{students}}" wx:key="id" class="overview-card" data-student-id="{{item.id}}" data-student-name="{{item.name}}" bindtap="goDetail">
+        <view class="overview-inline-row">
+          <view class="overview-name">{{item.name}}</view>
+          <view class="overview-gender">{{item.displayGender}}</view>
+          <view class="overview-no">{{item.displayStudentNo}}</view>
+          <view class="overview-score-value">{{item.displayTotalScore}}</view>
+          <view wx:if="{{item.displayLevel}}" class="overview-level {{item.levelClass}}">{{item.displayLevel}}</view>
+          <view class="overview-view-link">查看</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

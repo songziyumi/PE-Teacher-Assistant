@@ -6,6 +6,7 @@ import com.pe.assistant.entity.*;
 import com.pe.assistant.repository.AttendanceRepository;
 import com.pe.assistant.repository.CourseOverflowAuditRepository;
 import com.pe.assistant.repository.CourseRequestAuditRepository;
+import com.pe.assistant.repository.TermGradeRepository;
 import com.pe.assistant.repository.TeacherOperationLogRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import com.pe.assistant.service.*;
@@ -42,12 +43,14 @@ public class TeacherApiController {
     private final StudentService studentService;
     private final AttendanceService attendanceService;
     private final PhysicalTestService physicalTestService;
+    private final PhysicalBreakdownService physicalBreakdownService;
     private final TermGradeService termGradeService;
     private final MessageService messageService;
     private final CurrentUserService currentUserService;
     private final GradeService gradeService;
     private final TeacherRepository teacherRepository;
     private final AttendanceRepository attendanceRepository;
+    private final TermGradeRepository termGradeRepository;
     private final CourseRequestAuditRepository courseRequestAuditRepository;
     private final CourseOverflowAuditRepository courseOverflowAuditRepository;
     private final TeacherOperationLogRepository teacherOperationLogRepository;
@@ -537,6 +540,7 @@ public class TeacherApiController {
         String name = body.get("name") != null ? String.valueOf(body.get("name")) : current.getName();
         String gender = body.get("gender") != null ? String.valueOf(body.get("gender")) : current.getGender();
         String studentNo = body.get("studentNo") != null ? String.valueOf(body.get("studentNo")) : current.getStudentNo();
+        String idCard = body.get("idCard") != null ? String.valueOf(body.get("idCard")) : current.getIdCard();
         String studentStatus = body.get("studentStatus") != null ? String.valueOf(body.get("studentStatus")) : current.getStudentStatus();
         Long classId = body.get("classId") != null ? Long.valueOf(body.get("classId").toString()) : null;
         Long version = body.get("version") != null ? Long.valueOf(body.get("version").toString()) : null;
@@ -544,7 +548,7 @@ public class TeacherApiController {
                 ? (String) body.get("electiveClass")
                 : current.getElectiveClass();
         try {
-            studentService.update(id, name, gender, studentNo, current.getIdCard(),
+            studentService.update(id, name, gender, studentNo, idCard,
                     electiveClass, classId, studentStatus, version);
             Teacher teacher = currentUserService.getCurrentTeacher();
             teacherOperationLogService.log(teacher.getId(), teacher.getName(), teacher.getSchool(),
@@ -740,26 +744,53 @@ public class TeacherApiController {
     public ResponseEntity<byte[]> exportAttendance(
             @RequestParam String startDate,
             @RequestParam(required = false) String endDate,
-            @RequestParam(required = false) Long classId) throws IOException {
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) String gradeName,
+            @RequestParam(required = false) String status) throws IOException {
         Teacher teacher = currentUserService.getCurrentTeacher();
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = (endDate != null && !endDate.isBlank()) ? LocalDate.parse(endDate) : start;
+        String normalizedGradeName = isBlank(gradeName) ? null : gradeName.trim();
+        String normalizedStatus = normalizeAttendanceStatusFilter(status);
         List<Attendance> records;
+        String filenameGrade = normalizedGradeName != null ? normalizedGradeName : "\u5168\u90e8\u5e74\u7ea7";
+        String filenameClass = "\u5168\u90e8\u73ed\u7ea7";
         if (classId != null) {
             SchoolClass sc = classService.findById(classId);
             if (sc.getTeacher() == null || !sc.getTeacher().getId().equals(teacher.getId())) {
                 return ResponseEntity.status(403).build();
             }
+            if (sc.getGrade() != null && !isBlank(sc.getGrade().getName())) {
+                filenameGrade = sc.getGrade().getName().trim();
+            }
+            if (!isBlank(sc.getName())) {
+                filenameClass = sc.getName().trim();
+            }
             records = attendanceService.findByClassIdsAndDateRange(List.of(classId), start, end);
         } else {
             List<Long> classIds = classService.findByTeacher(teacher).stream()
+                    .filter(sc -> normalizedGradeName == null
+                            || (sc.getGrade() != null && normalizedGradeName.equals(sc.getGrade().getName())))
                     .map(SchoolClass::getId).collect(Collectors.toList());
             records = classIds.isEmpty() ? List.of()
                     : attendanceService.findByClassIdsAndDateRange(classIds, start, end);
         }
+        if (normalizedStatus != null) {
+            records = records.stream()
+                    .filter(record -> normalizedStatus.equals(normalizeAttendanceStatus(record.getStatus())))
+                    .collect(Collectors.toList());
+        }
         byte[] bytes = attendanceService.exportXlsx(records);
-        String suffix = (endDate != null && !endDate.equals(startDate)) ? "_" + endDate : "";
-        String filename = URLEncoder.encode("考勤记录_" + startDate + suffix + ".xlsx", StandardCharsets.UTF_8);
+        String filenameStatus = normalizedStatus != null ? normalizedStatus : "\u5168\u90e8\u60c5\u51b5";
+        String dateLabel = start.equals(end) ? startDate : startDate + "_" + end;
+        String filename = URLEncoder.encode(
+                String.join("_",
+                        sanitizeFilenamePart("\u8003\u52e4\u8bb0\u5f55"),
+                        sanitizeFilenamePart(dateLabel),
+                        sanitizeFilenamePart(filenameGrade),
+                        sanitizeFilenamePart(filenameClass),
+                        sanitizeFilenamePart(filenameStatus)) + ".xlsx",
+                StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
                 .body(bytes);
@@ -799,6 +830,41 @@ public class TeacherApiController {
                     .ifPresent(pt -> map.put(s.getId(), pt));
         }
         return ApiResponse.ok(map);
+    }
+
+    @GetMapping("/physical-tests/{studentId}")
+    public ApiResponse<Map<String, Object>> physicalTestDetail(@PathVariable Long studentId,
+                                                               @RequestParam Long classId,
+                                                               @RequestParam String academicYear,
+                                                               @RequestParam String semester) {
+        School school = currentUserService.getCurrentSchool();
+        SchoolClass sc = classService.findById(classId);
+        List<Student> students;
+        if (isElectiveType(sc.getType())) {
+            String name = (sc.getGrade() != null ? sc.getGrade().getName() + "/" : "") + sc.getName();
+            students = studentService.findByElectiveClassForTeacher(school, name);
+        } else {
+            students = studentService.findByClassIdForTeacher(school, classId);
+        }
+
+        Student student = students.stream()
+                .filter(item -> Objects.equals(item.getId(), studentId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("学生不在当前班级中"));
+
+        PhysicalTest pt = physicalTestService.findExisting(student, academicYear, semester).orElse(null);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("record", pt);
+        if (pt == null) {
+            result.put("breakdown", Collections.emptyList());
+            return ApiResponse.ok(result);
+        }
+
+        String gradeName = student.getSchoolClass() != null && student.getSchoolClass().getGrade() != null
+                ? student.getSchoolClass().getGrade().getName()
+                : "";
+        result.put("breakdown", physicalBreakdownService.buildBreakdown(pt, student.getGender(), gradeName));
+        return ApiResponse.ok(result);
     }
 
     // ===== 体测批量保存 =====
@@ -875,8 +941,22 @@ public class TeacherApiController {
         }
         Map<Long, Object> map = new HashMap<>();
         for (Student s : students) {
-            termGradeService.findExisting(s, academicYear, semester)
-                    .ifPresent(tg -> map.put(s.getId(), tg));
+            TermGrade tg = termGradeService.findExisting(s, academicYear, semester).orElse(null);
+            long absenceCount = termGradeService.countAbsences(s, academicYear, semester);
+            double attendanceScore = termGradeService.computeAttendanceScore(absenceCount);
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", tg != null ? tg.getId() : null);
+            item.put("studentId", s.getId());
+            item.put("academicYear", academicYear);
+            item.put("semester", semester);
+            item.put("attendanceScore", attendanceScore);
+            item.put("absenceCount", absenceCount);
+            item.put("skillScore", tg != null ? tg.getSkillScore() : null);
+            item.put("theoryScore", tg != null ? tg.getTheoryScore() : null);
+            item.put("totalScore", tg != null ? tg.getTotalScore() : null);
+            item.put("level", tg != null ? tg.getLevel() : null);
+            item.put("remark", tg != null ? tg.getRemark() : null);
+            map.put(s.getId(), item);
         }
         return ApiResponse.ok(map);
     }
@@ -892,7 +972,6 @@ public class TeacherApiController {
             studentService.findByIdOptional(item.getStudentId()).ifPresent(s -> {
                 students.add(s);
                 TermGrade g = new TermGrade();
-                g.setAttendanceScore(item.getAttendanceScore());
                 g.setSkillScore(item.getSkillScore());
                 g.setTheoryScore(item.getTheoryScore());
                 g.setRemark(item.getRemark());
@@ -984,6 +1063,64 @@ public class TeacherApiController {
                 .body(bytes);
     }
 
+    @GetMapping(value = "/term-grades/export",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> exportTeacherTermGrades(
+            @RequestParam String academicYear,
+            @RequestParam String semester,
+            @RequestParam(required = false) Long classId) throws IOException {
+        Teacher teacher = currentUserService.getCurrentTeacher();
+        School school = currentUserService.getCurrentSchool();
+        List<Student> students;
+        String filenameClass = "全部班级";
+        if (classId != null) {
+            SchoolClass selectedClass = classService.findById(classId);
+            if (selectedClass.getSchool() != null && school != null
+                    && !Objects.equals(selectedClass.getSchool().getId(), school.getId())) {
+                students = Collections.emptyList();
+            } else if (isElectiveType(selectedClass.getType())) {
+                String electiveClass = selectedClass.getGrade() != null
+                        ? selectedClass.getGrade().getName() + "/" + selectedClass.getName()
+                        : selectedClass.getName();
+                filenameClass = !isBlank(electiveClass) ? electiveClass : filenameClass;
+                students = studentService.findByElectiveClassForTeacher(school, electiveClass);
+            } else {
+                filenameClass = !isBlank(selectedClass.getName()) ? selectedClass.getName() : filenameClass;
+                students = studentService.findByClassIdForTeacher(school, classId);
+            }
+        } else {
+            students = classService.findByTeacher(teacher).stream()
+                    .flatMap(sc -> {
+                        if (isElectiveType(sc.getType())) {
+                            String electiveClass = sc.getGrade() != null
+                                    ? sc.getGrade().getName() + "/" + sc.getName()
+                                    : sc.getName();
+                            return studentService.findByElectiveClassForTeacher(school, electiveClass).stream();
+                        }
+                        return studentService.findByClassIdForTeacher(school, sc.getId()).stream();
+                    })
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(Student::getId, s -> s, (left, right) -> left, LinkedHashMap::new),
+                            map -> new ArrayList<>(map.values())));
+        }
+        List<TermGrade> grades = students.isEmpty() || isBlank(academicYear) || isBlank(semester)
+                ? List.of()
+                : termGradeRepository.findByStudentInOrderByAcademicYearDescSemesterDesc(students).stream()
+                .filter(g -> academicYear.trim().equals(g.getAcademicYear()) && semester.trim().equals(g.getSemester()))
+                .collect(Collectors.toList());
+        byte[] bytes = termGradeService.exportRecords(grades);
+        String filename = URLEncoder.encode(
+                String.join("_",
+                        sanitizeFilenamePart("体育成绩"),
+                        sanitizeFilenamePart(academicYear),
+                        sanitizeFilenamePart(semester),
+                        sanitizeFilenamePart(filenameClass)) + ".xlsx",
+                StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + filename)
+                .body(bytes);
+    }
+
     private static Map<String, Object> toPermissionMap(TeacherPermission p) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("editStudentName", p.isEditStudentName());
@@ -1015,6 +1152,20 @@ public class TeacherApiController {
         if ("缺勤".equals(status)) return "缺勤";
         if ("请假".equals(status)) return "请假";
         return status;
+    }
+
+    private String normalizeAttendanceStatusFilter(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return normalizeAttendanceStatus(raw);
+    }
+
+    private String sanitizeFilenamePart(String value) {
+        if (isBlank(value)) {
+            return "未命名";
+        }
+        return value.trim().replaceAll("[\\/:*?\"<>|\s]+", "-");
     }
 
     private boolean containsIgnoreCase(String source, String keyword) {

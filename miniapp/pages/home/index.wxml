@@ -1,0 +1,164 @@
+<view class="page-shell">
+  <view class="hero-card home-hero">
+    <view class="hero-top">
+      <view>
+        <view wx:if="{{user}}" class="page-title">{{user.name}}</view>
+        <view wx:else class="page-title">{{text.workbench}}</view>
+        <view class="page-subtitle">
+          {{user ? user.role : ''}}
+          <text wx:if="{{user && user.schoolName}}"> · {{user.schoolName}}</text>
+        </view>
+      </view>
+      <view class="hero-actions" wx:if="{{isTeacher}}">
+        <button class="secondary-button small-button" bindtap="goTeacherProfile">{{text.profile}}</button>
+        <button class="secondary-button small-button" bindtap="handleLogout">{{text.logout}}</button>
+      </view>
+      <button wx:elif="{{user}}" class="secondary-button small-button" bindtap="handleLogout">{{text.logout}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">{{text.loading}}</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">{{text.loadFailed}}</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="handleRefresh">{{text.reload}}</button>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{isStudent}}" class="panel-card">
+      <view class="section-title">{{text.studentSummary}}</view>
+      <view class="metrics-grid">
+        <view class="metric-box">
+          <view class="metric-value">{{home.currentCourseCount || 0}}</view>
+          <view class="metric-label">{{text.currentCourseCount}}</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.confirmedCourseCount || 0}}</view>
+          <view class="metric-label">{{text.confirmedCourseCount}}</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.pendingSelectionCount || 0}}</view>
+          <view class="metric-label">{{text.pendingSelectionCount}}</view>
+        </view>
+        <view class="metric-box">
+          <view class="metric-value">{{home.unreadMessageCount || 0}}</view>
+          <view class="metric-label">{{text.unreadMessageCount}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{home.currentEvent}}" class="panel-card">
+      <view class="section-title">{{text.currentEvent}}</view>
+      <view class="info-row">
+        <text class="info-label">{{text.eventName}}</text>
+        <text class="info-value">{{home.currentEvent.name}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">{{text.eventStatus}}</text>
+        <text class="info-value">{{home.currentEvent.status}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{isTeacher && home.classes && home.classes.length}}" class="panel-card">
+      <view class="section-title">{{text.myClasses}}</view>
+      <view class="tag-list">
+        <view wx:for="{{home.classes}}" wx:key="id" class="tag-item">
+          <view class="tag-name">{{item.name}}</view>
+          <view wx:if="{{item.gradeName || item.type}}" class="tag-meta">
+            <text wx:if="{{item.gradeName}}">{{item.gradeName}}</text>
+            <text wx:else>{{text.noGrade}}</text>
+            <text> · </text>
+            <text wx:if="{{item.type}}">{{item.type}}</text>
+            <text wx:else>{{text.classType}}</text>
+          </view>
+          <view class="class-action-grid">
+            <view class="class-action-button class-action-button-primary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherAttendanceForClass">{{text.attendanceEntry}}</view>
+            <view class="class-action-button class-action-button-secondary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherStudentList">{{text.studentList}}</view>
+            <view class="class-action-button class-action-button-secondary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherPhysicalEntry">{{text.physicalEntry}}</view>
+            <view class="class-action-button class-action-button-secondary" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="goTeacherTermGradeEntry">{{text.gradeEntry}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{isTeacher}}" class="panel-card">
+      <view class="section-title">{{text.exportData}}</view>
+      <view class="section-caption">{{text.exportHint}}</view>
+      <view class="teacher-export-grid">
+        <view class="teacher-export-button" bindtap="openAttendanceExport">{{text.exportAttendance}}</view>
+        <view class="teacher-export-button" bindtap="exportStudentRoster">{{text.exportStudents}}</view>
+        <view class="teacher-export-button" bindtap="openTermGradeExport">{{text.exportTermGrades}}</view>
+        <view class="teacher-export-button" bindtap="exportApprovalRecords">{{text.exportApprovals}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{!isTeacher}}" class="panel-card">
+      <view class="section-title">{{text.recentMessages}}</view>
+      <view wx:if="{{home.recentMessages && home.recentMessages.length}}">
+        <view wx:for="{{home.recentMessages}}" wx:key="id" class="message-item">
+          <view wx:if="{{item.subject}}" class="message-subject">{{item.subject}}</view>
+          <view wx:else class="message-subject">{{text.unnamedMessage}}</view>
+          <view class="message-meta">
+            <text wx:if="{{item.senderName}}">{{item.senderName}}</text>
+            <text wx:else>{{text.system}}</text>
+            <text wx:if="{{item.sentAt}}"> · {{item.sentAt}}</text>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty-text">{{text.noRecentMessages}}</view>
+    </view>
+
+    <view wx:if="{{attendanceExportVisible}}" class="popup-mask" bindtap="closeAttendanceExport">
+      <view class="popup-card export-popup-card" catchtap="noop">
+        <view class="popup-title">{{text.exportAttendanceTitle}}</view>
+        <view class="filter-label">{{text.startDate}}</view>
+        <picker mode="date" value="{{attendanceStartDate}}" bindchange="onAttendanceStartDateChange">
+          <view class="picker-field popup-picker">{{attendanceStartDate}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.endDate}}</view>
+        <picker mode="date" value="{{attendanceEndDate}}" bindchange="onAttendanceEndDateChange">
+          <view class="picker-field popup-picker">{{attendanceEndDate}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.gradeFilter}}</view>
+        <picker mode="selector" range="{{attendanceGradeOptions}}" value="{{attendanceGradeIndex}}" bindchange="onAttendanceGradeChange">
+          <view class="picker-field popup-picker">{{attendanceGradeOptions[attendanceGradeIndex]}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.classFilter}}</view>
+        <picker mode="selector" range="{{attendanceClassOptions}}" range-key="name" value="{{attendanceClassIndex}}" bindchange="onAttendanceClassChange">
+          <view class="picker-field popup-picker">{{attendanceClassOptions[attendanceClassIndex].name}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.attendanceStatus}}</view>
+        <picker mode="selector" range="{{attendanceStatusOptions}}" value="{{attendanceStatusIndex}}" bindchange="onAttendanceStatusChange">
+          <view class="picker-field popup-picker">{{attendanceStatusOptions[attendanceStatusIndex]}}</view>
+        </picker>
+        <view class="popup-action-row">
+          <button class="secondary-button popup-action-button" bindtap="closeAttendanceExport">{{text.cancel}}</button>
+          <button class="primary-button popup-action-button" loading="{{exporting}}" bindtap="exportAttendanceRecords">{{text.confirmExport}}</button>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{termGradeExportVisible}}" class="popup-mask" bindtap="closeTermGradeExport">
+      <view class="popup-card export-popup-card" catchtap="noop">
+        <view class="popup-title">{{text.exportTermGradesTitle}}</view>
+        <view class="filter-label">{{text.academicYear}}</view>
+        <input class="filter-input popup-picker" value="{{termGradeAcademicYear}}" bindinput="onTermGradeAcademicYearInput" />
+        <view class="filter-label popup-field-label">{{text.semester}}</view>
+        <picker mode="selector" range="{{termGradeSemesterOptions}}" value="{{termGradeSemester === termGradeSemesterOptions[1] ? 1 : 0}}" bindchange="onTermGradeSemesterChange">
+          <view class="picker-field popup-picker">{{termGradeSemester}}</view>
+        </picker>
+        <view class="filter-label popup-field-label">{{text.classFilter}}</view>
+        <picker mode="selector" range="{{termGradeClassOptions}}" range-key="name" value="{{termGradeClassIndex}}" bindchange="onTermGradeClassChange">
+          <view class="picker-field popup-picker">{{termGradeClassOptions[termGradeClassIndex].name}}</view>
+        </picker>
+        <view class="popup-action-row">
+          <button class="secondary-button popup-action-button" bindtap="closeTermGradeExport">{{text.cancel}}</button>
+          <button class="primary-button popup-action-button" loading="{{exporting}}" bindtap="exportTeacherTermGrades">{{text.confirmExport}}</button>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

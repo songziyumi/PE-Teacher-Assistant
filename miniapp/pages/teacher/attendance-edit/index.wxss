@@ -1,0 +1,98 @@
+.date-picker {
+  margin-top: 20rpx;
+  padding: 22rpx 24rpx;
+  background: #f8fbff;
+  border: 1rpx solid rgba(22, 50, 79, 0.12);
+  border-radius: 20rpx;
+  font-size: 16px;
+  color: #16324f;
+}
+
+.student-list {
+  margin-top: 18rpx;
+}
+
+.student-item {
+  padding: 24rpx 20rpx;
+  margin-bottom: 14rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(22, 50, 79, 0.08);
+}
+
+.student-item:last-child {
+  margin-bottom: 0;
+}
+
+.student-item-tone-a {
+  background: #e7f1ff;
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+.student-item-tone-b {
+  background: #e8f7e8;
+  border-color: rgba(22, 163, 74, 0.22);
+}
+
+.student-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.student-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #16324f;
+}
+
+.student-meta {
+  margin-top: 8rpx;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.student-meta-inline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.status-row-inline {
+  flex-shrink: 0;
+  margin-top: 0;
+  justify-content: flex-end;
+  gap: 10rpx;
+}
+
+.status-chip {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #f2f5f9;
+  color: #4b5563;
+  font-size: 13px;
+  border: 1rpx solid transparent;
+}
+
+.status-chip-active {
+  background: #16324f;
+  color: #ffffff;
+  border-color: #16324f;
+}
+
+.save-button {
+  margin-top: 28rpx;
+}
+

@@ -1,0 +1,110 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="page-title">{{className || text.title}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
+  </view>
+
+  <view class="panel-card">
+    <view class="filter-grid">
+      <view class="filter-item">
+        <view class="filter-label">{{text.academicYear}}</view>
+        <input class="filter-input" value="{{academicYear}}" bindinput="onAcademicYearInput" />
+      </view>
+      <view class="filter-item">
+        <view class="filter-label">{{text.semester}}</view>
+        <picker mode="selector" range="{{semesterOptions}}" value="{{semester === semesterOptions[1] ? 1 : 0}}" bindchange="onSemesterChange">
+          <view class="filter-picker">{{semester}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="filter-action-row">
+      <button class="secondary-button filter-action-button" bindtap="handleQuery">{{text.query}}</button>
+      <button class="primary-button filter-action-button" loading="{{saving}}" bindtap="saveData">{{text.save}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">{{text.loading}}</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">{{text.loadFailed}}</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">{{text.reload}}</button>
+  </view>
+
+  <view wx:elif="{{!students.length}}" class="panel-card">
+    <view class="empty-text">{{text.empty}}</view>
+  </view>
+
+  <block wx:else>
+    <view class="student-list-header">
+      <view class="section-title student-list-title">{{text.studentList}}</view>
+      <view class="student-list-count">{{students.length}} 人</view>
+    </view>
+
+    <view class="student-list">
+      <view wx:for="{{students}}" wx:key="id" class="student-item-card">
+        <view class="student-main-row">
+          <view class="student-main-left">
+            <view class="student-item-name-row">
+              <view class="student-item-name">{{item.name}}</view>
+              <view class="gender-badge">{{item.displayGender}}</view>
+              <view class="student-no-inline">{{item.displayStudentNo}}</view>
+            </view>
+            <view class="student-meta-row">
+              <view class="student-meta-badge">{{text.attendanceScore}} {{item.attendanceScoreText}}</view>
+              <view class="student-meta-badge">{{text.absenceCount}} {{item.absenceCountText}}</view>
+              <view wx:if="{{item.levelText}}" class="student-meta-badge student-level-badge">{{text.totalScore}} {{item.totalScoreText}} {{item.levelText}}</view>
+              <view wx:if="{{item.failByAbsence}}" class="student-meta-badge student-fail-badge">{{text.absenceRule}} {{text.failMark}}</view>
+            </view>
+          </view>
+          <view class="auto-badge">{{text.autoFilled}}</view>
+        </view>
+
+        <view class="score-grid">
+          <view class="score-item score-item-readonly">
+            <view class="score-label">{{text.attendanceScore}}</view>
+            <view class="score-readonly">{{item.attendanceScoreText}}</view>
+          </view>
+          <view class="score-item">
+            <view class="score-label">{{text.skillScore}}</view>
+            <input
+              class="score-input"
+              type="digit"
+              value="{{item.skillScoreInput}}"
+              placeholder="{{text.scorePlaceholder}}"
+              data-student-id="{{item.id}}"
+              bindinput="onSkillScoreInput"
+            />
+          </view>
+          <view class="score-item">
+            <view class="score-label">{{text.theoryScore}}</view>
+            <input
+              class="score-input"
+              type="digit"
+              value="{{item.theoryScoreInput}}"
+              placeholder="{{text.scorePlaceholder}}"
+              data-student-id="{{item.id}}"
+              bindinput="onTheoryScoreInput"
+            />
+          </view>
+          <view class="score-item score-item-full">
+            <view class="score-label">{{text.remark}}</view>
+            <input
+              class="score-input"
+              value="{{item.remarkInput}}"
+              placeholder="{{text.scorePlaceholder}}"
+              data-student-id="{{item.id}}"
+              bindinput="onRemarkInput"
+            />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-save-bar">
+      <button class="primary-button bottom-save-button" loading="{{saving}}" bindtap="saveData">{{text.bottomSave}}</button>
+    </view>
+  </block>
+</view>

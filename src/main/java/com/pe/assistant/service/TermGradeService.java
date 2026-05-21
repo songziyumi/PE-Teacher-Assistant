@@ -1,6 +1,7 @@
 package com.pe.assistant.service;
 
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.AttendanceRepository;
 import com.pe.assistant.repository.StudentRepository;
 import com.pe.assistant.repository.TermGradeRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -20,6 +22,7 @@ public class TermGradeService {
 
     private final TermGradeRepository termGradeRepository;
     private final StudentRepository studentRepository;
+    private final AttendanceRepository attendanceRepository;
 
     // ===== 查询 =====
 
@@ -39,6 +42,22 @@ public class TermGradeService {
         return termGradeRepository.findByStudentAndAcademicYearAndSemester(student, academicYear, semester);
     }
 
+    public long countAbsences(Student student, String academicYear, String semester) {
+        LocalDate[] range = resolveTermRange(academicYear, semester);
+        if (range == null) {
+            return attendanceRepository.countByStudentIdAndStatus(student.getId(), "缺勤");
+        }
+        return attendanceRepository.countByStudentIdAndStatusAndDateRange(student.getId(), "缺勤", range[0], range[1]);
+    }
+
+    public double computeAttendanceScore(Student student, String academicYear, String semester) {
+        return computeAttendanceScore(countAbsences(student, academicYear, semester));
+    }
+
+    public double computeAttendanceScore(long absenceCount) {
+        return Math.max(0, 100 - absenceCount * 10);
+    }
+
     public List<String> findDistinctAcademicYears(School school) {
         return termGradeRepository.findDistinctAcademicYears(school);
     }
@@ -50,12 +69,17 @@ public class TermGradeService {
      * 权重：出勤40% + 技能40% + 理论20%，空项按权重比例重新分摊。
      */
     public void computeAndFill(TermGrade g) {
+        long absenceCount = countAbsences(g.getStudent(), g.getAcademicYear(), g.getSemester());
+        g.setAttendanceScore(computeAttendanceScore(absenceCount));
         double sum = 0, weight = 0;
         if (g.getAttendanceScore() != null) { sum += g.getAttendanceScore() * 40; weight += 40; }
         if (g.getSkillScore()       != null) { sum += g.getSkillScore()       * 40; weight += 40; }
         if (g.getTheoryScore()      != null) { sum += g.getTheoryScore()      * 20; weight += 20; }
         if (weight > 0) {
             double total = Math.round(sum / weight * 10.0) / 10.0;
+            if (absenceCount >= 5 && total >= 60) {
+                total = 59.9;
+            }
             g.setTotalScore(total);
             g.setLevel(total >= 90 ? "优秀" : total >= 80 ? "良好" : total >= 60 ? "及格" : "不及格");
         } else {
@@ -79,15 +103,14 @@ public class TermGradeService {
         for (int i = 0; i < students.size(); i++) {
             Student stu = students.get(i);
             TermGrade rec = records.get(i);
-            if (rec.getAttendanceScore() == null && rec.getSkillScore() == null
-                    && rec.getTheoryScore() == null) continue;
+            if (rec.getSkillScore() == null && rec.getTheoryScore() == null
+                    && (rec.getRemark() == null || rec.getRemark().isBlank())) continue;
 
             TermGrade g = findExisting(stu, academicYear, semester).orElse(new TermGrade());
             g.setStudent(stu);
             g.setSchool(school);
             g.setAcademicYear(academicYear);
             g.setSemester(semester);
-            if (rec.getAttendanceScore() != null) g.setAttendanceScore(rec.getAttendanceScore());
             if (rec.getSkillScore()       != null) g.setSkillScore(rec.getSkillScore());
             if (rec.getTheoryScore()      != null) g.setTheoryScore(rec.getTheoryScore());
             if (rec.getRemark() != null && !rec.getRemark().isBlank()) g.setRemark(rec.getRemark());
@@ -182,6 +205,39 @@ public class TermGradeService {
         }
     }
 
+    public byte[] exportRecords(List<TermGrade> records) throws IOException {
+        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("期末成绩");
+            String[] headers = {"学号","姓名","性别","年级","班级","学年","学期",
+                    "出勤分","技能分","理论分","综合分","等级","备注"};
+            Row hr = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                hr.createCell(i).setCellValue(headers[i]);
+            }
+            int r = 1;
+            for (TermGrade g : records) {
+                Row row = sheet.createRow(r++);
+                Student s = g.getStudent();
+                row.createCell(0).setCellValue(s.getStudentNo() != null ? s.getStudentNo() : "");
+                row.createCell(1).setCellValue(s.getName());
+                row.createCell(2).setCellValue(s.getGender() != null ? s.getGender() : "");
+                row.createCell(3).setCellValue(s.getSchoolClass() != null && s.getSchoolClass().getGrade() != null
+                        ? s.getSchoolClass().getGrade().getName() : "");
+                row.createCell(4).setCellValue(s.getSchoolClass() != null ? s.getSchoolClass().getName() : "");
+                row.createCell(5).setCellValue(g.getAcademicYear() != null ? g.getAcademicYear() : "");
+                row.createCell(6).setCellValue(g.getSemester() != null ? g.getSemester() : "");
+                if (g.getAttendanceScore() != null) row.createCell(7).setCellValue(g.getAttendanceScore());
+                if (g.getSkillScore() != null) row.createCell(8).setCellValue(g.getSkillScore());
+                if (g.getTheoryScore() != null) row.createCell(9).setCellValue(g.getTheoryScore());
+                if (g.getTotalScore() != null) row.createCell(10).setCellValue(g.getTotalScore());
+                row.createCell(11).setCellValue(g.getLevel() != null ? g.getLevel() : "");
+                row.createCell(12).setCellValue(g.getRemark() != null ? g.getRemark() : "");
+            }
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
     public byte[] generateTemplate() throws IOException {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("导入模板");
@@ -210,5 +266,34 @@ public class TermGradeService {
                 ? cell.getCachedFormulaResultType() : cell.getCellType();
         if (type == CellType.NUMERIC) return cell.getNumericCellValue();
         try { return Double.parseDouble(cell.getStringCellValue().trim()); } catch (Exception e) { return null; }
+    }
+
+    private LocalDate[] resolveTermRange(String academicYear, String semester) {
+        if (academicYear == null || academicYear.isBlank()) {
+            return null;
+        }
+        String[] parts = academicYear.trim().split("-");
+        if (parts.length != 2) {
+            return null;
+        }
+        try {
+            int startYear = Integer.parseInt(parts[0]);
+            int endYear = Integer.parseInt(parts[1]);
+            if ("上学期".equals(semester)) {
+                return new LocalDate[] {
+                        LocalDate.of(startYear, 9, 1),
+                        LocalDate.of(endYear, 1, 31)
+                };
+            }
+            if ("下学期".equals(semester)) {
+                return new LocalDate[] {
+                        LocalDate.of(endYear, 2, 1),
+                        LocalDate.of(endYear, 8, 31)
+                };
+            }
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+        return null;
     }
 }

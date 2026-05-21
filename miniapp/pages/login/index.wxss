@@ -1,0 +1,43 @@
+.login-hero {
+  background:
+    linear-gradient(140deg, rgba(22, 50, 79, 0.95), rgba(38, 93, 140, 0.86)),
+    #16324f;
+}
+
+.login-hero .page-title,
+.login-hero .page-subtitle {
+  color: #ffffff;
+}
+
+.field-label {
+  margin-top: 14rpx;
+  margin-bottom: 12rpx;
+  font-size: 14px;
+  font-weight: 600;
+  color: #35526f;
+}
+
+.input-field {
+  height: 92rpx;
+  padding: 0 24rpx;
+  background: #f8fbff;
+  border: 1rpx solid rgba(22, 50, 79, 0.12);
+  border-radius: 20rpx;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.error-box {
+  margin-top: 24rpx;
+  padding: 20rpx 22rpx;
+  background: #fff1f2;
+  border-radius: 18rpx;
+  color: #be123c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.login-button {
+  margin-top: 28rpx;
+}
+
