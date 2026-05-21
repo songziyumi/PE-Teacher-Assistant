@@ -1,5 +1,5 @@
 ﻿app:
-  version: 5.0
+  version: 8.0
   jwt:
     secret: ${APP_JWT_SECRET}
     expiration: 86400000
