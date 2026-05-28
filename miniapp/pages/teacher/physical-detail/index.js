@@ -1,5 +1,5 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
 const FIELD_DEFINITIONS = [
   { key: 'height', label: '\u8eab\u9ad8', unit: 'cm', zeroAsEmpty: true },

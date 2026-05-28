@@ -1,5 +1,5 @@
-const api = require('../../utils/api');
-const auth = require('../../utils/auth');
+const api = require('../../utils/api.js');
+const auth = require('../../utils/auth.js');
 
 function formatDate(date) {
   const year = date.getFullYear();

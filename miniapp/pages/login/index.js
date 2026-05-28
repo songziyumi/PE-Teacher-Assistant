@@ -1,24 +1,11 @@
-const api = require('../../utils/api');
-const auth = require('../../utils/auth');
-const config = require('../../utils/config');
+const api = require('../../utils/api.js');
 
 Page({
   data: {
-    baseUrl: '',
     username: '',
     password: '',
     loading: false,
     errorMessage: ''
-  },
-
-  onLoad() {
-    this.setData({
-      baseUrl: auth.getBaseUrl() || config.DEFAULT_BASE_URL
-    });
-  },
-
-  onBaseUrlInput(event) {
-    this.setData({ baseUrl: event.detail.value });
   },
 
   onUsernameInput(event) {
@@ -35,12 +22,7 @@ Page({
     }
     const username = (this.data.username || '').trim();
     const password = this.data.password || '';
-    const baseUrl = (this.data.baseUrl || '').trim();
 
-    if (!baseUrl) {
-      this.setData({ errorMessage: '请填写服务器地址' });
-      return;
-    }
     if (!username || !password) {
       this.setData({ errorMessage: '请输入账号和密码' });
       return;
@@ -52,7 +34,7 @@ Page({
     });
 
     try {
-      await api.login(baseUrl, username, password);
+      await api.login(username, password);
       wx.reLaunch({
         url: '/pages/home/index'
       });

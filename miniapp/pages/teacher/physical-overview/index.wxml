@@ -33,7 +33,7 @@
           <view class="overview-no">{{item.displayStudentNo}}</view>
           <view class="overview-score-value">{{item.displayTotalScore}}</view>
           <view wx:if="{{item.displayLevel}}" class="overview-level {{item.levelClass}}">{{item.displayLevel}}</view>
-          <view class="overview-view-link">查看</view>
+          <view class="overview-view-link">{{text.view}}</view>
         </view>
       </view>
     </view>

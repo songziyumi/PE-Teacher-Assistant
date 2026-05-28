@@ -157,8 +157,8 @@ systemctl start pe-assistant
 ```bash
 mvn -q "-Dmaven.repo.local=.m2repo" -DskipTests compile
 mvn clean package -DskipTests
-scp target/pe-teacher-assistant-*.jar root@your-server:/opt/pe-assistant/app.jar
-ssh root@your-server "systemctl restart pe-assistant"
+scp target/pe-teacher-assistant-4.0.0.jar root@175.24.131.74:/opt/pe-assistant/app.jar
+ssh root@175.24.131.74 "systemctl restart pe-assistant"
 ```
 
 如果 `pe-assistant.service` 有变更，再执行：

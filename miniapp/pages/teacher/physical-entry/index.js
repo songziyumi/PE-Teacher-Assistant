@@ -1,5 +1,5 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
 const PROJECTS = [
   { key: 'height', label: '\u8eab\u9ad8(cm)', keyboard: 'digit' },
@@ -360,14 +360,14 @@ Page({
     });
 
     try {
-      const [studentPage, existingMap] = await Promise.all([
-        api.fetchTeacherClassStudents(this.data.classId, '', '', 0, 200),
+      const [students, existingMap] = await Promise.all([
+        api.fetchAllTeacherClassStudents(this.data.classId, '', '', 200),
         api.fetchTeacherPhysicalTests(this.data.classId, this.data.academicYear, this.data.semester)
       ]);
 
       this.setData({
         loading: false,
-        rawStudents: studentPage.content || [],
+        rawStudents: students || [],
         students: [],
         existingMap: existingMap || {}
       });

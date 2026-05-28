@@ -1,5 +1,5 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
 function buildAcademicYear(date) {
   const year = date.getFullYear();
@@ -230,14 +230,14 @@ Page({
       errorMessage: ''
     });
     try {
-      const [studentPage, existingMap] = await Promise.all([
-        api.fetchTeacherClassStudents(this.data.classId, '', '', 0, 200),
+      const [students, existingMap] = await Promise.all([
+        api.fetchAllTeacherClassStudents(this.data.classId, '', '', 200),
         api.fetchTeacherTermGrades(this.data.classId, this.data.academicYear, this.data.semester)
       ]);
-      const students = sortStudents(studentPage && studentPage.content ? studentPage.content : []);
+      const studentRows = sortStudents(students || []);
       this.setData({
         loading: false,
-        students: students.map((student) => buildStudentViewModel(student, existingMap || {})),
+        students: studentRows.map((student) => buildStudentViewModel(student, existingMap || {})),
         existingMap: existingMap || {}
       });
       this.setDirtyState(false);

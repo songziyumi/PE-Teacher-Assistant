@@ -2,7 +2,6 @@
   <view class="hero-card student-hero">
     <view wx:if="{{className}}" class="page-title">{{className}}</view>
     <view wx:else class="page-title">{{text.defaultTitle}}</view>
-    <view class="page-subtitle">{{text.subtitle}}</view>
     <view class="stats-row">
       <view class="stat-pill">
         <text class="stat-pill-value">{{totalCount}}</text>

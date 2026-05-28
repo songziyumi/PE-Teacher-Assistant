@@ -1,18 +1,10 @@
 <view class="page-shell">
   <view class="hero-card login-hero">
     <view class="page-title">体育教师助手</view>
-    <view class="page-subtitle">先接通小程序登录，再逐步补齐学生端和教师端工作台。</view>
+    <view class="page-subtitle">使用教师账号登录，进入小程序工作台。</view>
   </view>
 
   <view class="panel-card">
-    <view class="field-label">服务器地址</view>
-    <input
-      class="input-field"
-      placeholder="例如 https://www.jsqyty.com"
-      value="{{baseUrl}}"
-      bindinput="onBaseUrlInput"
-    />
-
     <view class="field-label">账号</view>
     <input
       class="input-field"

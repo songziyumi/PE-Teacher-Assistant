@@ -1,5 +1,5 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
 function sortStudents(students) {
   return [...students].sort((left, right) => {
@@ -59,7 +59,8 @@ Page({
       unknownGender: '\u672a\u77e5',
       emptyScore: '',
       emptyLevel: '',
-      count: '\u5168\u73ed'
+      count: '\u5168\u73ed',
+      view: '\u67e5\u770b'
     }
   },
 
@@ -97,14 +98,14 @@ Page({
     });
 
     try {
-      const [studentPage, recordMap] = await Promise.all([
-        api.fetchTeacherClassStudents(this.data.classId, '', '', 0, 200),
+      const [students, recordMap] = await Promise.all([
+        api.fetchAllTeacherClassStudents(this.data.classId, '', '', 200),
         api.fetchTeacherPhysicalTests(this.data.classId, this.data.academicYear, this.data.semester)
       ]);
-      const students = buildStudents(studentPage.content || [], recordMap || {}, this.data.text);
+      const studentRows = buildStudents(students || [], recordMap || {}, this.data.text);
       this.setData({
         loading: false,
-        students
+        students: studentRows
       });
     } catch (error) {
       this.setData({

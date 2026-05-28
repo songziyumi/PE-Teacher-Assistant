@@ -1,7 +1,7 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
-const STATUS_OPTIONS = ['出勤', '缺勤', '请假'];
+const STATUS_OPTIONS = ['\u51fa\u52e4', '\u7f3a\u52e4', '\u8bf7\u5047'];
 
 function formatDate(date) {
   const year = date.getFullYear();
@@ -11,8 +11,10 @@ function formatDate(date) {
 }
 
 function buildStudentViewModel(student, attendanceMap) {
-  const currentStatus = attendanceMap[String(student.id)] || attendanceMap[student.id] || '出勤';
-  const metaLine = `${student.adminClassName || '未分班'} · ${student.studentNo || '无学号'}`;
+  const currentStatus = attendanceMap[String(student.id)] || attendanceMap[student.id] || '\u51fa\u52e4';
+  const className = student.adminClassName || '\u672a\u5206\u73ed';
+  const studentNo = student.studentNo || '\u65e0\u5b66\u53f7';
+  const metaLine = `${className} \u00b7 ${studentNo}`;
   return Object.assign({}, student, {
     currentStatus,
     metaLine
@@ -41,7 +43,7 @@ function attachGroupColors(students) {
   let currentGroup = '';
   let colorIndex = 0;
   return students.map((student, index) => {
-    const className = student.adminClassName || '未分班';
+    const className = student.adminClassName || '\u672a\u5206\u73ed';
     if (index === 0) {
       currentGroup = className;
     } else if (className !== currentGroup) {
@@ -63,7 +65,21 @@ Page({
     saving: false,
     students: [],
     errorMessage: '',
-    statusOptions: STATUS_OPTIONS
+    statusOptions: STATUS_OPTIONS,
+    text: {
+      defaultTitle: '\u8003\u52e4\u767b\u8bb0',
+      subtitle: '\u9009\u62e9\u65e5\u671f\u540e\uff0c\u9010\u4e2a\u5b66\u751f\u5207\u6362\u51fa\u52e4\u72b6\u6001\u5e76\u4fdd\u5b58\u3002',
+      dateTitle: '\u767b\u8bb0\u65e5\u671f',
+      loading: '\u6b63\u5728\u52a0\u8f7d\u5b66\u751f\u4e0e\u8003\u52e4\u6570\u636e...',
+      empty: '\u5f53\u524d\u73ed\u7ea7\u6682\u65e0\u5b66\u751f\u3002',
+      studentList: '\u5b66\u751f\u5217\u8868',
+      save: '\u4fdd\u5b58\u8003\u52e4',
+      loadFailed: '\u52a0\u8f7d\u70b9\u540d\u6570\u636e\u5931\u8d25',
+      attendanceLoadFailed: '\u52a0\u8f7d\u8003\u52e4\u5931\u8d25',
+      saveSuccess: '\u4fdd\u5b58\u6210\u529f',
+      saveFailed: '\u4fdd\u5b58\u5931\u8d25',
+      defaultGenderSeparator: ' \u00b7 '
+    }
   },
 
   onLoad(options) {
@@ -97,12 +113,12 @@ Page({
       errorMessage: ''
     });
     try {
-      const [pageData, attendanceMap] = await Promise.all([
-        api.fetchTeacherClassStudents(this.data.classId, '', '', 0, 100),
+      const [studentRows, attendanceMap] = await Promise.all([
+        api.fetchAllTeacherClassStudents(this.data.classId, '', '', 200),
         api.fetchTeacherAttendance(this.data.classId, this.data.date)
       ]);
       const students = attachGroupColors(
-        sortStudents((pageData.content || []).map((student) => buildStudentViewModel(student, attendanceMap)))
+        sortStudents((studentRows || []).map((student) => buildStudentViewModel(student, attendanceMap)))
       );
       this.setData({
         loading: false,
@@ -111,7 +127,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        errorMessage: error.message || '加载点名数据失败'
+        errorMessage: error.message || this.data.text.loadFailed
       });
     }
   },
@@ -136,7 +152,7 @@ Page({
     } catch (error) {
       this.setData({
         loading: false,
-        errorMessage: error.message || '加载考勤失败'
+        errorMessage: error.message || this.data.text.attendanceLoadFailed
       });
     }
   },
@@ -166,16 +182,16 @@ Page({
     try {
       const records = this.data.students.map((student) => ({
         studentId: student.id,
-        status: student.currentStatus || '出勤'
+        status: student.currentStatus || '\u51fa\u52e4'
       }));
       await api.saveTeacherAttendance(this.data.classId, this.data.date, records);
       wx.showToast({
-        title: '保存成功',
+        title: this.data.text.saveSuccess,
         icon: 'success'
       });
     } catch (error) {
       this.setData({
-        errorMessage: error.message || '保存失败'
+        errorMessage: error.message || this.data.text.saveFailed
       });
     } finally {
       this.setData({

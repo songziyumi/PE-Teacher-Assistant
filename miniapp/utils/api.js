@@ -1,8 +1,8 @@
-const config = require('./config');
-const auth = require('./auth');
+const config = require('./config.js');
+const auth = require('./auth.js');
 
 function getBaseUrl() {
-  return config.normalizeBaseUrl(auth.getBaseUrl());
+  return config.DEFAULT_BASE_URL;
 }
 
 function request(options) {
@@ -46,9 +46,7 @@ function request(options) {
   });
 }
 
-function login(baseUrl, username, password) {
-  const normalizedBaseUrl = config.normalizeBaseUrl(baseUrl);
-  auth.saveBaseUrl(normalizedBaseUrl);
+function login(username, password) {
   return request({
     path: '/api/miniapp/auth/login',
     method: 'POST',
@@ -91,6 +89,36 @@ function fetchTeacherClassStudents(classId, keyword, studentStatus, page, size) 
   return request({
     path: `/api/miniapp/teacher/classes/${classId}/students?${params.join('&')}`
   });
+}
+
+async function fetchAllTeacherClassStudents(classId, keyword, studentStatus, size) {
+  const pageSize = Number(size) > 0 ? Number(size) : 200;
+  const allStudents = [];
+  let page = 0;
+  let totalPages = null;
+
+  while (true) {
+    const pageData = await fetchTeacherClassStudents(classId, keyword, studentStatus, page, pageSize);
+    const content = pageData && Array.isArray(pageData.content) ? pageData.content : [];
+    allStudents.push(...content);
+
+    if (typeof pageData.totalPages === 'number') {
+      totalPages = pageData.totalPages;
+    }
+
+    const isLastPage = pageData && typeof pageData.last === 'boolean'
+      ? pageData.last
+      : totalPages !== null
+        ? page >= totalPages - 1
+        : content.length < pageSize;
+
+    if (isLastPage || !content.length) {
+      break;
+    }
+    page += 1;
+  }
+
+  return allStudents;
 }
 
 function fetchTeacherAttendance(classId, date) {
@@ -253,6 +281,7 @@ module.exports = {
   fetchMe,
   fetchHome,
   fetchTeacherClassStudents,
+  fetchAllTeacherClassStudents,
   fetchTeacherAttendance,
   saveTeacherAttendance,
   fetchTeacherPhysicalTests,

@@ -1,5 +1,5 @@
-const api = require('../../../utils/api');
-const auth = require('../../../utils/auth');
+const api = require('../../../utils/api.js');
+const auth = require('../../../utils/auth.js');
 
 const STATUS_OPTIONS = [
   '\u5168\u90e8\u5b66\u7c4d',
@@ -135,7 +135,6 @@ Page({
     femaleCount: 0,
     text: {
       defaultTitle: '\u5b66\u751f\u5217\u8868',
-      subtitle: '\u6309\u624b\u673a APP \u98ce\u683c\u5c55\u793a\uff0c\u652f\u6301\u67e5\u770b\u51fa\u52e4\u548c\u7f16\u8f91\u5b66\u751f\u4fe1\u606f\u3002',
       totalCount: '\u603b\u4eba\u6570',
       maleCount: '\u7537\u751f',
       femaleCount: '\u5973\u751f',

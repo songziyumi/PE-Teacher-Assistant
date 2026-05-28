@@ -1,11 +1,11 @@
 <view class="page-shell">
   <view class="hero-card">
-    <view class="page-title">教师点名</view>
-    <view class="page-subtitle">先选择一个你负责的班级，再进入当日考勤登记。</view>
+    <view class="page-title">{{text.title}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
   </view>
 
   <view wx:if="{{loading}}" class="panel-card">
-    <view class="empty-text">正在加载班级列表...</view>
+    <view class="empty-text">{{text.loading}}</view>
   </view>
 
   <view wx:elif="{{errorMessage}}" class="panel-card">
@@ -13,15 +13,17 @@
   </view>
 
   <view wx:elif="{{!classes.length}}" class="panel-card">
-    <view class="empty-text">当前账号下还没有可点名的班级。</view>
+    <view class="empty-text">{{text.empty}}</view>
   </view>
 
   <view wx:else class="panel-card">
-    <view class="section-title">我的班级</view>
+    <view class="section-title">{{text.sectionTitle}}</view>
     <view class="class-list">
       <view wx:for="{{classes}}" wx:key="id" class="class-item" data-class-id="{{item.id}}" data-class-name="{{item.name}}" bindtap="openClass">
         <view class="class-name">{{item.name}}</view>
-        <view class="class-meta">{{item.gradeName || '未分年级'}} · {{item.type || '班级'}}</view>
+        <view class="class-meta">
+          {{item.gradeName || text.noGrade}}{{text.metaSeparator}}{{item.type || text.classType}}
+        </view>
       </view>
     </view>
   </view>

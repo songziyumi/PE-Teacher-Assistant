@@ -1,18 +1,18 @@
 <view class="page-shell">
   <view class="hero-card">
-    <view class="page-title">{{className || '考勤登记'}}</view>
-    <view class="page-subtitle">选择日期后，逐个学生切换出勤状态并保存。</view>
+    <view class="page-title">{{className || text.defaultTitle}}</view>
+    <view class="page-subtitle">{{text.subtitle}}</view>
   </view>
 
   <view class="panel-card">
-    <view class="section-title">登记日期</view>
+    <view class="section-title">{{text.dateTitle}}</view>
     <picker mode="date" value="{{date}}" bindchange="onDateChange">
       <view class="date-picker">{{date}}</view>
     </picker>
   </view>
 
   <view wx:if="{{loading}}" class="panel-card">
-    <view class="empty-text">正在加载学生与考勤数据...</view>
+    <view class="empty-text">{{text.loading}}</view>
   </view>
 
   <view wx:elif="{{errorMessage}}" class="panel-card">
@@ -20,18 +20,18 @@
   </view>
 
   <view wx:elif="{{!students.length}}" class="panel-card">
-    <view class="empty-text">当前班级暂无学生。</view>
+    <view class="empty-text">{{text.empty}}</view>
   </view>
 
   <view wx:else class="panel-card">
-    <view class="section-title">学生列表</view>
+    <view class="section-title">{{text.studentList}}</view>
     <view class="student-list">
       <view wx:for="{{students}}" wx:key="id" class="student-item {{item.groupToneClass}}">
         <view class="student-head">
           <view class="student-info">
             <view class="student-meta">
               <text class="student-name">{{item.name}}</text>
-              <text wx:if="{{item.gender}}"> · {{item.gender}}</text>
+              <text wx:if="{{item.gender}}">{{text.defaultGenderSeparator}}{{item.gender}}</text>
             </view>
             <view class="student-meta student-meta-inline">
               <text>{{item.metaLine}}</text>
@@ -54,6 +54,6 @@
       </view>
     </view>
 
-    <button class="primary-button save-button" loading="{{saving}}" bindtap="saveAttendance">保存考勤</button>
+    <button class="primary-button save-button" loading="{{saving}}" bindtap="saveAttendance">{{text.save}}</button>
   </view>
 </view>

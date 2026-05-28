@@ -1,6 +1,6 @@
 <view class="page-shell">
   <view wx:if="{{loading}}" class="panel-card">
-    <view class="empty-text">正在加载个人主页...</view>
+    <view class="empty-text">{{text.loading}}</view>
   </view>
 
   <view wx:elif="{{errorMessage && !profile}}" class="panel-card">
@@ -12,112 +12,112 @@
       <view class="profile-top">
         <view class="avatar-wrap">
           <image wx:if="{{profile.photoUrl}}" class="avatar-image" src="{{profile.photoUrl}}" mode="aspectFill"></image>
-          <view wx:else class="avatar-fallback">{{profile.name ? profile.name.slice(0, 1) : '师'}}</view>
+          <view wx:else class="avatar-fallback">{{profile.name ? profile.name.slice(0, 1) : text.avatarFallback}}</view>
         </view>
 
         <view class="profile-main">
-          <view class="page-title">{{profile.name || '教师'}}</view>
-          <view class="page-subtitle">{{profile.role || ''}}<text wx:if="{{profile.schoolName}}"> · {{profile.schoolName}}</text></view>
+          <view class="page-title">{{profile.name || text.teacherFallback}}</view>
+          <view class="page-subtitle">{{profile.role || ''}}<text wx:if="{{profile.schoolName}}">{{text.schoolSeparator}}{{profile.schoolName}}</text></view>
           <view class="profile-tag-row">
-            <view class="profile-tag">{{profile.bio || '未填写教师简介'}}</view>
+            <view class="profile-tag">{{profile.bio || text.emptyBio}}</view>
           </view>
         </view>
       </view>
     </view>
 
     <view wx:if="{{stats}}" class="panel-card">
-      <view class="section-title">概览统计</view>
+      <view class="section-title">{{text.overviewTitle}}</view>
       <view class="profile-metrics-grid">
         <view class="profile-metric-card">
           <view class="profile-metric-top">
-            <view class="profile-metric-kicker">班务</view>
+            <view class="profile-metric-kicker">{{text.metricClass}}</view>
           </view>
           <view class="metric-value">{{stats.classCount || 0}}</view>
-          <view class="profile-metric-label">班级数</view>
+          <view class="profile-metric-label">{{text.metricClassLabel}}</view>
         </view>
         <view class="profile-metric-card">
           <view class="profile-metric-top">
-            <view class="profile-metric-kicker">出勤</view>
+            <view class="profile-metric-kicker">{{text.metricAttendance}}</view>
           </view>
           <view class="metric-value">{{stats.monthlyAttendanceCount || 0}}</view>
-          <view class="profile-metric-label">本月点名天数</view>
+          <view class="profile-metric-label">{{text.metricAttendanceLabel}}</view>
         </view>
         <view class="profile-metric-card">
           <view class="profile-metric-top">
-            <view class="profile-metric-kicker">审批</view>
+            <view class="profile-metric-kicker">{{text.metricPending}}</view>
           </view>
           <view class="metric-value">{{stats.pendingRequestCount || 0}}</view>
-          <view class="profile-metric-label">待审批</view>
+          <view class="profile-metric-label">{{text.metricPendingLabel}}</view>
         </view>
         <view class="profile-metric-card">
           <view class="profile-metric-top">
-            <view class="profile-metric-kicker">处理</view>
+            <view class="profile-metric-kicker">{{text.metricProcessed}}</view>
           </view>
           <view class="metric-value">{{stats.processedRequestCount || 0}}</view>
-          <view class="profile-metric-label">已处理审批</view>
+          <view class="profile-metric-label">{{text.metricProcessedLabel}}</view>
         </view>
       </view>
     </view>
 
     <view class="panel-card">
-      <view class="section-title">基本资料</view>
+      <view class="section-title">{{text.basicTitle}}</view>
       <view class="section-head section-head-actions">
         <view class="section-actions">
-          <button class="secondary-button mini-button" loading="{{uploadingPhoto}}" bindtap="choosePhoto">换头像</button>
-          <button wx:if="{{!editingProfile}}" class="secondary-button mini-button" bindtap="startEdit">编辑</button>
+          <button class="secondary-button mini-button" loading="{{uploadingPhoto}}" bindtap="choosePhoto">{{text.changePhoto}}</button>
+          <button wx:if="{{!editingProfile}}" class="secondary-button mini-button" bindtap="startEdit">{{text.edit}}</button>
         </view>
       </view>
 
       <block wx:if="{{editingProfile}}">
-        <view class="field-label">性别</view>
+        <view class="field-label">{{text.gender}}</view>
         <picker mode="selector" range="{{genderOptions}}" value="{{genderIndex >= 0 ? genderIndex : 0}}" bindchange="onGenderChange">
-          <view class="input-like">{{genderIndex >= 0 ? genderOptions[genderIndex] : '请选择'}}</view>
+          <view class="input-like">{{genderIndex >= 0 ? genderOptions[genderIndex] : text.choose}}</view>
         </picker>
 
-        <view class="field-label">出生日期</view>
+        <view class="field-label">{{text.birthDate}}</view>
         <picker mode="date" value="{{birthDate}}" bindchange="onBirthDateChange">
-          <view class="input-like">{{birthDate || '请选择日期'}}</view>
+          <view class="input-like">{{birthDate || text.chooseDate}}</view>
         </picker>
 
-        <view class="field-label">专项</view>
-        <input class="input-field" value="{{specialty}}" placeholder="请输入专项" bindinput="onSpecialtyInput" />
+        <view class="field-label">{{text.specialty}}</view>
+        <input class="input-field" value="{{specialty}}" placeholder="{{text.specialtyPlaceholder}}" bindinput="onSpecialtyInput" />
 
-        <view class="field-label">邮箱</view>
-        <input class="input-field" value="{{email}}" placeholder="请输入邮箱" bindinput="onEmailInput" />
+        <view class="field-label">{{text.email}}</view>
+        <input class="input-field" value="{{email}}" placeholder="{{text.emailPlaceholder}}" bindinput="onEmailInput" />
 
-        <view class="field-label">简介</view>
-        <textarea class="textarea-field" value="{{bio}}" placeholder="介绍一下自己" bindinput="onBioInput"></textarea>
+        <view class="field-label">{{text.bio}}</view>
+        <textarea class="textarea-field" value="{{bio}}" placeholder="{{text.bioPlaceholder}}" bindinput="onBioInput"></textarea>
 
         <view class="edit-actions">
-          <button class="secondary-button edit-button" bindtap="cancelEdit">取消</button>
-          <button class="primary-button edit-button" loading="{{saving}}" bindtap="saveProfile">保存</button>
+          <button class="secondary-button edit-button" bindtap="cancelEdit">{{text.cancel}}</button>
+          <button class="primary-button edit-button" loading="{{saving}}" bindtap="saveProfile">{{text.save}}</button>
         </view>
       </block>
 
       <block wx:else>
         <view class="info-grid">
           <view class="info-card">
-            <view class="info-card-label">账号</view>
+            <view class="info-card-label">{{text.username}}</view>
             <view class="info-card-value">{{profile.username || '-'}}</view>
           </view>
           <view class="info-card">
-            <view class="info-card-label">性别</view>
+            <view class="info-card-label">{{text.gender}}</view>
             <view class="info-card-value">{{profile.gender || '-'}}</view>
           </view>
           <view class="info-card">
-            <view class="info-card-label">出生日期</view>
+            <view class="info-card-label">{{text.birthDate}}</view>
             <view class="info-card-value">{{profile.birthDate || '-'}}</view>
           </view>
           <view class="info-card">
-            <view class="info-card-label">专项</view>
+            <view class="info-card-label">{{text.specialty}}</view>
             <view class="info-card-value">{{profile.specialty || '-'}}</view>
           </view>
           <view class="info-card info-card-wide">
-            <view class="info-card-label">邮箱</view>
+            <view class="info-card-label">{{text.email}}</view>
             <view class="info-card-value">{{profile.email || '-'}}</view>
           </view>
           <view class="info-card info-card-wide">
-            <view class="info-card-label">简介</view>
+            <view class="info-card-label">{{text.bio}}</view>
             <view class="info-card-value info-card-value-multiline">{{profile.bio || '-'}}</view>
           </view>
         </view>
@@ -126,41 +126,41 @@
 
     <view class="panel-card">
       <view class="section-head">
-        <view class="section-title">账号安全</view>
+        <view class="section-title">{{text.securityTitle}}</view>
         <button class="secondary-button mini-button" bindtap="togglePasswordForm">
-          {{showPasswordForm ? '收起' : '修改密码'}}
+          {{showPasswordForm ? text.collapse : text.changePassword}}
         </button>
       </view>
 
       <view wx:if="{{errorMessage}}" class="error-box">{{errorMessage}}</view>
 
       <view wx:if="{{!showPasswordForm}}" class="security-summary">
-        <view class="security-pill">密码保护</view>
-        <view class="security-copy">建议定期更新密码，避免长期使用固定口令。</view>
+        <view class="security-pill">{{text.passwordPill}}</view>
+        <view class="security-copy">{{text.passwordHint}}</view>
       </view>
 
       <view wx:if="{{showPasswordForm}}">
-        <view class="field-label">旧密码</view>
-        <input password="{{true}}" class="input-field" value="{{oldPassword}}" placeholder="请输入旧密码" bindinput="onOldPasswordInput" />
+        <view class="field-label">{{text.oldPassword}}</view>
+        <input password="{{true}}" class="input-field" value="{{oldPassword}}" placeholder="{{text.oldPasswordPlaceholder}}" bindinput="onOldPasswordInput" />
 
-        <view class="field-label">新密码</view>
-        <input password="{{true}}" class="input-field" value="{{newPassword}}" placeholder="请输入新密码" bindinput="onNewPasswordInput" />
+        <view class="field-label">{{text.newPassword}}</view>
+        <input password="{{true}}" class="input-field" value="{{newPassword}}" placeholder="{{text.newPasswordPlaceholder}}" bindinput="onNewPasswordInput" />
 
-        <view class="field-label">确认新密码</view>
-        <input password="{{true}}" class="input-field" value="{{confirmPassword}}" placeholder="请再次输入新密码" bindinput="onConfirmPasswordInput" />
+        <view class="field-label">{{text.confirmPassword}}</view>
+        <input password="{{true}}" class="input-field" value="{{confirmPassword}}" placeholder="{{text.confirmPasswordPlaceholder}}" bindinput="onConfirmPasswordInput" />
 
-        <button class="primary-button" loading="{{changingPassword}}" bindtap="changePassword">提交修改</button>
+        <button class="primary-button" loading="{{changingPassword}}" bindtap="changePassword">{{text.submitChange}}</button>
       </view>
     </view>
 
     <view wx:if="{{stats && stats.recentActivities && stats.recentActivities.length}}" class="panel-card">
-      <view class="section-title">最近审批动态</view>
+      <view class="section-title">{{text.recentTitle}}</view>
       <view wx:for="{{stats.recentActivities}}" wx:key="index" class="activity-card">
         <view class="activity-top">
-          <view class="message-subject">{{item.courseName || item.action || '审批记录'}}</view>
-          <view class="activity-badge">{{item.action || '动态'}}</view>
+          <view class="message-subject">{{item.courseName || item.action || text.approvalRecord}}</view>
+          <view class="activity-badge">{{item.action || text.activityFallback}}</view>
         </view>
-        <view class="message-meta">{{item.studentName || '-'}}<text wx:if="{{item.time}}"> · {{item.time}}</text></view>
+        <view class="message-meta">{{item.studentName || '-'}}<text wx:if="{{item.time}}">{{text.activitySeparator}}{{item.time}}</text></view>
         <view wx:if="{{item.remark}}" class="message-meta">{{item.remark}}</view>
       </view>
     </view>
