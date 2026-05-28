@@ -43,4 +43,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     @Modifying
     @Query("UPDATE Course c SET c.currentCount = 0 WHERE c.school = :school")
     void resetCountsBySchool(@Param("school") School school);
+
+    @Modifying
+    @Query("UPDATE Course c SET c.teacher = null WHERE c.teacher.id = :teacherId")
+    void clearTeacherReferences(@Param("teacherId") Long teacherId);
 }

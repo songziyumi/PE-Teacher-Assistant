@@ -6,10 +6,13 @@ import com.pe.assistant.entity.OrganizationType;
 import com.pe.assistant.entity.School;
 import com.pe.assistant.entity.Teacher;
 import com.pe.assistant.entity.TeacherAccountType;
+import com.pe.assistant.repository.AttendanceRepository;
+import com.pe.assistant.repository.CourseRepository;
 import com.pe.assistant.repository.SchoolClassRepository;
 import com.pe.assistant.repository.SchoolRepository;
 import com.pe.assistant.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +32,8 @@ public class TeacherService {
     private final SchoolClassRepository classRepository;
     private final SchoolRepository schoolRepository;
     private final StudentAccountService studentAccountService;
+    private final AttendanceRepository attendanceRepository;
+    private final CourseRepository courseRepository;
 
     public List<Teacher> findAll(School school) {
         return teacherRepository.findBySchool(school);
@@ -207,12 +212,7 @@ public class TeacherService {
     @Transactional
     public void delete(Long id) {
         Teacher teacher = teacherRepository.findById(id).orElseThrow();
-        classRepository.findByTeacher(teacher)
-                .forEach(c -> {
-                    c.setTeacher(null);
-                    classRepository.save(c);
-                });
-        teacherRepository.delete(teacher);
+        deleteTeacherAndClearReferences(teacher);
     }
 
     @Transactional
@@ -239,14 +239,7 @@ public class TeacherService {
         List<Teacher> teachers = teacherRepository.findBySchool(school).stream()
                 .filter(t -> !"ADMIN".equals(t.getRole()))
                 .toList();
-        teachers.forEach(t -> {
-            classRepository.findByTeacher(t)
-                    .forEach(c -> {
-                        c.setTeacher(null);
-                        classRepository.save(c);
-                    });
-            teacherRepository.delete(t);
-        });
+        teachers.forEach(this::deleteTeacherAndClearReferences);
     }
 
     @Transactional
@@ -273,14 +266,7 @@ public class TeacherService {
                 .filter(t -> !"ADMIN".equals(t.getRole()))
                 .filter(t -> canManageTeacher(operator, t))
                 .toList();
-        teachers.forEach(t -> {
-            classRepository.findByTeacher(t)
-                    .forEach(c -> {
-                        c.setTeacher(null);
-                        classRepository.save(c);
-                    });
-            teacherRepository.delete(t);
-        });
+        teachers.forEach(this::deleteTeacherAndClearReferences);
     }
 
     private OrganizationAdminType mapOrgAdminType(OrganizationType organizationType) {
@@ -292,5 +278,21 @@ public class TeacherService {
             case DISTRICT -> OrganizationAdminType.DISTRICT;
             case SCHOOL -> OrganizationAdminType.SCHOOL;
         };
+    }
+
+    private void deleteTeacherAndClearReferences(Teacher teacher) {
+        classRepository.findByTeacher(teacher)
+                .forEach(c -> {
+                    c.setTeacher(null);
+                    classRepository.save(c);
+                });
+        attendanceRepository.clearTeacherReferences(teacher.getId());
+        courseRepository.clearTeacherReferences(teacher.getId());
+        try {
+            teacherRepository.delete(teacher);
+            teacherRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalArgumentException("该教师仍有关联业务数据，暂无法删除，请先解除关联后再重试", ex);
+        }
     }
 }
