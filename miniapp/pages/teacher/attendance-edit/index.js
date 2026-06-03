@@ -1,7 +1,14 @@
 const api = require('../../../utils/api.js');
 const auth = require('../../../utils/auth.js');
 
-const STATUS_OPTIONS = ['\u51fa\u52e4', '\u7f3a\u52e4', '\u8bf7\u5047'];
+const PRESENT_STATUS = '\u51fa\u52e4';
+const ABSENT_STATUS = '\u7f3a\u52e4';
+const LEAVE_STATUS = '\u8bf7\u5047';
+const STATUS_OPTIONS = [
+  { value: PRESENT_STATUS, activeClass: 'status-chip-present', ghostClass: 'status-chip-present-ghost' },
+  { value: ABSENT_STATUS, activeClass: 'status-chip-absent', ghostClass: 'status-chip-absent-ghost' },
+  { value: LEAVE_STATUS, activeClass: 'status-chip-leave', ghostClass: 'status-chip-leave-ghost' }
+];
 
 function formatDate(date) {
   const year = date.getFullYear();
@@ -56,6 +63,21 @@ function attachGroupColors(students) {
   });
 }
 
+function buildStats(students) {
+  return {
+    present: students.filter((student) => student.currentStatus === PRESENT_STATUS).length,
+    absent: students.filter((student) => student.currentStatus === ABSENT_STATUS).length,
+    leave: students.filter((student) => student.currentStatus === LEAVE_STATUS).length
+  };
+}
+
+function buildVisibleStudents(students, selectedStatusFilter) {
+  const filtered = selectedStatusFilter
+    ? students.filter((student) => student.currentStatus === selectedStatusFilter)
+    : students;
+  return attachGroupColors(filtered);
+}
+
 Page({
   data: {
     classId: '',
@@ -63,6 +85,7 @@ Page({
     date: '',
     loading: true,
     saving: false,
+    allStudents: [],
     students: [],
     errorMessage: '',
     statusOptions: STATUS_OPTIONS,
@@ -78,8 +101,18 @@ Page({
       attendanceLoadFailed: '\u52a0\u8f7d\u8003\u52e4\u5931\u8d25',
       saveSuccess: '\u4fdd\u5b58\u6210\u529f',
       saveFailed: '\u4fdd\u5b58\u5931\u8d25',
-      defaultGenderSeparator: ' \u00b7 '
-    }
+      defaultGenderSeparator: ' \u00b7 ',
+      present: '\u51fa\u52e4',
+      absent: '\u7f3a\u52e4',
+      leave: '\u8bf7\u5047'
+    },
+    selectedStatusFilter: '',
+    stats: {
+      present: 0,
+      absent: 0,
+      leave: 0
+    },
+    emptyMessage: '\u5f53\u524d\u73ed\u7ea7\u6682\u65e0\u5b66\u751f\u3002'
   },
 
   onLoad(options) {
@@ -104,7 +137,7 @@ Page({
     this.setData({
       date: event.detail.value
     });
-    this.loadAttendanceOnly();
+    this.loadData();
   },
 
   async loadData() {
@@ -117,13 +150,12 @@ Page({
         api.fetchAllTeacherClassStudents(this.data.classId, '', '', 200),
         api.fetchTeacherAttendance(this.data.classId, this.data.date)
       ]);
-      const students = attachGroupColors(
-        sortStudents((studentRows || []).map((student) => buildStudentViewModel(student, attendanceMap)))
-      );
+      const allStudents = sortStudents((studentRows || []).map((student) => buildStudentViewModel(student, attendanceMap)));
       this.setData({
         loading: false,
-        students
+        allStudents
       });
+      this.rebuildStudentViews();
     } catch (error) {
       this.setData({
         loading: false,
@@ -132,35 +164,29 @@ Page({
     }
   },
 
-  async loadAttendanceOnly() {
-    if (!this.data.students.length) {
-      return;
-    }
+  rebuildStudentViews() {
+    const allStudents = this.data.allStudents || [];
     this.setData({
-      loading: true,
-      errorMessage: ''
+      students: buildVisibleStudents(allStudents, this.data.selectedStatusFilter),
+      stats: buildStats(allStudents),
+      emptyMessage: this.data.selectedStatusFilter
+        ? `\u6682\u65e0${this.data.selectedStatusFilter}\u5b66\u751f\u3002`
+        : '\u5f53\u524d\u73ed\u7ea7\u6682\u65e0\u5b66\u751f\u3002'
     });
-    try {
-      const attendanceMap = await api.fetchTeacherAttendance(this.data.classId, this.data.date);
-      const students = attachGroupColors(
-        sortStudents(this.data.students.map((student) => buildStudentViewModel(student, attendanceMap)))
-      );
-      this.setData({
-        loading: false,
-        students
-      });
-    } catch (error) {
-      this.setData({
-        loading: false,
-        errorMessage: error.message || this.data.text.attendanceLoadFailed
-      });
-    }
+  },
+
+  toggleStatusFilter(event) {
+    const status = event.currentTarget.dataset.status || '';
+    this.setData({
+      selectedStatusFilter: this.data.selectedStatusFilter === status ? '' : status
+    });
+    this.rebuildStudentViews();
   },
 
   changeStatus(event) {
     const studentId = Number(event.currentTarget.dataset.studentId);
     const status = event.currentTarget.dataset.status;
-    const students = this.data.students.map((student) => {
+    const allStudents = this.data.allStudents.map((student) => {
       if (student.id !== studentId) {
         return student;
       }
@@ -168,11 +194,12 @@ Page({
         currentStatus: status
       });
     });
-    this.setData({ students: attachGroupColors(students) });
+    this.setData({ allStudents });
+    this.rebuildStudentViews();
   },
 
   async saveAttendance() {
-    if (this.data.saving || !this.data.students.length) {
+    if (this.data.saving || !this.data.allStudents.length) {
       return;
     }
     this.setData({
@@ -180,7 +207,7 @@ Page({
       errorMessage: ''
     });
     try {
-      const records = this.data.students.map((student) => ({
+      const records = this.data.allStudents.map((student) => ({
         studentId: student.id,
         status: student.currentStatus || '\u51fa\u52e4'
       }));
