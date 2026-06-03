@@ -5,9 +5,14 @@
   </view>
 
   <view class="panel-card">
-    <view class="section-title">登记日期</view>
     <picker mode="date" value="{{date}}" bindchange="onDateChange">
-      <view class="date-picker">{{date}}</view>
+      <view class="date-picker">
+        <view class="date-picker-main">
+          <view class="date-picker-label">登记日期</view>
+          <view class="date-picker-value">{{date}}</view>
+        </view>
+        <view class="date-picker-arrow">▼</view>
+      </view>
     </picker>
   </view>
 
@@ -19,13 +24,41 @@
     <view class="empty-text">{{errorMessage}}</view>
   </view>
 
-  <view wx:elif="{{!students.length}}" class="panel-card">
+  <view wx:elif="{{!allStudents.length}}" class="panel-card">
     <view class="empty-text">当前班级暂无学生。</view>
   </view>
 
   <view wx:else class="panel-card">
+    <view class="stats-row">
+      <view
+        class="stat-chip {{selectedStatusFilter === '出勤' ? 'stat-chip-active stat-chip-present-active' : ''}}"
+        data-status="出勤"
+        bindtap="toggleStatusFilter"
+      >
+        <view class="stat-dot stat-dot-present"></view>
+        <view class="stat-text stat-text-present">出勤 {{stats.present}}</view>
+      </view>
+      <view
+        class="stat-chip {{selectedStatusFilter === '缺勤' ? 'stat-chip-active stat-chip-absent-active' : ''}}"
+        data-status="缺勤"
+        bindtap="toggleStatusFilter"
+      >
+        <view class="stat-dot stat-dot-absent"></view>
+        <view class="stat-text stat-text-absent">缺勤 {{stats.absent}}</view>
+      </view>
+      <view
+        class="stat-chip {{selectedStatusFilter === '请假' ? 'stat-chip-active stat-chip-leave-active' : ''}}"
+        data-status="请假"
+        bindtap="toggleStatusFilter"
+      >
+        <view class="stat-dot stat-dot-leave"></view>
+        <view class="stat-text stat-text-leave">请假 {{stats.leave}}</view>
+      </view>
+    </view>
+
     <view class="section-title">学生列表</view>
-    <view class="student-list">
+    <view wx:if="{{!students.length}}" class="empty-text attendance-empty-text">{{emptyMessage}}</view>
+    <view wx:else class="student-list">
       <view wx:for="{{students}}" wx:key="id" class="student-item {{item.groupToneClass}}">
         <view class="student-head">
           <view class="student-info">
@@ -40,14 +73,14 @@
           <view class="status-row status-row-inline">
             <view
               wx:for="{{statusOptions}}"
-              wx:key="*this"
+              wx:key="value"
               wx:for-item="status"
-              class="status-chip {{item.currentStatus === status ? 'status-chip-active' : ''}}"
+              class="status-chip {{item.currentStatus === status.value ? 'status-chip-active' : ''}} {{item.currentStatus === status.value ? status.activeClass : status.ghostClass}}"
               data-student-id="{{item.id}}"
-              data-status="{{status}}"
+              data-status="{{status.value}}"
               bindtap="changeStatus"
             >
-              {{status}}
+              {{status.value}}
             </view>
           </view>
         </view>

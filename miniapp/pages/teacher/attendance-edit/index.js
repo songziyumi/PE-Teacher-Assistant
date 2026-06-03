@@ -1,7 +1,14 @@
 const api = require('../../../utils/api');
 const auth = require('../../../utils/auth');
 
-const STATUS_OPTIONS = ['出勤', '缺勤', '请假'];
+const PRESENT_STATUS = '出勤';
+const ABSENT_STATUS = '缺勤';
+const LEAVE_STATUS = '请假';
+const STATUS_OPTIONS = [
+  { value: PRESENT_STATUS, activeClass: 'status-chip-present', ghostClass: 'status-chip-present-ghost' },
+  { value: ABSENT_STATUS, activeClass: 'status-chip-absent', ghostClass: 'status-chip-absent-ghost' },
+  { value: LEAVE_STATUS, activeClass: 'status-chip-leave', ghostClass: 'status-chip-leave-ghost' }
+];
 
 function formatDate(date) {
   const year = date.getFullYear();
@@ -11,7 +18,7 @@ function formatDate(date) {
 }
 
 function buildStudentViewModel(student, attendanceMap) {
-  const currentStatus = attendanceMap[String(student.id)] || attendanceMap[student.id] || '出勤';
+  const currentStatus = attendanceMap[String(student.id)] || attendanceMap[student.id] || PRESENT_STATUS;
   const metaLine = `${student.adminClassName || '未分班'} · ${student.studentNo || '无学号'}`;
   return Object.assign({}, student, {
     currentStatus,
@@ -54,6 +61,39 @@ function attachGroupColors(students) {
   });
 }
 
+async function fetchAllClassStudents(classId) {
+  const allStudents = [];
+  const pageSize = 200;
+  let page = 0;
+
+  while (true) {
+    const pageData = await api.fetchTeacherClassStudents(classId, '', '', page, pageSize);
+    const content = pageData && Array.isArray(pageData.content) ? pageData.content : [];
+    allStudents.push(...content);
+    if (!content.length || pageData.last === true || (typeof pageData.totalPages === 'number' && page >= pageData.totalPages - 1)) {
+      break;
+    }
+    page += 1;
+  }
+
+  return allStudents;
+}
+
+function buildStats(students) {
+  return {
+    present: students.filter((student) => student.currentStatus === PRESENT_STATUS).length,
+    absent: students.filter((student) => student.currentStatus === ABSENT_STATUS).length,
+    leave: students.filter((student) => student.currentStatus === LEAVE_STATUS).length
+  };
+}
+
+function buildVisibleStudents(students, selectedStatusFilter) {
+  const filtered = selectedStatusFilter
+    ? students.filter((student) => student.currentStatus === selectedStatusFilter)
+    : students;
+  return attachGroupColors(filtered);
+}
+
 Page({
   data: {
     classId: '',
@@ -61,9 +101,17 @@ Page({
     date: '',
     loading: true,
     saving: false,
+    allStudents: [],
     students: [],
     errorMessage: '',
-    statusOptions: STATUS_OPTIONS
+    statusOptions: STATUS_OPTIONS,
+    selectedStatusFilter: '',
+    stats: {
+      present: 0,
+      absent: 0,
+      leave: 0
+    },
+    emptyMessage: '当前班级暂无学生。'
   },
 
   onLoad(options) {
@@ -88,7 +136,7 @@ Page({
     this.setData({
       date: event.detail.value
     });
-    this.loadAttendanceOnly();
+    this.loadData();
   },
 
   async loadData() {
@@ -97,17 +145,16 @@ Page({
       errorMessage: ''
     });
     try {
-      const [pageData, attendanceMap] = await Promise.all([
-        api.fetchTeacherClassStudents(this.data.classId, '', '', 0, 100),
+      const [studentRows, attendanceMap] = await Promise.all([
+        fetchAllClassStudents(this.data.classId),
         api.fetchTeacherAttendance(this.data.classId, this.data.date)
       ]);
-      const students = attachGroupColors(
-        sortStudents((pageData.content || []).map((student) => buildStudentViewModel(student, attendanceMap)))
-      );
+      const allStudents = sortStudents((studentRows || []).map((student) => buildStudentViewModel(student, attendanceMap)));
       this.setData({
         loading: false,
-        students
+        allStudents
       });
+      this.rebuildStudentViews();
     } catch (error) {
       this.setData({
         loading: false,
@@ -116,35 +163,27 @@ Page({
     }
   },
 
-  async loadAttendanceOnly() {
-    if (!this.data.students.length) {
-      return;
-    }
+  rebuildStudentViews() {
+    const allStudents = this.data.allStudents || [];
     this.setData({
-      loading: true,
-      errorMessage: ''
+      students: buildVisibleStudents(allStudents, this.data.selectedStatusFilter),
+      stats: buildStats(allStudents),
+      emptyMessage: this.data.selectedStatusFilter ? `暂无${this.data.selectedStatusFilter}学生。` : '当前班级暂无学生。'
     });
-    try {
-      const attendanceMap = await api.fetchTeacherAttendance(this.data.classId, this.data.date);
-      const students = attachGroupColors(
-        sortStudents(this.data.students.map((student) => buildStudentViewModel(student, attendanceMap)))
-      );
-      this.setData({
-        loading: false,
-        students
-      });
-    } catch (error) {
-      this.setData({
-        loading: false,
-        errorMessage: error.message || '加载考勤失败'
-      });
-    }
+  },
+
+  toggleStatusFilter(event) {
+    const status = event.currentTarget.dataset.status || '';
+    this.setData({
+      selectedStatusFilter: this.data.selectedStatusFilter === status ? '' : status
+    });
+    this.rebuildStudentViews();
   },
 
   changeStatus(event) {
     const studentId = Number(event.currentTarget.dataset.studentId);
     const status = event.currentTarget.dataset.status;
-    const students = this.data.students.map((student) => {
+    const allStudents = this.data.allStudents.map((student) => {
       if (student.id !== studentId) {
         return student;
       }
@@ -152,11 +191,12 @@ Page({
         currentStatus: status
       });
     });
-    this.setData({ students: attachGroupColors(students) });
+    this.setData({ allStudents });
+    this.rebuildStudentViews();
   },
 
   async saveAttendance() {
-    if (this.data.saving || !this.data.students.length) {
+    if (this.data.saving || !this.data.allStudents.length) {
       return;
     }
     this.setData({
@@ -164,9 +204,9 @@ Page({
       errorMessage: ''
     });
     try {
-      const records = this.data.students.map((student) => ({
+      const records = this.data.allStudents.map((student) => ({
         studentId: student.id,
-        status: student.currentStatus || '出勤'
+        status: student.currentStatus || PRESENT_STATUS
       }));
       await api.saveTeacherAttendance(this.data.classId, this.data.date, records);
       wx.showToast({
