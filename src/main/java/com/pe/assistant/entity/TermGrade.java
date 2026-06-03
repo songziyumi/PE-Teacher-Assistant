@@ -35,11 +35,11 @@ public class TermGrade {
     @Column(name = "skill_score")
     private Double skillScore;
 
-    /** 理论分 (0-100) */
+    /** 理论分 (0-100)，已停用，保留字段兼容历史数据 */
     @Column(name = "theory_score")
     private Double theoryScore;
 
-    /** 综合分（自动计算：出勤40% + 技能40% + 理论20%，空项权重等比重分） */
+    /** 综合分（自动计算：出勤20% + 技能80%，空项权重等比重分） */
     @Column(name = "total_score")
     private Double totalScore;
 

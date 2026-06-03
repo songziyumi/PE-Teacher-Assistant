@@ -952,7 +952,6 @@ public class TeacherApiController {
             item.put("attendanceScore", attendanceScore);
             item.put("absenceCount", absenceCount);
             item.put("skillScore", tg != null ? tg.getSkillScore() : null);
-            item.put("theoryScore", tg != null ? tg.getTheoryScore() : null);
             item.put("totalScore", tg != null ? tg.getTotalScore() : null);
             item.put("level", tg != null ? tg.getLevel() : null);
             item.put("remark", tg != null ? tg.getRemark() : null);
@@ -973,7 +972,6 @@ public class TeacherApiController {
                 students.add(s);
                 TermGrade g = new TermGrade();
                 g.setSkillScore(item.getSkillScore());
-                g.setTheoryScore(item.getTheoryScore());
                 g.setRemark(item.getRemark());
                 records.add(g);
             });
@@ -997,9 +995,7 @@ public class TeacherApiController {
         @Data
         static class Item {
             private Long studentId;
-            private Double attendanceScore;
             private Double skillScore;
-            private Double theoryScore;
             private String remark;
         }
     }
@@ -1105,7 +1101,9 @@ public class TeacherApiController {
         }
         List<TermGrade> grades = students.isEmpty() || isBlank(academicYear) || isBlank(semester)
                 ? List.of()
-                : termGradeRepository.findByStudentInOrderByAcademicYearDescSemesterDesc(students).stream()
+                : termGradeService.refreshCalculatedFields(
+                        termGradeRepository.findByStudentInOrderByAcademicYearDescSemesterDesc(students)
+                ).stream()
                 .filter(g -> academicYear.trim().equals(g.getAcademicYear()) && semester.trim().equals(g.getSemester()))
                 .collect(Collectors.toList());
         byte[] bytes = termGradeService.exportRecords(grades);

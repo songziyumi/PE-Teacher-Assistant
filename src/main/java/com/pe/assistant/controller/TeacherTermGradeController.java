@@ -78,9 +78,7 @@ public class TeacherTermGradeController {
                             @RequestParam String academicYear,
                             @RequestParam String semester,
                             @RequestParam List<Long> studentIds,
-                            @RequestParam(required = false) List<String> attendanceList,
                             @RequestParam(required = false) List<String> skillList,
-                            @RequestParam(required = false) List<String> theoryList,
                             @RequestParam(required = false) List<String> remarkList,
                             RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
@@ -90,9 +88,7 @@ public class TeacherTermGradeController {
         for (int i = 0; i < studentIds.size(); i++) {
             students.add(studentService.findById(studentIds.get(i)));
             TermGrade g = new TermGrade();
-            g.setAttendanceScore(parseDouble(safeGet(attendanceList, i)));
             g.setSkillScore(parseDouble(safeGet(skillList, i)));
-            g.setTheoryScore(parseDouble(safeGet(theoryList, i)));
             g.setRemark(safeGet(remarkList, i));
             records.add(g);
         }

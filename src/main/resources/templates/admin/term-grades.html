@@ -58,7 +58,7 @@
 <div class="admin-wrap">
     <div class="hero-card">
         <h2>期末成绩管理</h2>
-        <p>支持按年级、班级和学期筛选成绩记录，进行编辑、批量删除，以及 Excel 导入导出。</p>
+        <p>支持按年级、班级和学期筛选成绩记录，按出勤 20% + 技能 80% 规则进行查看、编辑、批量删除，以及 Excel 导入导出。</p>
     </div>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
@@ -105,7 +105,7 @@
             </div>
             <div class="table-wrap">
                 <table class="table">
-                    <thead><tr><th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th><th>学号</th><th>姓名</th><th>性别</th><th>班级</th><th>学年 / 学期</th><th>出勤分</th><th>技能分</th><th>理论分</th><th>综合分</th><th>等级</th><th>操作</th></tr></thead>
+                    <thead><tr><th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th><th>学号</th><th>姓名</th><th>性别</th><th>班级</th><th>学年 / 学期</th><th>出勤分</th><th>技能分</th><th>综合分</th><th>等级</th><th>操作</th></tr></thead>
                     <tbody>
                     <tr th:each="g : ${gradePage.content}">
                         <td><input type="checkbox" class="row-check" th:value="${g.id}"></td>
@@ -116,15 +116,14 @@
                         <td th:text="${g.academicYear + ' ' + g.semester}"></td>
                         <td th:text="${g.attendanceScore != null ? g.attendanceScore : '-'}"></td>
                         <td th:text="${g.skillScore != null ? g.skillScore : '-'}"></td>
-                        <td th:text="${g.theoryScore != null ? g.theoryScore : '-'}"></td>
                         <td><strong th:text="${g.totalScore != null ? g.totalScore : '-'}"></strong></td>
                         <td><span th:if="${g.level != null}" th:text="${g.level}" th:class="${'badge ' + ('优秀' == g.level ? 'badge-excellent' : '良好' == g.level ? 'badge-good' : '及格' == g.level ? 'badge-pass' : 'badge-fail')}"></span><span th:unless="${g.level != null}">-</span></td>
                         <td>
-                            <button class="btn btn-sm btn-secondary" type="button" onclick="openEdit(this)" th:data-id="${g.id}" th:data-studentid="${g.student.id}" th:data-studentname="${g.student.name}" th:data-studentno="${g.student.studentNo}" th:data-year="${g.academicYear}" th:data-semester="${g.semester}" th:data-attendance="${g.attendanceScore}" th:data-skill="${g.skillScore}" th:data-theory="${g.theoryScore}" th:data-remark="${g.remark}">编辑</button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="openEdit(this)" th:data-id="${g.id}" th:data-studentid="${g.student.id}" th:data-studentname="${g.student.name}" th:data-studentno="${g.student.studentNo}" th:data-year="${g.academicYear}" th:data-semester="${g.semester}" th:data-attendance="${g.attendanceScore}" th:data-skill="${g.skillScore}" th:data-remark="${g.remark}">编辑</button>
                             <form th:action="@{/admin/term-grades/delete/{id}(id=${g.id})}" method="post" style="display:inline" onsubmit="return confirm('确认删除这条记录吗？')"><button type="submit" class="btn btn-sm btn-danger">删除</button></form>
                         </td>
                     </tr>
-                    <tr th:if="${gradePage.content.isEmpty()}"><td colspan="12" style="text-align:center;color:#94a3b8;padding:2rem">暂无记录</td></tr>
+                    <tr th:if="${gradePage.content.isEmpty()}"><td colspan="11" style="text-align:center;color:#94a3b8;padding:2rem">暂无记录</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -144,9 +143,9 @@
                 <input type="hidden" name="id" id="editId"><input type="hidden" name="studentId" id="editStudentId">
                 <div class="form-row single"><div class="form-group"><label>学生</label><input type="text" id="editStudentInfo" disabled style="background:#f5f5f5"></div></div>
                 <div class="form-row"><div class="form-group"><label>学年</label><input type="text" name="academicYear" id="editYear" placeholder="例如：2025-2026" required></div><div class="form-group"><label>学期</label><select name="semester" id="editSemester"><option value="上学期">上学期</option><option value="下学期">下学期</option></select></div></div>
-                <div class="form-row"><div class="form-group"><label>出勤分（0-100）</label><input type="number" step="0.1" min="0" max="100" name="attendanceScore" id="editAttendance" placeholder="留空则不计入"></div><div class="form-group"><label>技能分（0-100）</label><input type="number" step="0.1" min="0" max="100" name="skillScore" id="editSkill" placeholder="留空则不计入"></div></div>
-                <div class="form-row"><div class="form-group"><label>理论分（0-100）</label><input type="number" step="0.1" min="0" max="100" name="theoryScore" id="editTheory" placeholder="留空则不计入"></div><div class="form-group"><label>备注</label><input type="text" name="remark" id="editRemark"></div></div>
-                <p class="score-hint">综合分 = 出勤 40% + 技能 40% + 理论 20%，有空项时按比例重分配，系统自动计算。</p>
+                <div class="form-row"><div class="form-group"><label>出勤分（系统按缺勤自动计算）</label><input type="text" id="editAttendance" disabled style="background:#f5f5f5"></div><div class="form-group"><label>技能分（0-100）</label><input type="number" step="0.1" min="0" max="100" name="skillScore" id="editSkill" placeholder="留空则不计入"></div></div>
+                <div class="form-row single"><div class="form-group"><label>备注</label><input type="text" name="remark" id="editRemark"></div></div>
+                <p class="score-hint">综合分 = 出勤 20% + 技能 80%，有空项时按比例重分配，系统自动计算。</p>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeEdit()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
         </form>
@@ -158,7 +157,7 @@
         <div class="modal-header"><h3>导入 Excel</h3><button class="modal-close" onclick="closeImport()">&times;</button></div>
         <form th:action="@{/admin/term-grades/import}" method="post" enctype="multipart/form-data">
             <div class="modal-body">
-                <p style="font-size:.88rem;color:#555;margin-bottom:1rem">请先 <a th:href="@{/admin/term-grades/template}" style="color:#4a90e2">下载导入模板</a> 填写后上传。列顺序：学号 | 学年 | 学期 | 出勤分 | 技能分 | 理论分 | 备注。</p>
+                <p style="font-size:.88rem;color:#555;margin-bottom:1rem">请先 <a th:href="@{/admin/term-grades/template}" style="color:#4a90e2">下载导入模板</a> 填写后上传。列顺序：学号 | 学年 | 学期 | 技能分 | 备注。</p>
                 <div class="form-group"><label>选择文件（.xlsx）</label><input type="file" name="file" accept=".xlsx" required></div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeImport()">取消</button><button type="submit" class="btn btn-primary">开始导入</button></div>
@@ -181,7 +180,6 @@ function openEdit(btn) {
     document.getElementById('editSemester').value = btn.dataset.semester || '上学期';
     document.getElementById('editAttendance').value = btn.dataset.attendance !== 'null' ? (btn.dataset.attendance || '') : '';
     document.getElementById('editSkill').value = btn.dataset.skill !== 'null' ? (btn.dataset.skill || '') : '';
-    document.getElementById('editTheory').value = btn.dataset.theory !== 'null' ? (btn.dataset.theory || '') : '';
     document.getElementById('editRemark').value = btn.dataset.remark !== 'null' ? (btn.dataset.remark || '') : '';
     document.getElementById('editOverlay').classList.add('active');
 }

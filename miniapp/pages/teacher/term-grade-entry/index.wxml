@@ -78,17 +78,6 @@
               bindinput="onSkillScoreInput"
             />
           </view>
-          <view class="score-item">
-            <view class="score-label">{{text.theoryScore}}</view>
-            <input
-              class="score-input"
-              type="digit"
-              value="{{item.theoryScoreInput}}"
-              placeholder="{{text.scorePlaceholder}}"
-              data-student-id="{{item.id}}"
-              bindinput="onTheoryScoreInput"
-            />
-          </view>
           <view class="score-item score-item-full">
             <view class="score-label">{{text.remark}}</view>
             <input

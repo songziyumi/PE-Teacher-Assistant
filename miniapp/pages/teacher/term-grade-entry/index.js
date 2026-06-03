@@ -70,7 +70,6 @@ function buildStudentViewModel(student, existingMap) {
       ? '0'
       : `${record.absenceCount}`,
     skillScoreInput: normalizeValue(record.skillScore),
-    theoryScoreInput: normalizeValue(record.theoryScore),
     remarkInput: normalizeValue(record.remark),
     totalScoreText: record.totalScore === null || record.totalScore === undefined
       ? '--'
@@ -95,7 +94,7 @@ Page({
     existingMap: {},
     text: {
       title: '\u4f53\u80b2\u6210\u7ee9\u5f55\u5165',
-      subtitle: '\u51fa\u52e4\u5206\u81ea\u52a8\u56de\u586b\uff1a\u7f3a\u52e4 1 \u6b21\u6263 10 \u5206\uff0c\u7f3a\u52e4 5 \u6b21\u53ca\u4ee5\u4e0a\u603b\u5206\u4e0d\u53ca\u683c\u3002',
+      subtitle: '\u6210\u7ee9\u6309\u51fa\u52e4 20% + \u6280\u80fd 80% \u81ea\u52a8\u8ba1\u7b97\uff1b\u51fa\u52e4\u7f3a\u52e4 1 \u6b21\u6263 10 \u5206\uff0c\u7f3a\u52e4 5 \u6b21\u53ca\u4ee5\u4e0a\u603b\u5206\u4e0d\u53ca\u683c\u3002',
       academicYear: '\u5b66\u5e74',
       semester: '\u5b66\u671f',
       query: '\u67e5\u8be2',
@@ -108,7 +107,6 @@ Page({
       attendanceScore: '\u51fa\u52e4\u5206',
       absenceCount: '\u7f3a\u52e4',
       skillScore: '\u6280\u80fd\u5206',
-      theoryScore: '\u7406\u8bba\u5206',
       totalScore: '\u603b\u5206',
       remark: '\u5907\u6ce8',
       scorePlaceholder: '\u8bf7\u8f93\u5165',
@@ -187,13 +185,6 @@ Page({
     });
   },
 
-  onTheoryScoreInput(event) {
-    this.updateStudentRecord(event.currentTarget.dataset.studentId, {
-      theoryScore: parseOptionalNumber(event.detail.value),
-      theoryScoreInput: event.detail.value || ''
-    });
-  },
-
   onRemarkInput(event) {
     this.updateStudentRecord(event.currentTarget.dataset.studentId, {
       remark: event.detail.value || '',
@@ -262,7 +253,6 @@ Page({
       return {
         studentId: student.id,
         skillScore: parseOptionalNumber(record.skillScoreInput !== undefined ? record.skillScoreInput : record.skillScore),
-        theoryScore: parseOptionalNumber(record.theoryScoreInput !== undefined ? record.theoryScoreInput : record.theoryScore),
         remark: record.remarkInput !== undefined ? record.remarkInput : (record.remark || '')
       };
     });

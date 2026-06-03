@@ -29,17 +29,20 @@ public class TermGradeService {
     public Page<TermGrade> findWithFilters(School school, Long classId, Long gradeId,
                                            String academicYear, String semester,
                                            String keyword, int page, int size) {
-        return termGradeRepository.findWithFilters(
+        Page<TermGrade> result = termGradeRepository.findWithFilters(
                 school, classId, gradeId, academicYear, semester, keyword,
                 PageRequest.of(page, size));
+        result.getContent().forEach(this::refreshCalculatedFields);
+        return result;
     }
 
     public Optional<TermGrade> findById(Long id) {
-        return termGradeRepository.findById(id);
+        return termGradeRepository.findById(id).map(this::refreshCalculatedFields);
     }
 
     public Optional<TermGrade> findExisting(Student student, String academicYear, String semester) {
-        return termGradeRepository.findByStudentAndAcademicYearAndSemester(student, academicYear, semester);
+        return termGradeRepository.findByStudentAndAcademicYearAndSemester(student, academicYear, semester)
+                .map(this::refreshCalculatedFields);
     }
 
     public long countAbsences(Student student, String academicYear, String semester) {
@@ -62,19 +65,28 @@ public class TermGradeService {
         return termGradeRepository.findDistinctAcademicYears(school);
     }
 
+    public List<TermGrade> refreshCalculatedFields(List<TermGrade> records) {
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        return records.stream()
+                .map(this::refreshCalculatedFields)
+                .toList();
+    }
+
     // ===== 评分计算 =====
 
     /**
      * 自动计算综合分和等级。
-     * 权重：出勤40% + 技能40% + 理论20%，空项按权重比例重新分摊。
+     * 权重：出勤20% + 技能80%，空项按权重比例重新分摊。
      */
     public void computeAndFill(TermGrade g) {
         long absenceCount = countAbsences(g.getStudent(), g.getAcademicYear(), g.getSemester());
         g.setAttendanceScore(computeAttendanceScore(absenceCount));
+        g.setTheoryScore(null);
         double sum = 0, weight = 0;
-        if (g.getAttendanceScore() != null) { sum += g.getAttendanceScore() * 40; weight += 40; }
-        if (g.getSkillScore()       != null) { sum += g.getSkillScore()       * 40; weight += 40; }
-        if (g.getTheoryScore()      != null) { sum += g.getTheoryScore()      * 20; weight += 20; }
+        if (g.getAttendanceScore() != null) { sum += g.getAttendanceScore() * 20; weight += 20; }
+        if (g.getSkillScore()      != null) { sum += g.getSkillScore()      * 80; weight += 80; }
         if (weight > 0) {
             double total = Math.round(sum / weight * 10.0) / 10.0;
             if (absenceCount >= 5 && total >= 60) {
@@ -86,6 +98,28 @@ public class TermGradeService {
             g.setTotalScore(null);
             g.setLevel(null);
         }
+    }
+
+    private TermGrade refreshCalculatedFields(TermGrade g) {
+        if (g == null || g.getStudent() == null) {
+            return g;
+        }
+        Double oldAttendanceScore = g.getAttendanceScore();
+        Double oldSkillScore = g.getSkillScore();
+        Double oldTheoryScore = g.getTheoryScore();
+        Double oldTotalScore = g.getTotalScore();
+        String oldLevel = g.getLevel();
+
+        computeAndFill(g);
+
+        if (!Objects.equals(oldAttendanceScore, g.getAttendanceScore())
+                || !Objects.equals(oldSkillScore, g.getSkillScore())
+                || !Objects.equals(oldTheoryScore, g.getTheoryScore())
+                || !Objects.equals(oldTotalScore, g.getTotalScore())
+                || !Objects.equals(oldLevel, g.getLevel())) {
+            termGradeRepository.save(g);
+        }
+        return g;
     }
 
     // ===== 保存 =====
@@ -103,7 +137,7 @@ public class TermGradeService {
         for (int i = 0; i < students.size(); i++) {
             Student stu = students.get(i);
             TermGrade rec = records.get(i);
-            if (rec.getSkillScore() == null && rec.getTheoryScore() == null
+            if (rec.getSkillScore() == null
                     && (rec.getRemark() == null || rec.getRemark().isBlank())) continue;
 
             TermGrade g = findExisting(stu, academicYear, semester).orElse(new TermGrade());
@@ -111,8 +145,8 @@ public class TermGradeService {
             g.setSchool(school);
             g.setAcademicYear(academicYear);
             g.setSemester(semester);
-            if (rec.getSkillScore()       != null) g.setSkillScore(rec.getSkillScore());
-            if (rec.getTheoryScore()      != null) g.setTheoryScore(rec.getTheoryScore());
+            g.setTheoryScore(null);
+            if (rec.getSkillScore() != null) g.setSkillScore(rec.getSkillScore());
             if (rec.getRemark() != null && !rec.getRemark().isBlank()) g.setRemark(rec.getRemark());
             computeAndFill(g);
             termGradeRepository.save(g);
@@ -136,7 +170,7 @@ public class TermGradeService {
     // ===== Excel 导入 =====
 
     /**
-     * 列顺序：学号 | 学年 | 学期 | 出勤分 | 技能分 | 理论分 | 备注
+     * 列顺序：学号 | 学年 | 学期 | 技能分 | 备注
      */
     @Transactional
     public int importFromExcel(MultipartFile file, School school) throws IOException {
@@ -158,10 +192,9 @@ public class TermGradeService {
                 g.setSchool(school);
                 g.setAcademicYear(academicYear);
                 g.setSemester(semester);
-                g.setAttendanceScore(cellDouble(row.getCell(3)));
-                g.setSkillScore(cellDouble(row.getCell(4)));
-                g.setTheoryScore(cellDouble(row.getCell(5)));
-                g.setRemark(cellStr(row.getCell(6)));
+                g.setSkillScore(cellDouble(row.getCell(3)));
+                g.setTheoryScore(null);
+                g.setRemark(cellStr(row.getCell(4)));
                 computeAndFill(g);
                 termGradeRepository.save(g);
                 count++;
@@ -178,7 +211,7 @@ public class TermGradeService {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("期末成绩");
             String[] headers = {"学号","姓名","性别","年级","班级","学年","学期",
-                                 "出勤分","技能分","理论分","综合分","等级","备注"};
+                                 "出勤分","技能分","综合分","等级","备注"};
             Row hr = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) hr.createCell(i).setCellValue(headers[i]);
             int r = 1;
@@ -195,10 +228,9 @@ public class TermGradeService {
                 row.createCell(6).setCellValue(g.getSemester()     != null ? g.getSemester()     : "");
                 if (g.getAttendanceScore() != null) row.createCell(7).setCellValue(g.getAttendanceScore());
                 if (g.getSkillScore()      != null) row.createCell(8).setCellValue(g.getSkillScore());
-                if (g.getTheoryScore()     != null) row.createCell(9).setCellValue(g.getTheoryScore());
-                if (g.getTotalScore()      != null) row.createCell(10).setCellValue(g.getTotalScore());
-                row.createCell(11).setCellValue(g.getLevel()  != null ? g.getLevel()  : "");
-                row.createCell(12).setCellValue(g.getRemark() != null ? g.getRemark() : "");
+                if (g.getTotalScore()      != null) row.createCell(9).setCellValue(g.getTotalScore());
+                row.createCell(10).setCellValue(g.getLevel()  != null ? g.getLevel()  : "");
+                row.createCell(11).setCellValue(g.getRemark() != null ? g.getRemark() : "");
             }
             wb.write(out);
             return out.toByteArray();
@@ -209,7 +241,7 @@ public class TermGradeService {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("期末成绩");
             String[] headers = {"学号","姓名","性别","年级","班级","学年","学期",
-                    "出勤分","技能分","理论分","综合分","等级","备注"};
+                    "出勤分","技能分","综合分","等级","备注"};
             Row hr = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 hr.createCell(i).setCellValue(headers[i]);
@@ -228,10 +260,9 @@ public class TermGradeService {
                 row.createCell(6).setCellValue(g.getSemester() != null ? g.getSemester() : "");
                 if (g.getAttendanceScore() != null) row.createCell(7).setCellValue(g.getAttendanceScore());
                 if (g.getSkillScore() != null) row.createCell(8).setCellValue(g.getSkillScore());
-                if (g.getTheoryScore() != null) row.createCell(9).setCellValue(g.getTheoryScore());
-                if (g.getTotalScore() != null) row.createCell(10).setCellValue(g.getTotalScore());
-                row.createCell(11).setCellValue(g.getLevel() != null ? g.getLevel() : "");
-                row.createCell(12).setCellValue(g.getRemark() != null ? g.getRemark() : "");
+                if (g.getTotalScore() != null) row.createCell(9).setCellValue(g.getTotalScore());
+                row.createCell(10).setCellValue(g.getLevel() != null ? g.getLevel() : "");
+                row.createCell(11).setCellValue(g.getRemark() != null ? g.getRemark() : "");
             }
             wb.write(out);
             return out.toByteArray();
@@ -242,7 +273,7 @@ public class TermGradeService {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("导入模板");
             String[] headers = {"学号(必填)", "学年(必填,如2025-2026)", "学期(必填,上学期/下学期)",
-                                 "出勤分(0-100)", "技能分(0-100)", "理论分(0-100)", "备注"};
+                                 "技能分(0-100)", "备注"};
             Row hr = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) hr.createCell(i).setCellValue(headers[i]);
             wb.write(out);

@@ -65,9 +65,7 @@ public class TermGradeController {
                        @RequestParam Long studentId,
                        @RequestParam String academicYear,
                        @RequestParam String semester,
-                       @RequestParam(required = false) Double attendanceScore,
                        @RequestParam(required = false) Double skillScore,
-                       @RequestParam(required = false) Double theoryScore,
                        @RequestParam(required = false) String remark,
                        RedirectAttributes ra) {
         School school = currentUserService.getCurrentSchool();
@@ -78,9 +76,7 @@ public class TermGradeController {
         g.setSchool(school);
         g.setAcademicYear(academicYear);
         g.setSemester(semester);
-        g.setAttendanceScore(attendanceScore);
         g.setSkillScore(skillScore);
-        g.setTheoryScore(theoryScore);
         g.setRemark(remark);
         termGradeService.save(g);
         ra.addFlashAttribute("success", "保存成功");

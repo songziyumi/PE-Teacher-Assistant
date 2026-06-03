@@ -50,19 +50,19 @@
     <div class="card">
         <div class="section-header">
             <h3 class="section-title">成绩记录</h3>
-            <p class="section-desc">查看各学期成绩、等级和备注。</p>
+            <p class="section-desc">查看各学期出勤分、技能分、综合分、等级和备注。</p>
         </div>
 
         <div class="desktop-table">
             <table class="table">
-                <thead><tr><th>学年</th><th>学期</th><th>出勤分</th><th>技能分</th><th>理论分</th><th>综合分</th><th>等级</th><th>备注</th></tr></thead>
+                <thead><tr><th>学年</th><th>学期</th><th>出勤分</th><th>技能分</th><th>综合分</th><th>等级</th><th>备注</th></tr></thead>
                 <tbody>
                 <tr th:each="r : ${records}">
                     <td th:text="${r.academicYear}"></td><td th:text="${r.semester}"></td>
-                    <td th:text="${r.attendanceScore}"></td><td th:text="${r.skillScore}"></td><td th:text="${r.theoryScore}"></td>
+                    <td th:text="${r.attendanceScore}"></td><td th:text="${r.skillScore}"></td>
                     <td th:text="${r.totalScore}"></td><td th:text="${r.level}"></td><td th:text="${r.remark}"></td>
                 </tr>
-                <tr th:if="${#lists.isEmpty(records)}"><td colspan="8" class="empty-state">当前暂无记录</td></tr>
+                <tr th:if="${#lists.isEmpty(records)}"><td colspan="7" class="empty-state">当前暂无记录</td></tr>
                 </tbody>
             </table>
         </div>
@@ -78,7 +78,6 @@
                     <div class="mobile-grid">
                         <div class="mobile-item"><span>出勤分</span><strong th:text="${r.attendanceScore}"></strong></div>
                         <div class="mobile-item"><span>技能分</span><strong th:text="${r.skillScore}"></strong></div>
-                        <div class="mobile-item"><span>理论分</span><strong th:text="${r.theoryScore}"></strong></div>
                         <div class="mobile-item"><span>综合分</span><strong th:text="${r.totalScore}"></strong></div>
                     </div>
                     <div class="mobile-remark" th:if="${r.remark != null and !#strings.isEmpty(r.remark)}" th:text="${'备注：' + r.remark}"></div>

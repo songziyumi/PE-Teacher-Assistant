@@ -180,7 +180,7 @@
 <div class="page">
     <div class="hero-card">
         <h2>期末成绩录入</h2>
-        <p>按班级批量录入出勤、技能与理论分数，系统自动计算综合分和等级。</p>
+        <p>按班级批量录入技能分，系统按出勤 20% + 技能 80% 自动计算综合分和等级。</p>
     </div>
 
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
@@ -223,7 +223,7 @@
             <input type="hidden" name="semester" th:value="${semester}">
 
             <p class="score-formula">
-                综合分 = 出勤 40% + 技能 40% + 理论 20%。如果存在空项，系统会自动按实际填写项重新分配权重。
+                综合分 = 出勤 20% + 技能 80%。出勤分按缺勤次数自动计算；如果技能分为空，系统会按已有项重新分配权重。
             </p>
 
             <div class="table-scroll">
@@ -234,9 +234,8 @@
                         <th>姓名</th>
                         <th>学号</th>
                         <th>性别</th>
-                        <th>出勤分<br><small>0-100</small></th>
+                        <th>出勤分<br><small>自动计算</small></th>
                         <th>技能分<br><small>0-100</small></th>
-                        <th>理论分<br><small>0-100</small></th>
                         <th>备注</th>
                         <th>综合分</th>
                         <th>等级</th>
@@ -251,9 +250,10 @@
                         </td>
                         <td class="col-no" th:text="${stu.studentNo}"></td>
                         <td style="text-align:center;" th:text="${stu.gender}"></td>
-                        <td><input type="number" step="0.1" min="0" max="100" name="attendanceList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].attendanceScore : ''}"></td>
+                        <td style="text-align:center;font-weight:700;">
+                            <span th:text="${existingMap[stu.id] != null && existingMap[stu.id].attendanceScore != null ? existingMap[stu.id].attendanceScore : '-'}"></span>
+                        </td>
                         <td><input type="number" step="0.1" min="0" max="100" name="skillList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].skillScore : ''}"></td>
-                        <td><input type="number" step="0.1" min="0" max="100" name="theoryList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].theoryScore : ''}"></td>
                         <td><input type="text" name="remarkList" th:value="${existingMap[stu.id] != null ? existingMap[stu.id].remark : ''}"></td>
                         <td style="text-align:center;font-weight:700;">
                             <span th:if="${existingMap[stu.id] != null and existingMap[stu.id].totalScore != null}"

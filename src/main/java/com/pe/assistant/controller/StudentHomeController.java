@@ -9,6 +9,7 @@ import com.pe.assistant.repository.TermGradeRepository;
 import com.pe.assistant.service.AttendanceService;
 import com.pe.assistant.service.CurrentUserService;
 import com.pe.assistant.service.MessageService;
+import com.pe.assistant.service.TermGradeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,12 +27,15 @@ public class StudentHomeController {
     private final MessageService messageService;
     private final PhysicalTestRepository physicalTestRepository;
     private final TermGradeRepository termGradeRepository;
+    private final TermGradeService termGradeService;
 
     @GetMapping("/student")
     public String home(Model model) {
         Student student = currentUserService.getCurrentStudent();
         List<PhysicalTest> physicalTests = physicalTestRepository.findByStudentOrderByAcademicYearDescSemesterDesc(student);
-        List<TermGrade> termGrades = termGradeRepository.findByStudentOrderByAcademicYearDescSemesterDesc(student);
+        List<TermGrade> termGrades = termGradeService.refreshCalculatedFields(
+                termGradeRepository.findByStudentOrderByAcademicYearDescSemesterDesc(student)
+        );
         Map<String, Object> attendanceStats = attendanceService.getStudentStats(student.getId());
 
         model.addAttribute("student", student);
@@ -64,7 +68,9 @@ public class StudentHomeController {
     public String termGrades(Model model) {
         Student student = currentUserService.getCurrentStudent();
         model.addAttribute("student", student);
-        model.addAttribute("records", termGradeRepository.findByStudentOrderByAcademicYearDescSemesterDesc(student));
+        model.addAttribute("records", termGradeService.refreshCalculatedFields(
+                termGradeRepository.findByStudentOrderByAcademicYearDescSemesterDesc(student)
+        ));
         return "student/term-grades";
     }
 }
