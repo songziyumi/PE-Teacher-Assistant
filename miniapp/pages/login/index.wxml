@@ -1,7 +1,12 @@
 <view class="page-shell">
   <view class="hero-card login-hero">
     <view class="page-title">体育教师助手</view>
-    <view class="page-subtitle">使用教师账号登录，进入小程序工作台。</view>
+    <view class="page-subtitle">{{role === 'coach' ? '使用教练员账号登录，上报本队首发名单。' : '使用教师账号登录，进入小程序工作台。'}}</view>
+  </view>
+
+  <view class="role-switch">
+    <view class="role-switch-item {{role === 'teacher' ? 'is-active' : ''}}" data-role="teacher" bindtap="onRoleChange">教师</view>
+    <view class="role-switch-item {{role === 'coach' ? 'is-active' : ''}}" data-role="coach" bindtap="onRoleChange">教练员</view>
   </view>
 
   <view class="panel-card">

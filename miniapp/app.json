@@ -9,7 +9,9 @@
     "pages/teacher/physical-entry/index",
     "pages/teacher/physical-detail/index",
     "pages/teacher/physical-overview/index",
-    "pages/teacher/term-grade-entry/index"
+    "pages/teacher/term-grade-entry/index",
+    "pages/coach/home/index",
+    "pages/coach/lineup/index"
   ],
   "window": {
     "navigationBarTitleText": "\u4f53\u80b2\u6559\u5e08\u52a9\u624b",
