@@ -58,6 +58,10 @@ Page({
     });
   },
 
+  goAthletes() {
+    wx.navigateTo({ url: '/pages/coach/athletes/list/index' });
+  },
+
   handleLogout() {
     coachAuth.clearAll();
     wx.reLaunch({ url: '/pages/login/index' });

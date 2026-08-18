@@ -1,0 +1,84 @@
+<view class="page-shell {{selectMode ? 'with-batch-bar' : ''}}">
+  <view class="hero-card coach-hero">
+    <view class="hero-top">
+      <view>
+        <view class="page-title">运动员管理</view>
+        <view class="page-subtitle">共 {{athletes.length}} 名 · 点击卡片编辑</view>
+      </view>
+      <button class="secondary-button small-button" bindtap="toggleSelectMode">{{selectMode ? '取消' : '批量删除'}}</button>
+    </view>
+  </view>
+
+  <view class="toolbar">
+    <view class="search-box">
+      <input
+        class="search-input"
+        placeholder="搜索姓名 / 学籍号 / 证件号"
+        placeholder-class="placeholder"
+        value="{{keyword}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+      />
+    </view>
+    <button class="primary-button add-button" bindtap="goCreate">新增</button>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载...</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{!filtered.length}}" class="panel-card">
+      <view class="empty-text">暂无运动员，点击右上角「新增」添加。</view>
+    </view>
+
+    <view
+      wx:for="{{filtered}}"
+      wx:key="id"
+      class="panel-card athlete-card"
+      data-id="{{item.id}}"
+      bindtap="onCardTap"
+    >
+      <view class="athlete-row">
+        <view wx:if="{{selectMode}}" class="athlete-check {{item.checked ? 'is-on' : ''}}"></view>
+        <view class="athlete-main">
+          <view class="athlete-name-row">
+            <view class="athlete-name">{{item.name}}</view>
+            <view class="athlete-gender">{{item.gender}}</view>
+          </view>
+          <view class="athlete-tags">
+            <text class="tag">{{item.category}}</text>
+            <text class="tag">{{item.athleteType}}</text>
+            <text class="tag status-{{item.enabled === false ? 'off' : 'on'}}">{{item.statusText}}</text>
+            <text wx:if="{{item.banned}}" class="tag is-ban">禁赛</text>
+          </view>
+          <view class="athlete-meta">
+            <view>学籍号：{{item.studentNo || '-'}}</view>
+            <view>证件号：{{item.idNo || '-'}}</view>
+            <view>项目：{{item.projectsText}}</view>
+          </view>
+        </view>
+        <view wx:if="{{!selectMode}}" class="athlete-actions">
+          <button
+            class="mini-button"
+            data-id="{{item.id}}"
+            disabled="{{busyId === item.id}}"
+            catchtap="onToggleEnable"
+          >{{item.enabled === false ? '启用' : '停用'}}</button>
+          <button class="mini-button danger" data-id="{{item.id}}" catchtap="onDelete">删除</button>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{selectMode}}" class="batch-bar">
+    <view class="batch-count">已选 {{selectedIds.length}} 人</view>
+    <button class="danger-button" disabled="{{!selectedIds.length}}" bindtap="onBatchDelete">删除所选</button>
+  </view>
+</view>

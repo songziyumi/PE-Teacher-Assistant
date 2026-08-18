@@ -1,0 +1,138 @@
+<view class="page-shell">
+  <view class="hero-card coach-hero">
+    <view class="page-title">{{id ? '编辑运动员' : '新增运动员'}}</view>
+    <view class="page-subtitle">{{id ? '修改本队运动员信息' : '填写本队运动员信息'}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载...</view>
+  </view>
+
+  <view wx:elif="{{loadError}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{loadError}}</view>
+    <button class="primary-button" bindtap="reload">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">基本信息</view>
+
+      <view class="form-row">
+        <view class="form-label">类别<text class="required">*</text></view>
+        <picker range="{{categoryOptions}}" value="{{categoryIndex}}" bindchange="onCategoryChange">
+          <view class="form-value {{form.category ? '' : 'placeholder'}}">{{form.category || '请选择类别'}}</view>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">类型<text class="required">*</text></view>
+        <picker range="{{athleteTypeOptions}}" value="{{athleteTypeIndex}}" bindchange="onAthleteTypeChange">
+          <view class="form-value {{form.athleteType ? '' : 'placeholder'}}">{{form.athleteType || '请选择类型'}}</view>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">姓名<text class="required">*</text></view>
+        <input class="form-input" value="{{form.name}}" data-field="name" bindinput="onFieldInput" placeholder="请输入姓名" placeholder-class="placeholder" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">性别<text class="required">*</text></view>
+        <picker range="{{genderOptions}}" value="{{genderIndex}}" bindchange="onGenderChange">
+          <view class="form-value {{form.gender ? '' : 'placeholder'}}">{{form.gender || '请选择性别'}}</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">证件信息</view>
+
+      <view class="form-row">
+        <view class="form-label">证件类型</view>
+        <picker range="{{idTypeOptions}}" value="{{idTypeIndex}}" bindchange="onIdTypeChange">
+          <view class="form-value {{form.idType ? '' : 'placeholder'}}">{{form.idType || '请选择证件类型'}}</view>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">证件号</view>
+        <input class="form-input" value="{{form.idNo}}" data-field="idNo" bindinput="onFieldInput" placeholder="居民身份证需与性别匹配" placeholder-class="placeholder" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">出生日期</view>
+        <picker mode="date" value="{{form.birthDate}}" start="1950-01-01" end="2030-12-31" bindchange="onBirthDateChange">
+          <view class="form-value {{form.birthDate ? '' : 'placeholder'}}">{{form.birthDate || '请选择出生日期'}}</view>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">学籍号</view>
+        <input class="form-input" value="{{form.studentNo}}" data-field="studentNo" bindinput="onFieldInput" placeholder="请输入学籍号（选填）" placeholder-class="placeholder" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">血型</view>
+        <input class="form-input" value="{{form.bloodType}}" data-field="bloodType" bindinput="onFieldInput" placeholder="如 A、B、AB、O（选填）" placeholder-class="placeholder" />
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">紧急联系人</view>
+
+      <view class="form-row">
+        <view class="form-label">关系</view>
+        <picker range="{{emergencyOptions}}" value="{{emergencyIndex}}" bindchange="onEmergencyChange">
+          <view class="form-value {{form.emergencyContactType ? '' : 'placeholder'}}">{{form.emergencyContactType || '请选择关系'}}</view>
+        </picker>
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">姓名</view>
+        <input class="form-input" value="{{form.emergencyContactName}}" data-field="emergencyContactName" bindinput="onFieldInput" placeholder="请输入联系人姓名" placeholder-class="placeholder" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-label">联系电话</view>
+        <input class="form-input" value="{{form.emergencyContactPhone}}" data-field="emergencyContactPhone" bindinput="onFieldInput" placeholder="请输入联系电话" placeholder-class="placeholder" />
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">照片</view>
+
+      <view class="form-row photo-row">
+        <view class="form-label">运动员照片</view>
+        <view class="photo-area" data-field="photoUrl" bindtap="choosePhoto">
+          <image wx:if="{{photoPreview}}" class="photo-img" src="{{photoPreview}}" mode="aspectFill" />
+          <view wx:else class="photo-placeholder">＋</view>
+        </view>
+      </view>
+
+      <view class="form-row photo-row">
+        <view class="form-label">身份证照片</view>
+        <view class="photo-area" data-field="athleteIdPhotoUrl" bindtap="choosePhoto">
+          <image wx:if="{{athleteIdPhotoPreview}}" class="photo-img" src="{{athleteIdPhotoPreview}}" mode="aspectFill" />
+          <view wx:else class="photo-placeholder">＋</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="panel-card">
+      <view class="section-title">注册项目</view>
+      <view class="form-label project-label">已选 {{projectCount}} 项<text class="required">*</text></view>
+      <view class="project-chips">
+        <view
+          wx:for="{{projectItems}}"
+          wx:key="name"
+          class="project-chip {{item.checked ? 'is-on' : ''}}"
+          data-name="{{item.name}}"
+          bindtap="onToggleProject"
+        >{{item.name}}</view>
+      </view>
+    </view>
+
+    <button class="primary-button submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">保存</button>
+  </block>
+</view>

@@ -10,6 +10,18 @@
     </view>
   </view>
 
+  <view class="section-heading-row">
+    <view class="section-title">常用功能</view>
+  </view>
+
+  <view class="feature-grid">
+    <view class="feature-card" bindtap="goAthletes">
+      <view class="feature-icon">🏃</view>
+      <view class="feature-name">运动员管理</view>
+      <view class="feature-desc">维护本队运动员</view>
+    </view>
+  </view>
+
   <view wx:if="{{loading}}" class="panel-card">
     <view class="empty-text">正在加载...</view>
   </view>

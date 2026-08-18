@@ -11,7 +11,9 @@
     "pages/teacher/physical-overview/index",
     "pages/teacher/term-grade-entry/index",
     "pages/coach/home/index",
-    "pages/coach/lineup/index"
+    "pages/coach/lineup/index",
+    "pages/coach/athletes/list/index",
+    "pages/coach/athletes/edit/index"
   ],
   "window": {
     "navigationBarTitleText": "\u4f53\u80b2\u6559\u5e08\u52a9\u624b",

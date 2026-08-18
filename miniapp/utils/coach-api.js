@@ -89,6 +89,94 @@ function submitLineup(matchId, athleteIds) {
   });
 }
 
+function fetchAthletes() {
+  return request({
+    path: '/api/athletes'
+  });
+}
+
+function fetchAthlete(id) {
+  return request({
+    path: `/api/athletes/${id}`
+  });
+}
+
+function createAthlete(data) {
+  return request({
+    path: '/api/athletes',
+    method: 'POST',
+    data
+  });
+}
+
+function updateAthlete(id, data) {
+  return request({
+    path: `/api/athletes/${id}`,
+    method: 'PUT',
+    data
+  });
+}
+
+function deleteAthlete(id) {
+  return request({
+    path: `/api/athletes/${id}`,
+    method: 'DELETE'
+  });
+}
+
+function batchDeleteAthletes(athleteIds) {
+  return request({
+    path: '/api/athletes/batch-delete',
+    method: 'DELETE',
+    data: {
+      athleteIds
+    }
+  });
+}
+
+function updateAthleteStatus(id, data) {
+  return request({
+    path: `/api/athletes/${id}/status`,
+    method: 'PUT',
+    data
+  });
+}
+
+function uploadPhoto(filePath) {
+  const token = coachAuth.getToken();
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: `${getBaseUrl()}/api/uploads/photo`,
+      filePath,
+      name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      success(response) {
+        const statusCode = response.statusCode;
+        let payload = null;
+        try {
+          payload = JSON.parse(response.data || '{}');
+        } catch (e) {
+          payload = null;
+        }
+        if (statusCode >= 200 && statusCode < 300) {
+          resolve(payload && payload.data !== undefined ? payload.data : payload);
+          return;
+        }
+        if (statusCode === 401) {
+          coachAuth.clearAll();
+        }
+        const message = (payload && payload.data && payload.data.error)
+          || (payload && payload.message)
+          || `上传失败 (${statusCode})`;
+        reject(new Error(message));
+      },
+      fail(error) {
+        reject(new Error(error.errMsg || '上传失败'));
+      }
+    });
+  });
+}
+
 module.exports = {
   getBaseUrl,
   request,
@@ -96,5 +184,13 @@ module.exports = {
   fetchMe,
   fetchTeamMatches,
   fetchLineup,
-  submitLineup
+  submitLineup,
+  fetchAthletes,
+  fetchAthlete,
+  createAthlete,
+  updateAthlete,
+  deleteAthlete,
+  batchDeleteAthletes,
+  updateAthleteStatus,
+  uploadPhoto
 };
