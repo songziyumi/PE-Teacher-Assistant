@@ -43,7 +43,14 @@ Page({
   async loadTeam() {
     try {
       const user = await coachApi.fetchMe();
-      this.setData({ teamId: Number(user && (user.teamScopeId || user.teamId)) || null });
+      let teamId = Number(user && (user.teamScopeId || user.teamId || (user.team && user.team.id))) || null;
+      // Some deployments return only the coach account in /auth/me. Athlete
+      // records are already team-scoped and provide a safe fallback ID.
+      if (!teamId) {
+        const athletes = await coachApi.fetchAthletes();
+        teamId = Number(athletes && athletes[0] && athletes[0].teamId) || null;
+      }
+      this.setData({ teamId });
     } catch (error) {
       this.setData({ loadError: error.message || '无法获取代表队信息' });
     }
