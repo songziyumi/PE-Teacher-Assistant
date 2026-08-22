@@ -47,6 +47,19 @@
     >
       <view class="athlete-row">
         <view wx:if="{{selectMode}}" class="athlete-check {{item.checked ? 'is-on' : ''}}"></view>
+        <view
+          class="athlete-photo"
+          data-url="{{item.photoPreview}}"
+          catchtap="previewPhoto"
+        >
+          <image
+            wx:if="{{item.photoPreview}}"
+            class="athlete-photo-image"
+            src="{{item.photoPreview}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="athlete-photo-placeholder">暂无照片</view>
+        </view>
         <view class="athlete-main">
           <view class="athlete-name-row">
             <view class="athlete-name">{{item.name}}</view>

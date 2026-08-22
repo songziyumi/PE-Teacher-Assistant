@@ -35,9 +35,22 @@ Page({
 
   decorate(item) {
     return Object.assign({}, item, {
+      photoPreview: this.resolvePhotoUrl(item.photoUrl),
       projectsText: (item.projects && item.projects.length ? item.projects.join('、') : '-'),
       statusText: item.enabled === false ? '已停用' : '有效'
     });
+  },
+
+  resolvePhotoUrl(photoUrl) {
+    if (!photoUrl) {
+      return '';
+    }
+    const value = String(photoUrl);
+    if (value.indexOf('http://') === 0 || value.indexOf('https://') === 0) {
+      return value;
+    }
+    const baseUrl = coachApi.getBaseUrl();
+    return `${baseUrl}${value.indexOf('/') === 0 ? '' : '/'}${value}`;
   },
 
   applyFilter() {
@@ -70,6 +83,17 @@ Page({
 
   goEdit(id) {
     wx.navigateTo({ url: `/pages/coach/athletes/edit/index?id=${id}` });
+  },
+
+  previewPhoto(event) {
+    const url = event.currentTarget.dataset.url;
+    if (!url) {
+      return;
+    }
+    wx.previewImage({
+      current: url,
+      urls: [url]
+    });
   },
 
   onCardTap(event) {
