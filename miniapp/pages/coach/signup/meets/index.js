@@ -1,5 +1,5 @@
-const coachApi = require('../../../../../utils/coach-api.js');
-const coachAuth = require('../../../../../utils/coach-auth.js');
+const coachApi = require('../../../../utils/coach-api.js');
+const coachAuth = require('../../../../utils/coach-auth.js');
 Page({
   data: { loading: true, errorMessage: '', meets: [] },
   onShow() { if (!coachAuth.getToken()) return wx.reLaunch({ url: '/pages/login/index' }); this.loadData(); },

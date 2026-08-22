@@ -1,5 +1,5 @@
-const coachApi = require('../../../../../utils/coach-api.js');
-const coachAuth = require('../../../../../utils/coach-auth.js');
+const coachApi = require('../../../../utils/coach-api.js');
+const coachAuth = require('../../../../utils/coach-auth.js');
 Page({
   data: { loading: true, errorMessage: '', meetId: null, eventId: null, signupId: null, view: null, athletes: [], officials: [], availableAthletes: [], availableOfficials: [] },
   onLoad(options) { if (!coachAuth.getToken()) return wx.reLaunch({ url: '/pages/login/index' }); this.setData({ meetId: Number(options.meetId), eventId: Number(options.eventId) }); this.loadData(); },
