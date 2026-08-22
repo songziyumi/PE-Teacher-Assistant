@@ -20,6 +20,11 @@
       <view class="feature-name">运动员管理</view>
       <view class="feature-desc">维护本队运动员</view>
     </view>
+    <view class="feature-card" bindtap="goOfficials">
+      <view class="feature-icon">👥</view>
+      <view class="feature-name">官员管理</view>
+      <view class="feature-desc">维护本队领队和教练员</view>
+    </view>
   </view>
 
   <view wx:if="{{loading}}" class="panel-card">

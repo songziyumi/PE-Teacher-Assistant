@@ -177,6 +177,34 @@ function uploadPhoto(filePath) {
   });
 }
 
+function fetchOfficials() {
+  return request({
+    path: '/api/officials'
+  });
+}
+
+function fetchOfficial(id) {
+  return request({
+    path: `/api/officials/${id}`
+  });
+}
+
+function createOfficial(data) {
+  return request({
+    path: '/api/officials',
+    method: 'POST',
+    data
+  });
+}
+
+function updateOfficial(id, data) {
+  return request({
+    path: `/api/officials/${id}`,
+    method: 'PUT',
+    data
+  });
+}
+
 module.exports = {
   getBaseUrl,
   request,
@@ -192,5 +220,9 @@ module.exports = {
   deleteAthlete,
   batchDeleteAthletes,
   updateAthleteStatus,
-  uploadPhoto
+  uploadPhoto,
+  fetchOfficials,
+  fetchOfficial,
+  createOfficial,
+  updateOfficial
 };

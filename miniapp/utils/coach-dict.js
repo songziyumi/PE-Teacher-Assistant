@@ -15,6 +15,13 @@ const ATHLETE_DICT = {
   ]
 };
 
+const OFFICIAL_DICT = {
+  personType: ['领队', '教练员', '队医', '其他工作人员'],
+  idType: ['居民身份证', '港澳通行证', '护照'],
+  gender: ['男', '女']
+};
+
 module.exports = {
-  ATHLETE_DICT
+  ATHLETE_DICT,
+  OFFICIAL_DICT
 };

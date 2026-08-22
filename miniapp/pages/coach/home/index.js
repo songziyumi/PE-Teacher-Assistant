@@ -62,6 +62,10 @@ Page({
     wx.navigateTo({ url: '/pages/coach/athletes/list/index' });
   },
 
+  goOfficials() {
+    wx.navigateTo({ url: '/pages/coach/officials/list/index' });
+  },
+
   handleLogout() {
     coachAuth.clearAll();
     wx.reLaunch({ url: '/pages/login/index' });
