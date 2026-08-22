@@ -1,0 +1,13 @@
+<view class="page-shell">
+  <view class="hero-card coach-hero"><view class="page-title">赛事报名</view><view class="page-subtitle">选择运动会和项目，进入本队报名</view></view>
+  <view wx:if="{{loading}}" class="panel-card"><view class="empty-text">正在加载...</view></view>
+  <view wx:elif="{{errorMessage}}" class="panel-card"><view class="section-title">加载失败</view><view class="page-subtitle">{{errorMessage}}</view><button class="primary-button" bindtap="loadData">重新加载</button></view>
+  <block wx:else>
+    <view wx:if="{{!meets.length}}" class="panel-card"><view class="empty-text">暂无可报名运动会。</view></view>
+    <view wx:for="{{meets}}" wx:key="id" class="panel-card meet-card">
+      <view class="section-title">{{item.meetName}}</view>
+      <view class="section-caption">{{item.startDate}} 至 {{item.endDate}} · {{item.status}}</view>
+      <view class="event-list"><view wx:for="{{item.events}}" wx:key="id" class="event-item" data-meet-id="{{item.meetId}}" data-event-id="{{item.id2}}" bindtap="openEvent"><view>{{item.eventName}}</view><text>{{item.signupStatus}}</text></view></view>
+    </view>
+  </block>
+</view>

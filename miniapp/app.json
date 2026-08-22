@@ -16,6 +16,8 @@
     "pages/coach/athletes/edit/index",
     "pages/coach/officials/list/index",
     "pages/coach/officials/edit/index"
+    ,"pages/coach/signup/meets/index"
+    ,"pages/coach/signup/detail/index"
   ],
   "window": {
     "navigationBarTitleText": "\u4f53\u80b2\u6559\u5e08\u52a9\u624b",

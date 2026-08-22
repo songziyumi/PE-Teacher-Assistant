@@ -205,6 +205,24 @@ function updateOfficial(id, data) {
   });
 }
 
+function fetchMeets() { return request({ path: '/api/meets' }); }
+function fetchMeetEvents(meetId) { return request({ path: `/api/meets/${meetId}/events` }); }
+function fetchSignups(params) {
+  const query = [];
+  if (params && params.meetId) query.push(`meetId=${params.meetId}`);
+  if (params && params.eventId) query.push(`eventId=${params.eventId}`);
+  return request({ path: `/api/signups${query.length ? `?${query.join('&')}` : ''}` });
+}
+function fetchSignup(id) { return request({ path: `/api/signups/${id}` }); }
+function createSignup(data) { return request({ path: '/api/signups', method: 'POST', data }); }
+function fetchSignupAthletes(id) { return request({ path: `/api/signups/${id}/athletes` }); }
+function saveSignupAthletes(id, items) { return request({ path: `/api/signups/${id}/athletes`, method: 'PUT', data: { items } }); }
+function fetchSignupOfficials(id) { return request({ path: `/api/signups/${id}/officials` }); }
+function saveSignupOfficials(id, items) { return request({ path: `/api/signups/${id}/officials`, method: 'PUT', data: { items } }); }
+function submitSignup(id) { return request({ path: `/api/signups/${id}/submit`, method: 'POST' }); }
+function withdrawSignup(id) { return request({ path: `/api/signups/${id}/withdraw`, method: 'POST' }); }
+function assignSignupCaptain(id, athleteId) { return request({ path: `/api/signups/${id}/captain?athleteId=${athleteId}`, method: 'POST' }); }
+
 module.exports = {
   getBaseUrl,
   request,
@@ -225,4 +243,7 @@ module.exports = {
   fetchOfficial,
   createOfficial,
   updateOfficial
+  ,fetchMeets, fetchMeetEvents, fetchSignups, fetchSignup, createSignup,
+  fetchSignupAthletes, saveSignupAthletes, fetchSignupOfficials, saveSignupOfficials,
+  submitSignup, withdrawSignup, assignSignupCaptain
 };

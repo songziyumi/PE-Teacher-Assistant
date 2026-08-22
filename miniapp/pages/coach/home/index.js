@@ -66,6 +66,10 @@ Page({
     wx.navigateTo({ url: '/pages/coach/officials/list/index' });
   },
 
+  goSignupMeets() {
+    wx.navigateTo({ url: '/pages/coach/signup/meets/index' });
+  },
+
   handleLogout() {
     coachAuth.clearAll();
     wx.reLaunch({ url: '/pages/login/index' });
