@@ -15,7 +15,10 @@ Page({
       const meetId = this.data.meetId; const eventId = this.data.eventId;
       const [meets, events, signups, athletes, officials] = await Promise.all([coachApi.fetchMeets(), coachApi.fetchMeetEvents(meetId), coachApi.fetchSignups({ meetId, eventId }), coachApi.fetchAthletes(), coachApi.fetchOfficials()]);
       const meet = (meets || []).find((item) => Number(item.id) === meetId); const event = (events || []).find((item) => Number(item.id) === eventId);
-      let signup = (signups || []).find((item) => Number(item.eventId) === eventId);
+      const candidates = (signups || []).filter((item) => Number(item.eventId) === eventId);
+      const editable = candidates.filter((item) => ['DRAFT', 'REJECTED', '草稿', '已驳回'].indexOf(String(item.status || '').trim()) >= 0);
+      const pool = editable.length ? editable : candidates;
+      let signup = pool.slice().sort((left, right) => Number(right.id || 0) - Number(left.id || 0))[0];
       if (!signup) signup = await coachApi.createSignup({ meetId, eventId, teamId: await this.resolveTeamId(), signupType: '代表队', status: 'DRAFT' });
       const [savedAthletes, savedOfficials] = await Promise.all([coachApi.fetchSignupAthletes(signup.id), coachApi.fetchSignupOfficials(signup.id)]);
       const selectedA = (savedAthletes || []).map((item) => Object.assign({}, item, { id: item.athleteId, checked: true }));
