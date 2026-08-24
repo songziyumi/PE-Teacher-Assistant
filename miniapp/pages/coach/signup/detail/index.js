@@ -33,7 +33,30 @@ Page({
   toggleOfficial(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableOfficials.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableOfficials[${idx}].checked`]: !this.data.availableOfficials[idx].checked }); },
   stopTap() {},
   onJerseyInput(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].jerseyNo`]: event.detail.value }); },
-  async saveRoster(options = {}) { try { const selectedAthletes = this.data.availableAthletes.filter((item) => item.checked); const missingJersey = selectedAthletes.find((item) => !String(item.jerseyNo || '').trim()); if (missingJersey) { throw new Error(`请填写运动员「${missingJersey.name || ''}」的参赛号码`); } const a = selectedAthletes.map((item, index) => ({ athleteId: item.id, jerseyNo: String(item.jerseyNo).trim(), captain: false, sortNo: index + 1 })); const o = this.data.availableOfficials.filter((item) => item.checked).map((item, index) => ({ officialId: item.id, sortNo: index + 1 })); await coachApi.saveSignupAthletes(this.data.signupId, a); await coachApi.saveSignupOfficials(this.data.signupId, o); if (!options.silent) wx.showToast({ title: '名单已保存', icon: 'success' }); await this.loadData(); } catch (error) { if (!options.silent) this.showError(error.message); throw error; } },
+  async saveRoster(options = {}) {
+    try {
+      const current = await coachApi.fetchSignup(this.data.signupId);
+      const currentStatus = String(current && current.status || '').trim();
+      const editable = ['DRAFT', 'REJECTED', '草稿', '已驳回'].indexOf(currentStatus) >= 0;
+      if (!editable) {
+        throw new Error(`当前报名状态为“${currentStatus || '未知'}”，请先撤回报名后再维护运动员名单`);
+      }
+      const selectedAthletes = this.data.availableAthletes.filter((item) => item.checked);
+      const missingJersey = selectedAthletes.find((item) => !String(item.jerseyNo || '').trim());
+      if (missingJersey) {
+        throw new Error(`请填写运动员「${missingJersey.name || ''}」的参赛号码`);
+      }
+      const a = selectedAthletes.map((item, index) => ({ athleteId: item.id, jerseyNo: String(item.jerseyNo).trim(), captain: false, sortNo: index + 1 }));
+      const o = this.data.availableOfficials.filter((item) => item.checked).map((item, index) => ({ officialId: item.id, sortNo: index + 1 }));
+      await coachApi.saveSignupAthletes(this.data.signupId, a);
+      await coachApi.saveSignupOfficials(this.data.signupId, o);
+      if (!options.silent) wx.showToast({ title: '名单已保存', icon: 'success' });
+      await this.loadData();
+    } catch (error) {
+      if (!options.silent) this.showError(error.message);
+      throw error;
+    }
+  },
   async submit() { try { await this.saveRoster({ silent: true }); await coachApi.submitSignup(this.data.signupId); wx.showToast({ title: '报名已提交', icon: 'success' }); await this.loadData(); } catch (error) { this.showError(error.message); } },
   async withdraw() { try { await coachApi.withdrawSignup(this.data.signupId); wx.showToast({ title: '已撤回', icon: 'success' }); await this.loadData(); } catch (error) { this.showError(error.message); } },
   showError(message) { wx.showModal({ title: '提示', content: message || '操作失败', showCancel: false }); }
