@@ -26,8 +26,23 @@ Page({
       const selectedAIds = selectedA.map((item) => Number(item.id)); const selectedOIds = selectedO.map((item) => Number(item.id));
       const status = { 草稿: 'DRAFT', 已驳回: 'REJECTED', 已提交: 'SUBMITTED', 已通过: 'APPROVED', 已锁定: 'LOCKED' }[signup.status] || signup.status;
       const statusText = { DRAFT: '草稿', REJECTED: '已驳回', SUBMITTED: '已提交', APPROVED: '已通过', LOCKED: '已锁定' }[status] || status || '';
-      this.setData({ loading: false, signupId: signup.id, view: Object.assign({}, signup, { status, meetName: meet && meet.meetName, eventName: event && event.eventName, statusText }), athletes: selectedA, officials: selectedO, availableAthletes: (athletes || []).map((item) => { const saved = selectedA.find((row) => Number(row.id) === Number(item.id)); return Object.assign({}, item, { checked: Boolean(saved), captain: Boolean(saved && saved.captain), jerseyNo: saved && saved.jerseyNo || '' }); }), availableOfficials: (officials || []).map((item) => Object.assign({}, item, { checked: selectedOIds.indexOf(Number(item.id)) >= 0 })) });
+      const eligibleAthletes = (athletes || []).filter((item) => this.matchesEventAthlete(item, event) || selectedAIds.indexOf(Number(item.id)) >= 0);
+      const requiredProject = this.resolveRequiredProject(event);
+      const genderLabel = event && event.genderScope === 'MALE' ? '男子' : event && event.genderScope === 'FEMALE' ? '女子' : '性别不限';
+      this.setData({ loading: false, signupId: signup.id, filterText: `按${genderLabel}${requiredProject ? ` · ${requiredProject}` : ''}筛选`, view: Object.assign({}, signup, { status, meetName: meet && meet.meetName, eventName: event && event.eventName, statusText, genderScope: event && event.genderScope, requiredProject }), athletes: selectedA, officials: selectedO, availableAthletes: eligibleAthletes.map((item) => { const saved = selectedA.find((row) => Number(row.id) === Number(item.id)); return Object.assign({}, item, { checked: Boolean(saved), captain: Boolean(saved && saved.captain), jerseyNo: saved && saved.jerseyNo || '' }); }), availableOfficials: (officials || []).map((item) => Object.assign({}, item, { checked: selectedOIds.indexOf(Number(item.id)) >= 0 })) });
     } catch (error) { this.setData({ loading: false, errorMessage: error.message || '加载失败' }); }
+  },
+  matchesEventAthlete(athlete, event) {
+    const scope = String(event && event.genderScope || '').toUpperCase();
+    const genderOk = !scope || scope === 'ALL' || scope === 'MIXED' || (scope === 'MALE' && athlete.gender === '男') || (scope === 'FEMALE' && athlete.gender === '女');
+    const project = this.resolveRequiredProject(event);
+    const projects = Array.isArray(athlete.projects) ? athlete.projects : [];
+    return genderOk && (!project || projects.indexOf(project) >= 0);
+  },
+  resolveRequiredProject(event) {
+    const text = `${event && event.eventName || ''} ${event && event.sportCategory || ''}`;
+    const projects = ['篮球', '三人篮球', '排球', '乒乓球', '羽毛球', '足球', '棒垒球', '网球', '沙滩排球', '气排球', '手球', '曲棍球', '水球', '橄榄球', '冰球', '高尔夫', '台球', '匹克球'];
+    return projects.find((item) => text.indexOf(item) >= 0) || '';
   },
   toggleAthlete(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].checked`]: !this.data.availableAthletes[idx].checked }); },
   toggleOfficial(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableOfficials.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableOfficials[${idx}].checked`]: !this.data.availableOfficials[idx].checked }); },
