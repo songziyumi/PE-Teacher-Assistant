@@ -21,18 +21,19 @@ Page({
       let signup = pool.slice().sort((left, right) => Number(right.id || 0) - Number(left.id || 0))[0];
       if (!signup) signup = await coachApi.createSignup({ meetId, eventId, teamId: await this.resolveTeamId(), signupType: '代表队', status: 'DRAFT' });
       const [savedAthletes, savedOfficials] = await Promise.all([coachApi.fetchSignupAthletes(signup.id), coachApi.fetchSignupOfficials(signup.id)]);
-      const selectedA = (savedAthletes || []).map((item) => Object.assign({}, item, { id: item.athleteId, checked: true }));
+      const selectedA = (savedAthletes || []).map((item) => Object.assign({}, item, { id: item.athleteId, checked: true, captain: Boolean(item.captain) }));
       const selectedO = (savedOfficials || []).map((item) => Object.assign({}, item, { id: item.officialId, checked: true }));
       const selectedAIds = selectedA.map((item) => Number(item.id)); const selectedOIds = selectedO.map((item) => Number(item.id));
       const status = { 草稿: 'DRAFT', 已驳回: 'REJECTED', 已提交: 'SUBMITTED', 已通过: 'APPROVED', 已锁定: 'LOCKED' }[signup.status] || signup.status;
       const statusText = { DRAFT: '草稿', REJECTED: '已驳回', SUBMITTED: '已提交', APPROVED: '已通过', LOCKED: '已锁定' }[status] || status || '';
-      this.setData({ loading: false, signupId: signup.id, view: Object.assign({}, signup, { status, meetName: meet && meet.meetName, eventName: event && event.eventName, statusText }), athletes: selectedA, officials: selectedO, availableAthletes: (athletes || []).map((item) => Object.assign({}, item, { checked: selectedAIds.indexOf(Number(item.id)) >= 0, jerseyNo: (selectedA.find((row) => Number(row.id) === Number(item.id)) || {}).jerseyNo || '' })), availableOfficials: (officials || []).map((item) => Object.assign({}, item, { checked: selectedOIds.indexOf(Number(item.id)) >= 0 })) });
+      this.setData({ loading: false, signupId: signup.id, view: Object.assign({}, signup, { status, meetName: meet && meet.meetName, eventName: event && event.eventName, statusText }), athletes: selectedA, officials: selectedO, availableAthletes: (athletes || []).map((item) => { const saved = selectedA.find((row) => Number(row.id) === Number(item.id)); return Object.assign({}, item, { checked: Boolean(saved), captain: Boolean(saved && saved.captain), jerseyNo: saved && saved.jerseyNo || '' }); }), availableOfficials: (officials || []).map((item) => Object.assign({}, item, { checked: selectedOIds.indexOf(Number(item.id)) >= 0 })) });
     } catch (error) { this.setData({ loading: false, errorMessage: error.message || '加载失败' }); }
   },
   toggleAthlete(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].checked`]: !this.data.availableAthletes[idx].checked }); },
   toggleOfficial(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableOfficials.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableOfficials[${idx}].checked`]: !this.data.availableOfficials[idx].checked }); },
   stopTap() {},
   onJerseyInput(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].jerseyNo`]: event.detail.value }); },
+  setCaptain(event) { const id = Number(event.currentTarget.dataset.id); const athletes = this.data.availableAthletes || []; const selected = athletes.find((item) => Number(item.id) === id); if (!selected || !selected.checked) return; athletes.forEach((item, index) => { this.setData({ [`availableAthletes[${index}].captain`]: Number(item.id) === id }); }); },
   async saveRoster(options = {}) {
     try {
       const current = await coachApi.fetchSignup(this.data.signupId);
@@ -46,7 +47,9 @@ Page({
       if (missingJersey) {
         throw new Error(`请填写运动员「${missingJersey.name || ''}」的参赛号码`);
       }
-      const a = selectedAthletes.map((item, index) => ({ athleteId: item.id, jerseyNo: String(item.jerseyNo).trim(), captain: false, sortNo: index + 1 }));
+      const captainCount = selectedAthletes.filter((item) => item.captain).length;
+      if (captainCount !== 1) throw new Error('请在报名名单中准确设置 1 名队长');
+      const a = selectedAthletes.map((item, index) => ({ athleteId: item.id, jerseyNo: String(item.jerseyNo).trim(), captain: Boolean(item.captain), sortNo: index + 1 }));
       const o = this.data.availableOfficials.filter((item) => item.checked).map((item, index) => ({ officialId: item.id, sortNo: index + 1 }));
       await coachApi.saveSignupAthletes(this.data.signupId, a);
       await coachApi.saveSignupOfficials(this.data.signupId, o);
