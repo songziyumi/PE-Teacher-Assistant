@@ -1,1 +1,43 @@
-<view class="page-shell"><view class="hero-card coach-hero"><view class="page-title">赛事管理</view><view class="page-subtitle">赛事报名与本队比赛首发填报</view></view><view class="panel-card event-entry" bindtap="goSignup"><view class="entry-icon">📝</view><view><view class="section-title">赛事报名</view><view class="section-caption">选择运动会和项目，填报运动员及官员名单</view></view></view><view class="section-heading-row"><view class="section-title">本队比赛</view><view class="section-caption">共 {{matches.length}} 场</view></view><view wx:if="{{loading}}" class="panel-card"><view class="empty-text">正在加载...</view></view><view wx:elif="{{errorMessage}}" class="panel-card"><view class="page-subtitle">{{errorMessage}}</view><button class="primary-button" bindtap="loadData">重新加载</button></view><view wx:elif="{{!matches.length}}" class="panel-card"><view class="empty-text">当前代表队暂无球类比赛。</view></view><view wx:else wx:for="{{matches}}" wx:key="matchId" class="panel-card match-card" data-match-id="{{item.matchId}}" bindtap="goLineup"><view class="match-card-head"><view class="match-card-title">{{item.meetName}} · {{item.eventName}}</view><view class="match-tag {{item.reported ? 'is-done' : 'is-pending'}}">{{item.reported ? '已上报' : '待上报'}}</view></view><view class="match-card-meta"><view class="match-card-line">对手：{{item.opponent}}</view><view class="match-card-line">{{item.sportLabel}}（{{item.starterCount}} 人首发）</view><view class="match-card-line">{{item.startAtText}} · {{item.venueName || '待定'}}</view></view></view></view>
+<view class="page-shell">
+  <view class="hero-card coach-hero">
+    <view class="page-title">赛事管理</view>
+    <view class="page-subtitle">赛事报名与本队比赛首发填报</view>
+  </view>
+
+  <view class="panel-card event-entry" bindtap="goSignup">
+    <view class="entry-icon">📝</view>
+    <view>
+      <view class="section-title">赛事报名</view>
+      <view class="section-caption">选择运动会和项目，填报运动员及官员名单</view>
+    </view>
+  </view>
+
+  <view class="section-heading-row">
+    <view class="section-title">本队比赛</view>
+    <view class="section-caption">共 {{matches.length}} 场</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载...</view>
+  </view>
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">重新加载</button>
+  </view>
+  <view wx:elif="{{!matches.length}}" class="panel-card">
+    <view class="empty-text">当前代表队暂无球类比赛。</view>
+  </view>
+  <block wx:else>
+    <view wx:for="{{matches}}" wx:key="matchId" class="panel-card match-card" data-match-id="{{item.matchId}}" bindtap="goLineup">
+      <view class="match-card-head">
+        <view class="match-card-title">{{item.meetName}} · {{item.eventName}}</view>
+        <view class="match-tag {{item.reported ? 'is-done' : 'is-pending'}}">{{item.reported ? '已上报' : '待上报'}}</view>
+      </view>
+      <view class="match-card-meta">
+        <view class="match-card-line">对手：{{item.opponent}}</view>
+        <view class="match-card-line">{{item.sportLabel}}（{{item.starterCount}} 人首发）</view>
+        <view class="match-card-line">{{item.startAtText}} · {{item.venueName || '待定'}}</view>
+      </view>
+    </view>
+  </block>
+</view>
