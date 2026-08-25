@@ -1,21 +1,11 @@
 const coachApi = require('../../../utils/coach-api.js');
 const coachAuth = require('../../../utils/coach-auth.js');
 
-function formatDateTime(value) {
-  if (!value) {
-    return '-';
-  }
-  const text = String(value);
-  const replaced = text.indexOf('T') >= 0 ? text.replace('T', ' ') : text;
-  return replaced.slice(0, 16);
-}
-
 Page({
   data: {
     loading: true,
     errorMessage: '',
-    user: null,
-    matches: []
+    user: null
   },
 
   onShow() {
@@ -30,15 +20,9 @@ Page({
     this.setData({ loading: true, errorMessage: '' });
     try {
       const me = await coachApi.fetchMe();
-      const matches = await coachApi.fetchTeamMatches();
-      const list = (matches || []).map((item) => Object.assign({}, item, {
-        opponent: item.currentTeamSide === 'A' ? (item.teamBName || '-') : (item.teamAName || '-'),
-        startAtText: formatDateTime(item.startAt)
-      }));
       this.setData({
         loading: false,
-        user: me || null,
-        matches: list
+        user: me || null
       });
     } catch (error) {
       this.setData({
@@ -66,9 +50,7 @@ Page({
     wx.navigateTo({ url: '/pages/coach/officials/list/index' });
   },
 
-  goSignupMeets() {
-    wx.navigateTo({ url: '/pages/coach/signup/meets/index' });
-  },
+  goEvents() { wx.navigateTo({ url: '/pages/coach/events/index' }); },
   goMe() { wx.navigateTo({ url: '/pages/coach/me/index' }); },
 
   handleLogout() {
