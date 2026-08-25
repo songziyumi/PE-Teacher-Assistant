@@ -30,7 +30,6 @@
       <view class="feature-name">赛事报名</view>
       <view class="feature-desc">填报本队参赛名单</view>
     </view>
-    <view class="feature-card" bindtap="goTeamProfile"><view class="feature-icon">🏫</view><view class="feature-name">代表队信息</view><view class="feature-desc">查看和编辑本队资料</view></view>
     <view class="feature-card" bindtap="goMe"><view class="feature-icon">👤</view><view class="feature-name">我的</view><view class="feature-desc">账号与密码设置</view></view>
   </view>
 

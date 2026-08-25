@@ -69,7 +69,6 @@ Page({
   goSignupMeets() {
     wx.navigateTo({ url: '/pages/coach/signup/meets/index' });
   },
-  goTeamProfile() { wx.navigateTo({ url: '/pages/coach/team/profile/index' }); },
   goMe() { wx.navigateTo({ url: '/pages/coach/me/index' }); },
 
   handleLogout() {
