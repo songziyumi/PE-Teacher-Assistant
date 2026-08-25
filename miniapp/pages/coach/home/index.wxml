@@ -1,0 +1,47 @@
+<view class="page-shell">
+  <view class="hero-card coach-hero">
+    <view class="hero-top">
+      <view>
+        <view wx:if="{{user}}" class="page-title">{{user.teamName || user.username}}</view>
+        <view wx:else class="page-title">教练员工作台</view>
+        <view class="page-subtitle">上报本队球类比赛首发名单</view>
+      </view>
+      <button class="secondary-button small-button" bindtap="handleLogout">退出</button>
+    </view>
+  </view>
+
+  <view class="section-heading-row">
+    <view class="section-title">常用功能</view>
+  </view>
+
+  <view class="feature-grid">
+    <view class="feature-card" bindtap="goAthletes">
+      <view class="feature-icon">🏃</view>
+      <view class="feature-name">运动员管理</view>
+      <view class="feature-desc">维护本队运动员</view>
+    </view>
+    <view class="feature-card" bindtap="goOfficials">
+      <view class="feature-icon">👥</view>
+      <view class="feature-name">官员管理</view>
+      <view class="feature-desc">维护本队领队和教练员</view>
+    </view>
+    <view class="feature-card" bindtap="goEvents">
+      <view class="feature-icon">🏟️</view>
+      <view class="feature-name">赛事管理</view>
+      <view class="feature-desc">赛事报名与首发填报</view>
+    </view>
+    <view class="feature-card" bindtap="goMe"><view class="feature-icon">👤</view><view class="feature-name">我的</view><view class="feature-desc">账号与密码设置</view></view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载...</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">重新加载</button>
+  </view>
+
+  <view wx:else class="panel-card"><view class="section-caption">请进入“赛事管理”查看报名和首发填报。</view></view>
+</view>

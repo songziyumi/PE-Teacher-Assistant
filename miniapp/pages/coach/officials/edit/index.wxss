@@ -1,0 +1,15 @@
+.coach-hero { background: linear-gradient(140deg, rgba(22, 50, 79, 0.95), rgba(38, 93, 140, 0.86)), #16324f; }
+.coach-hero .page-title, .coach-hero .page-subtitle { color: #ffffff; }
+.form-row { display: flex; align-items: center; min-height: 88rpx; border-bottom: 1rpx solid rgba(22, 50, 79, 0.06); }
+.form-row:last-child { border-bottom: none; }
+.form-label { width: 200rpx; flex-shrink: 0; font-size: 15px; color: #16324f; }
+.required { color: #be123c; margin-left: 4rpx; }
+picker { flex: 1; }
+.form-input { flex: 1; font-size: 15px; color: #1f2937; height: 88rpx; }
+.form-value { font-size: 15px; color: #1f2937; }
+.form-value.placeholder, .placeholder { color: #9aa5b1; }
+.photo-row { display: flex; flex-direction: column; align-items: flex-start; gap: 16rpx; padding: 20rpx 0; }
+.photo-area { width: 200rpx; height: 200rpx; border-radius: 16rpx; background: #f4f7fb; border: 1rpx dashed rgba(22, 50, 79, 0.2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.photo-img { width: 100%; height: 100%; }
+.photo-placeholder { font-size: 56rpx; color: #9aa5b1; }
+.submit-button { margin-top: 28rpx; }

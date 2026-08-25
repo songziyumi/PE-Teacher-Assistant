@@ -1,0 +1,45 @@
+<view class="page-shell">
+  <view wx:if="{{loading}}" class="panel-card">
+    <view class="empty-text">正在加载...</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadLineup">重新加载</button>
+  </view>
+
+  <block wx:elif="{{view}}">
+    <view class="hero-card coach-hero">
+      <view class="page-title">{{view.meetName}} · {{view.eventName}}</view>
+      <view class="page-subtitle">{{view.currentTeamName}} — {{view.sportLabel}}（{{view.starterCount}} 人首发）</view>
+    </view>
+
+    <view wx:if="{{message}}" class="message-box {{messageTone === 'error' ? 'is-error' : 'is-success'}}">{{message}}</view>
+
+    <view class="panel-card">
+      <view class="section-title">报名名单</view>
+      <view class="section-caption">请勾选 {{view.starterCount}} 名首发运动员（已选 {{selectedCount}} 人）</view>
+      <view wx:if="{{!view.roster.length}}" class="empty-text">本队暂无报名名单。</view>
+      <view
+        wx:for="{{view.roster}}"
+        wx:key="athleteId"
+        class="roster-row {{item.checked ? 'is-checked' : ''}}"
+        data-athlete-id="{{item.athleteId}}"
+        bindtap="onToggleAthlete"
+      >
+        <view class="roster-check {{item.checked ? 'is-on' : ''}}"></view>
+        <view class="roster-no">{{item.jerseyNo || '-'}}</view>
+        <view class="roster-name">{{item.name}}</view>
+        <view wx:if="{{item.captain}}" class="roster-captain">队长</view>
+      </view>
+    </view>
+
+    <button
+      class="primary-button submit-button"
+      loading="{{submitting}}"
+      disabled="{{selectedCount !== view.starterCount}}"
+      bindtap="handleSubmit"
+    >提交首发名单</button>
+  </block>
+</view>

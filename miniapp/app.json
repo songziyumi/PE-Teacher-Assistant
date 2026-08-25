@@ -9,7 +9,21 @@
     "pages/teacher/physical-entry/index",
     "pages/teacher/physical-detail/index",
     "pages/teacher/physical-overview/index",
-    "pages/teacher/term-grade-entry/index"
+    "pages/teacher/term-grade-entry/index",
+    "pages/coach/home/index",
+    "pages/coach/lineup/index",
+    "pages/coach/athletes/list/index",
+    "pages/coach/athletes/edit/index",
+    "pages/coach/officials/list/index",
+    "pages/coach/officials/edit/index"
+    ,"pages/coach/signup/meets/index"
+    ,"pages/coach/signup/detail/index"
+    ,"pages/coach/signup/meet-detail/index"
+    ,"pages/coach/events/index"
+    ,"pages/coach/events/lineup/index"
+    ,"pages/coach/team/profile/index"
+    ,"pages/coach/team/account/index"
+    ,"pages/coach/me/index"
   ],
   "window": {
     "navigationBarTitleText": "\u4f53\u80b2\u6559\u5e08\u52a9\u624b",

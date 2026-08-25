@@ -1,0 +1,81 @@
+const coachApi = require('../../../../utils/coach-api.js');
+const coachAuth = require('../../../../utils/coach-auth.js');
+Page({
+  data: { loading: true, errorMessage: '', meetId: null, eventId: null, signupId: null, view: null, athletes: [], officials: [], availableAthletes: [], availableOfficials: [] },
+  onLoad(options) { if (!coachAuth.getToken()) return wx.reLaunch({ url: '/pages/login/index' }); this.setData({ meetId: Number(options.meetId), eventId: Number(options.eventId) }); this.loadData(); },
+  async resolveTeamId() {
+    const user = await coachApi.fetchMe();
+    let teamId = Number(user && (user.teamScopeId || user.teamId || (user.team && user.team.id))) || null;
+    if (!teamId) { const athletes = await coachApi.fetchAthletes(); teamId = Number(athletes && athletes[0] && athletes[0].teamId) || null; }
+    return teamId;
+  },
+  async loadData() {
+    this.setData({ loading: true, errorMessage: '' });
+    try {
+      const meetId = this.data.meetId; const eventId = this.data.eventId;
+      const [meets, events, signups, athletes, officials] = await Promise.all([coachApi.fetchMeets(), coachApi.fetchMeetEvents(meetId), coachApi.fetchSignups({ meetId, eventId }), coachApi.fetchAthletes(), coachApi.fetchOfficials()]);
+      const meet = (meets || []).find((item) => Number(item.id) === meetId); const event = (events || []).find((item) => Number(item.id) === eventId);
+      const candidates = (signups || []).filter((item) => Number(item.eventId) === eventId);
+      const editable = candidates.filter((item) => ['DRAFT', 'REJECTED', '草稿', '已驳回'].indexOf(String(item.status || '').trim()) >= 0);
+      const pool = editable.length ? editable : candidates;
+      let signup = pool.slice().sort((left, right) => Number(right.id || 0) - Number(left.id || 0))[0];
+      if (!signup) signup = await coachApi.createSignup({ meetId, eventId, teamId: await this.resolveTeamId(), signupType: '代表队', status: 'DRAFT' });
+      const [savedAthletes, savedOfficials, qualification] = await Promise.all([coachApi.fetchSignupAthletes(signup.id), coachApi.fetchSignupOfficials(signup.id), coachApi.fetchSignupQualificationSummary(signup.id).catch(() => null)]);
+      const selectedA = (savedAthletes || []).map((item) => Object.assign({}, item, { id: item.athleteId, checked: true, captain: Boolean(item.captain) }));
+      const selectedO = (savedOfficials || []).map((item) => Object.assign({}, item, { id: item.officialId, checked: true }));
+      const selectedAIds = selectedA.map((item) => Number(item.id)); const selectedOIds = selectedO.map((item) => Number(item.id));
+      const status = { 草稿: 'DRAFT', 已驳回: 'REJECTED', 已提交: 'SUBMITTED', 已通过: 'APPROVED', 已锁定: 'LOCKED' }[signup.status] || signup.status;
+      const statusText = { DRAFT: '草稿', REJECTED: '已驳回', SUBMITTED: '已提交', APPROVED: '已通过', LOCKED: '已锁定' }[status] || status || '';
+      const eligibleAthletes = (athletes || []).filter((item) => this.matchesEventAthlete(item, event) || selectedAIds.indexOf(Number(item.id)) >= 0);
+      const requiredProject = this.resolveRequiredProject(event);
+      const genderLabel = event && event.genderScope === 'MALE' ? '男子' : event && event.genderScope === 'FEMALE' ? '女子' : '性别不限';
+      this.setData({ loading: false, signupId: signup.id, qualification: qualification || null, filterText: `按${genderLabel}${requiredProject ? ` · ${requiredProject}` : ''}筛选`, view: Object.assign({}, signup, { status, meetName: meet && meet.meetName, eventName: event && event.eventName, statusText, genderScope: event && event.genderScope, requiredProject }), athletes: selectedA, officials: selectedO, availableAthletes: eligibleAthletes.map((item) => { const saved = selectedA.find((row) => Number(row.id) === Number(item.id)); return Object.assign({}, item, { checked: Boolean(saved), captain: Boolean(saved && saved.captain), jerseyNo: saved && saved.jerseyNo || '' }); }), availableOfficials: (officials || []).map((item) => Object.assign({}, item, { checked: selectedOIds.indexOf(Number(item.id)) >= 0 })) });
+    } catch (error) { this.setData({ loading: false, errorMessage: error.message || '加载失败' }); }
+  },
+  matchesEventAthlete(athlete, event) {
+    const scope = String(event && event.genderScope || '').toUpperCase();
+    const genderOk = !scope || scope === 'ALL' || scope === 'MIXED' || (scope === 'MALE' && athlete.gender === '男') || (scope === 'FEMALE' && athlete.gender === '女');
+    const project = this.resolveRequiredProject(event);
+    const projects = Array.isArray(athlete.projects) ? athlete.projects : [];
+    return genderOk && (!project || projects.indexOf(project) >= 0);
+  },
+  resolveRequiredProject(event) {
+    const text = `${event && event.eventName || ''} ${event && event.sportCategory || ''}`;
+    const projects = ['篮球', '三人篮球', '排球', '乒乓球', '羽毛球', '足球', '棒垒球', '网球', '沙滩排球', '气排球', '手球', '曲棍球', '水球', '橄榄球', '冰球', '高尔夫', '台球', '匹克球'];
+    return projects.find((item) => text.indexOf(item) >= 0) || '';
+  },
+  toggleAthlete(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].checked`]: !this.data.availableAthletes[idx].checked }); },
+  toggleOfficial(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableOfficials.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableOfficials[${idx}].checked`]: !this.data.availableOfficials[idx].checked }); },
+  stopTap() {},
+  onJerseyInput(event) { const id = Number(event.currentTarget.dataset.id); const idx = this.data.availableAthletes.findIndex((item) => Number(item.id) === id); if (idx >= 0) this.setData({ [`availableAthletes[${idx}].jerseyNo`]: event.detail.value }); },
+  setCaptain(event) { const id = Number(event.currentTarget.dataset.id); const athletes = this.data.availableAthletes || []; const selected = athletes.find((item) => Number(item.id) === id); if (!selected || !selected.checked) return; athletes.forEach((item, index) => { this.setData({ [`availableAthletes[${index}].captain`]: Number(item.id) === id }); }); },
+  async saveRoster(options = {}) {
+    try {
+      const current = await coachApi.fetchSignup(this.data.signupId);
+      const currentStatus = String(current && current.status || '').trim();
+      const editable = ['DRAFT', 'REJECTED', '草稿', '已驳回'].indexOf(currentStatus) >= 0;
+      if (!editable) {
+        throw new Error(`当前报名状态为“${currentStatus || '未知'}”，请先撤回报名后再维护运动员名单`);
+      }
+      const selectedAthletes = this.data.availableAthletes.filter((item) => item.checked);
+      const missingJersey = selectedAthletes.find((item) => !String(item.jerseyNo || '').trim());
+      if (missingJersey) {
+        throw new Error(`请填写运动员「${missingJersey.name || ''}」的参赛号码`);
+      }
+      const captainCount = selectedAthletes.filter((item) => item.captain).length;
+      if (captainCount !== 1) throw new Error('请在报名名单中准确设置 1 名队长');
+      const a = selectedAthletes.map((item, index) => ({ athleteId: item.id, jerseyNo: String(item.jerseyNo).trim(), captain: Boolean(item.captain), sortNo: index + 1 }));
+      const o = this.data.availableOfficials.filter((item) => item.checked).map((item, index) => ({ officialId: item.id, sortNo: index + 1 }));
+      await coachApi.saveSignupAthletes(this.data.signupId, a);
+      await coachApi.saveSignupOfficials(this.data.signupId, o);
+      if (!options.silent) wx.showToast({ title: '名单已保存', icon: 'success' });
+      await this.loadData();
+    } catch (error) {
+      if (!options.silent) this.showError(error.message);
+      throw error;
+    }
+  },
+  async submit() { try { await this.saveRoster({ silent: true }); await coachApi.submitSignup(this.data.signupId); wx.showToast({ title: '报名已提交', icon: 'success' }); await this.loadData(); } catch (error) { this.showError(error.message); } },
+  async withdraw() { try { await coachApi.withdrawSignup(this.data.signupId); wx.showToast({ title: '已撤回', icon: 'success' }); await this.loadData(); } catch (error) { this.showError(error.message); } },
+  showError(message) { wx.showModal({ title: '提示', content: message || '操作失败', showCancel: false }); }
+});

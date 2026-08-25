@@ -1,0 +1,1 @@
+.coach-hero{background:linear-gradient(140deg,rgba(22,50,79,.95),rgba(38,93,140,.86)),#16324f}.coach-hero .page-title,.coach-hero .page-subtitle{color:#fff}.event-entry{display:flex;align-items:center;gap:20rpx;padding:28rpx;margin-bottom:20rpx}.entry-icon{font-size:40rpx}.entry-content{flex:1}.entry-arrow{font-size:42rpx;color:#7b8794}

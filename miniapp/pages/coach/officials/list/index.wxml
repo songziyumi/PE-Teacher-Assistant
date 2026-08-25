@@ -1,0 +1,40 @@
+<view class="page-shell">
+  <view class="hero-card coach-hero">
+    <view class="hero-top">
+      <view>
+        <view class="page-title">官员管理</view>
+        <view class="page-subtitle">共 {{officials.length}} 名 · 点击卡片编辑</view>
+      </view>
+      <button class="primary-button small-button" bindtap="goCreate">新增</button>
+    </view>
+  </view>
+
+  <view class="toolbar">
+    <view class="search-box">
+      <input class="search-input" placeholder="搜索姓名 / 证件号 / 电话" placeholder-class="placeholder" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" />
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="panel-card"><view class="empty-text">正在加载...</view></view>
+  <view wx:elif="{{errorMessage}}" class="panel-card">
+    <view class="section-title">加载失败</view>
+    <view class="page-subtitle">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadData">重新加载</button>
+  </view>
+  <block wx:else>
+    <view wx:if="{{!filtered.length}}" class="panel-card"><view class="empty-text">暂无官员，点击右上角“新增”添加。</view></view>
+    <view wx:for="{{filtered}}" wx:key="id" class="panel-card official-card" data-id="{{item.id}}" bindtap="onCardTap">
+      <view class="official-row">
+        <view class="official-photo" data-url="{{item.photoPreview}}" catchtap="previewPhoto">
+          <image wx:if="{{item.photoPreview}}" class="official-photo-image" src="{{item.photoPreview}}" mode="aspectFill" />
+          <view wx:else class="official-photo-placeholder">暂无照片</view>
+        </view>
+        <view class="official-main">
+          <view class="official-name-row"><view class="official-name">{{item.name}}</view><view class="official-gender">{{item.gender}}</view></view>
+          <view class="official-tags"><text class="tag">{{item.personType}}</text><text class="tag status-{{item.enabled === false ? 'off' : 'on'}}">{{item.enabled === false ? '已停用' : '有效'}}</text></view>
+          <view class="official-meta"><view>证件号：{{item.idNo}}</view><view>电话：{{item.phone}}</view><view>民族：{{item.nation}}</view></view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

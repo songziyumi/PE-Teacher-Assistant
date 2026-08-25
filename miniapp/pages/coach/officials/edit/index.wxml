@@ -1,0 +1,28 @@
+<view class="page-shell">
+  <view class="hero-card coach-hero">
+    <view class="page-title">{{id ? '编辑官员' : '新增官员'}}</view>
+    <view class="page-subtitle">{{id ? '修改本队官员信息' : '填写本队官员信息'}}</view>
+  </view>
+  <view wx:if="{{loading}}" class="panel-card"><view class="empty-text">正在加载...</view></view>
+  <view wx:elif="{{loadError}}" class="panel-card"><view class="section-title">加载失败</view><view class="page-subtitle">{{loadError}}</view><button class="primary-button" bindtap="reload">重新加载</button></view>
+  <block wx:else>
+    <view class="panel-card">
+      <view class="section-title">基本信息</view>
+      <view class="form-row"><view class="form-label">人员类型<text class="required">*</text></view><picker range="{{personTypeOptions}}" value="{{personTypeIndex}}" bindchange="onPersonTypeChange"><view class="form-value {{form.personType ? '' : 'placeholder'}}">{{form.personType || '请选择人员类型'}}</view></picker></view>
+      <view class="form-row"><view class="form-label">姓名<text class="required">*</text></view><input class="form-input" value="{{form.name}}" data-field="name" bindinput="onFieldInput" placeholder="请输入姓名" placeholder-class="placeholder" /></view>
+      <view class="form-row"><view class="form-label">性别<text class="required">*</text></view><picker range="{{genderOptions}}" value="{{genderIndex}}" bindchange="onGenderChange"><view class="form-value {{form.gender ? '' : 'placeholder'}}">{{form.gender || '请选择性别'}}</view></picker></view>
+      <view class="form-row"><view class="form-label">联系电话<text class="required">*</text></view><input class="form-input" type="number" value="{{form.phone}}" data-field="phone" bindinput="onFieldInput" placeholder="请输入联系电话" placeholder-class="placeholder" /></view>
+      <view class="form-row"><view class="form-label">民族<text class="required">*</text></view><input class="form-input" value="{{form.nation}}" data-field="nation" bindinput="onFieldInput" placeholder="请输入民族" placeholder-class="placeholder" /></view>
+    </view>
+    <view class="panel-card">
+      <view class="section-title">证件信息</view>
+      <view class="form-row"><view class="form-label">证件类型<text class="required">*</text></view><picker range="{{idTypeOptions}}" value="{{idTypeIndex}}" bindchange="onIdTypeChange"><view class="form-value {{form.idType ? '' : 'placeholder'}}">{{form.idType || '请选择证件类型'}}</view></picker></view>
+      <view class="form-row"><view class="form-label">证件号<text class="required">*</text></view><input class="form-input" value="{{form.idNo}}" data-field="idNo" bindinput="onFieldInput" placeholder="请输入证件号" placeholder-class="placeholder" /></view>
+      <view class="form-row"><view class="form-label">血型</view><input class="form-input" value="{{form.bloodType}}" data-field="bloodType" bindinput="onFieldInput" placeholder="选填" placeholder-class="placeholder" /></view>
+      <view class="form-row"><view class="form-label">教练员等级</view><input class="form-input" value="{{form.coachLevel}}" data-field="coachLevel" bindinput="onFieldInput" placeholder="选填" placeholder-class="placeholder" /></view>
+      <view class="form-row"><view class="form-label">备注</view><input class="form-input" value="{{form.remark}}" data-field="remark" bindinput="onFieldInput" placeholder="选填" placeholder-class="placeholder" /></view>
+    </view>
+    <view class="panel-card"><view class="section-title">照片</view><view class="photo-row"><view class="form-label">官员照片<text class="required">*</text></view><view class="photo-area" bindtap="choosePhoto"><image wx:if="{{photoPreview}}" class="photo-img" src="{{photoPreview}}" mode="aspectFill" /><view wx:else class="photo-placeholder">＋</view></view></view></view>
+    <button class="primary-button submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="handleSubmit">保存</button>
+  </block>
+</view>

@@ -1,11 +1,21 @@
 const api = require('../../utils/api.js');
+const coachApi = require('../../utils/coach-api.js');
 
 Page({
   data: {
+    role: 'teacher',
     username: '',
     password: '',
     loading: false,
     errorMessage: ''
+  },
+
+  onRoleChange(event) {
+    const role = event.currentTarget.dataset.role;
+    this.setData({
+      role,
+      errorMessage: ''
+    });
   },
 
   onUsernameInput(event) {
@@ -34,10 +44,17 @@ Page({
     });
 
     try {
-      await api.login(username, password);
-      wx.reLaunch({
-        url: '/pages/home/index'
-      });
+      if (this.data.role === 'coach') {
+        await coachApi.login(username, password);
+        wx.reLaunch({
+          url: '/pages/coach/home/index'
+        });
+      } else {
+        await api.login(username, password);
+        wx.reLaunch({
+          url: '/pages/home/index'
+        });
+      }
     } catch (error) {
       this.setData({
         errorMessage: error.message || '登录失败'
