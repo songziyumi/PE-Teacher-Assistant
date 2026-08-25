@@ -18,6 +18,7 @@
     "pages/coach/officials/edit/index"
     ,"pages/coach/signup/meets/index"
     ,"pages/coach/signup/detail/index"
+    ,"pages/coach/signup/meet-detail/index"
     ,"pages/coach/team/profile/index"
     ,"pages/coach/team/account/index"
     ,"pages/coach/me/index"

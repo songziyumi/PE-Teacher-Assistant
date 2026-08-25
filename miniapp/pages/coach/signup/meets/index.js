@@ -19,4 +19,8 @@ Page({
     const { meetId, eventId } = event.currentTarget.dataset;
     wx.navigateTo({ url: `/pages/coach/signup/detail/index?meetId=${meetId}&eventId=${eventId}` });
   }
+  ,openMeet(event) {
+    const meetId = Number(event.currentTarget.dataset.meetId);
+    if (meetId) wx.navigateTo({ url: `/pages/coach/signup/meet-detail/index?meetId=${meetId}` });
+  }
 });

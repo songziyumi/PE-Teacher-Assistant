@@ -218,6 +218,7 @@ function createSignup(data) { return request({ path: '/api/signups', method: 'PO
 function fetchSignupAthletes(id) { return request({ path: `/api/signups/${id}/athletes` }); }
 function saveSignupAthletes(id, items) { return request({ path: `/api/signups/${id}/athletes`, method: 'PUT', data: { items } }); }
 function fetchSignupOfficials(id) { return request({ path: `/api/signups/${id}/officials` }); }
+function fetchSignupQualificationSummary(id) { return request({ path: `/api/signups/${id}/athletes/qualification-summary` }); }
 function saveSignupOfficials(id, items) { return request({ path: `/api/signups/${id}/officials`, method: 'PUT', data: { items } }); }
 function submitSignup(id) { return request({ path: `/api/signups/${id}/submit`, method: 'POST' }); }
 function withdrawSignup(id) { return request({ path: `/api/signups/${id}/withdraw`, method: 'POST' }); }
@@ -248,6 +249,6 @@ module.exports = {
   createOfficial,
   updateOfficial
   ,fetchMeets, fetchMeetEvents, fetchSignups, fetchSignup, createSignup,
-  fetchSignupAthletes, saveSignupAthletes, fetchSignupOfficials, saveSignupOfficials,
+  fetchSignupAthletes, saveSignupAthletes, fetchSignupOfficials, saveSignupOfficials, fetchSignupQualificationSummary,
   submitSignup, withdrawSignup, assignSignupCaptain, fetchTeam, updateTeam, fetchTeamAccount, changePassword
 };
