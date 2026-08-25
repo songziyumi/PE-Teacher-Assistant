@@ -222,6 +222,10 @@ function saveSignupOfficials(id, items) { return request({ path: `/api/signups/$
 function submitSignup(id) { return request({ path: `/api/signups/${id}/submit`, method: 'POST' }); }
 function withdrawSignup(id) { return request({ path: `/api/signups/${id}/withdraw`, method: 'POST' }); }
 function assignSignupCaptain(id, athleteId) { return request({ path: `/api/signups/${id}/captain?athleteId=${athleteId}`, method: 'POST' }); }
+function fetchTeam(id) { return request({ path: `/api/teams/${id}` }); }
+function updateTeam(id, data) { return request({ path: `/api/teams/${id}`, method: 'PUT', data }); }
+function fetchTeamAccount(id) { return request({ path: `/api/teams/${id}/account` }); }
+function changePassword(currentPassword, newPassword) { return request({ path: '/api/me/change-password', method: 'POST', data: { currentPassword, newPassword } }); }
 
 module.exports = {
   getBaseUrl,
@@ -245,5 +249,5 @@ module.exports = {
   updateOfficial
   ,fetchMeets, fetchMeetEvents, fetchSignups, fetchSignup, createSignup,
   fetchSignupAthletes, saveSignupAthletes, fetchSignupOfficials, saveSignupOfficials,
-  submitSignup, withdrawSignup, assignSignupCaptain
+  submitSignup, withdrawSignup, assignSignupCaptain, fetchTeam, updateTeam, fetchTeamAccount, changePassword
 };
