@@ -1,4 +1,5 @@
 const DEFAULT_BASE_URL = 'https://www.jsqyty.com';
+//const COACH_BASE_URL = 'http://127.0.0.1:8081';
 const COACH_BASE_URL = 'https://sports.jsqyty.com';
 
 function normalizeBaseUrl(input) {
