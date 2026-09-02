@@ -419,11 +419,27 @@ public class StudentService {
     @Transactional
     public AutoGradePromotionResult promoteAllGrades(School school) {
         if (school == null) throw new IllegalArgumentException("当前学校不存在");
-        List<String[]> pairs = List.of(
-                new String[]{"初一", "初二"}, new String[]{"初二", "初三"},
-                new String[]{"高一", "高二"}, new String[]{"高二", "高三"});
         List<GradePromotionResult> results = new ArrayList<>();
         List<String> skipped = new ArrayList<>();
+        // 先归档毕业年级，再执行其他年级升级，避免新升入毕业年级的学生被立即归档。
+        for (String graduatingGradeName : List.of("初三", "高三")) {
+            Optional<Grade> graduating = gradeRepository.findByNameAndSchool(graduatingGradeName, school);
+            if (graduating.isEmpty()) { skipped.add(graduatingGradeName + "（年级不存在）"); continue; }
+            int archived = 0;
+            for (SchoolClass schoolClass : classRepository.findByGradeId(graduating.get().getId())) {
+                if (!"行政班".equals(schoolClass.getType()) || !sameSchool(schoolClass.getSchool(), school)) continue;
+                for (Student student : studentRepository.findBySchoolClassIdOrderByStudentNo(schoolClass.getId())) {
+                    if (!"毕业".equals(student.getStudentStatus())) {
+                        student.setStudentStatus("毕业"); studentRepository.save(student); archived++;
+                    }
+                }
+            }
+            results.add(new GradePromotionResult(graduatingGradeName, "归档", archived, List.of()));
+        }
+        List<String[]> pairs = List.of(
+                // 从高年级向低年级处理，避免刚升入中间年级的学生在同一次操作中再次升级。
+                new String[]{"初二", "初三"}, new String[]{"初一", "初二"},
+                new String[]{"高二", "高三"}, new String[]{"高一", "高二"});
         for (String[] pair : pairs) {
             Optional<Grade> source = gradeRepository.findByNameAndSchool(pair[0], school);
             Optional<Grade> target = gradeRepository.findByNameAndSchool(pair[1], school);
@@ -432,25 +448,6 @@ public class StudentService {
                 continue;
             }
             results.add(promoteGrade(source.get().getId(), target.get().getId(), school));
-        }
-        for (String graduatingGradeName : List.of("初三", "高三")) {
-            Optional<Grade> graduating = gradeRepository.findByNameAndSchool(graduatingGradeName, school);
-            if (graduating.isEmpty()) {
-                skipped.add(graduatingGradeName + "（年级不存在）");
-                continue;
-            }
-            int archived = 0;
-            for (SchoolClass schoolClass : classRepository.findByGradeId(graduating.get().getId())) {
-                if (!"行政班".equals(schoolClass.getType()) || !sameSchool(schoolClass.getSchool(), school)) continue;
-                for (Student student : studentRepository.findBySchoolClassIdOrderByStudentNo(schoolClass.getId())) {
-                    if (!"毕业".equals(student.getStudentStatus())) {
-                        student.setStudentStatus("毕业");
-                        studentRepository.save(student);
-                        archived++;
-                    }
-                }
-            }
-            results.add(new GradePromotionResult(graduatingGradeName, "归档", archived, List.of()));
         }
         return new AutoGradePromotionResult(results, skipped);
     }
