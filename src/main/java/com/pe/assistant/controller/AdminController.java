@@ -425,6 +425,30 @@ public class AdminController {
         return "redirect:/admin/students";
     }
 
+    @PostMapping("/students/promote-grade")
+    public String promoteGrade(RedirectAttributes ra) {
+        try {
+            StudentService.AutoGradePromotionResult summary = studentService.promoteAllGrades(
+                    currentUserService.getCurrentSchool());
+            int promoted = summary.results().stream().mapToInt(StudentService.GradePromotionResult::promotedCount).sum();
+            String message = "一键升级完成，共迁移 " + promoted + " 名学生";
+            List<String> missing = summary.results().stream()
+                    .flatMap(result -> result.missingClasses().stream()
+                            .map(name -> result.sourceGradeName() + "班级" + name))
+                    .toList();
+            if (!missing.isEmpty()) {
+                message += "；未找到目标同名班级，已保留原班级：" + String.join("、", missing);
+            }
+            if (!summary.skippedPairs().isEmpty()) {
+                message += "；跳过：" + String.join("、", summary.skippedPairs());
+            }
+            ra.addFlashAttribute("success", message);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage() == null ? "升级失败" : e.getMessage());
+        }
+        return "redirect:/admin/students";
+    }
+
     @PostMapping("/students/add")
     public String addStudent(@RequestParam String name, @RequestParam String gender,
                              @RequestParam String studentNo, @RequestParam String idCard,
