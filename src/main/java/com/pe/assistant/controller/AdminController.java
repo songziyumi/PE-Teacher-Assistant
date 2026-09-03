@@ -372,9 +372,14 @@ public class AdminController {
 
     @GetMapping("/students/graduated")
     public String graduatedStudents(@RequestParam(required = false) Integer year, Model model) {
+        graduatedStudentArchiveServiceSync();
         model.addAttribute("archives", graduatedStudentArchiveRepository.findBySchoolAndYear(currentUserService.getCurrentSchool(), year));
         model.addAttribute("year", year);
         return "admin/graduated-students";
+    }
+
+    private void graduatedStudentArchiveServiceSync() {
+        studentService.syncGraduatedArchives(currentUserService.getCurrentSchool());
     }
 
     @GetMapping("/students/check-student-no")

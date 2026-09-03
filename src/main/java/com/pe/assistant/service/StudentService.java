@@ -461,6 +461,21 @@ public class StudentService {
         return new AutoGradePromotionResult(results, skipped);
     }
 
+    @Transactional
+    public void syncGraduatedArchives(School school) {
+        if (school == null) return;
+        int year = LocalDate.now().getYear();
+        for (Student student : studentRepository.findBySchoolAndStudentStatus(school, "毕业")) {
+            if (graduatedStudentArchiveRepository.existsByStudentIdAndGraduationYear(student.getId(), year)) continue;
+            GraduatedStudentArchive archive = new GraduatedStudentArchive();
+            archive.setStudent(student); archive.setGraduationYear(year);
+            SchoolClass c = student.getSchoolClass();
+            archive.setGradeName(c != null && c.getGrade() != null ? c.getGrade().getName() : null);
+            archive.setClassName(c != null ? c.getName() : null);
+            graduatedStudentArchiveRepository.save(archive);
+        }
+    }
+
     public record AutoGradePromotionResult(List<GradePromotionResult> results, List<String> skippedPairs) {}
 
     private boolean sameSchool(School left, School right) {
