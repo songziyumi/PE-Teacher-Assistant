@@ -3,6 +3,7 @@ package com.pe.assistant.controller;
 import com.pe.assistant.controller.api.AdminApiController;
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.GraduatedStudentArchiveRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -34,6 +35,7 @@ public class AdminController {
     private final TeacherService teacherService;
     private final ClassService classService;
     private final StudentService studentService;
+    private final GraduatedStudentArchiveRepository graduatedStudentArchiveRepository;
     private final GradeService gradeService;
     private final AttendanceService attendanceService;
     private final SchoolService schoolService;
@@ -338,6 +340,7 @@ public class AdminController {
                            Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         int pageSize = normalizePageSize(size);
+        if (studentStatus == null || studentStatus.isBlank()) studentStatus = "在籍";
         StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
                 electiveClass, electiveClassInput, studentStatus);
         Page<Student> studentPage = studentService.findWithFilters(school, filter.classId(), filter.gradeId(),
@@ -365,6 +368,18 @@ public class AdminController {
         }
         model.addAttribute("deleteAllStudentsCode", deleteAllCode);
         return "admin/students";
+    }
+
+    @GetMapping("/students/graduated")
+    public String graduatedStudents(@RequestParam(required = false) Integer year, Model model) {
+        graduatedStudentArchiveServiceSync();
+        model.addAttribute("archives", graduatedStudentArchiveRepository.findBySchoolAndYear(currentUserService.getCurrentSchool(), year));
+        model.addAttribute("year", year);
+        return "admin/graduated-students";
+    }
+
+    private void graduatedStudentArchiveServiceSync() {
+        studentService.syncGraduatedArchives(currentUserService.getCurrentSchool());
     }
 
     @GetMapping("/students/check-student-no")
@@ -421,6 +436,30 @@ public class AdminController {
             }
         } catch (Exception e) {
             ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));
+        }
+        return "redirect:/admin/students";
+    }
+
+    @PostMapping("/students/promote-grade")
+    public String promoteGrade(RedirectAttributes ra) {
+        try {
+            StudentService.AutoGradePromotionResult summary = studentService.promoteAllGrades(
+                    currentUserService.getCurrentSchool());
+            int promoted = summary.results().stream().mapToInt(StudentService.GradePromotionResult::promotedCount).sum();
+            String message = "一键升级完成，共迁移 " + promoted + " 名学生";
+            List<String> missing = summary.results().stream()
+                    .flatMap(result -> result.missingClasses().stream()
+                            .map(name -> result.sourceGradeName() + "班级" + name))
+                    .toList();
+            if (!missing.isEmpty()) {
+                message += "；未找到目标同名班级，已保留原班级：" + String.join("、", missing);
+            }
+            if (!summary.skippedPairs().isEmpty()) {
+                message += "；跳过：" + String.join("、", summary.skippedPairs());
+            }
+            ra.addFlashAttribute("success", message);
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage() == null ? "升级失败" : e.getMessage());
         }
         return "redirect:/admin/students";
     }

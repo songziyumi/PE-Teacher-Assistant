@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,6 +40,8 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final SchoolClassRepository classRepository;
+    private final GradeRepository gradeRepository;
+    private final GraduatedStudentArchiveRepository graduatedStudentArchiveRepository;
     private final AttendanceRepository attendanceRepository;
     private final TermGradeRepository termGradeRepository;
     private final PhysicalTestRepository physicalTestRepository;
@@ -354,6 +357,133 @@ public class StudentService {
         s.setSchoolClass(sc);
         studentRepository.save(s);
     }
+
+    /**
+     * 将一个年级的行政班学生按班级名称迁移到另一个年级的同名行政班。
+     * 目标年级缺少对应班级时保留原班级，避免误迁移。
+     */
+    @Transactional
+    public GradePromotionResult promoteGrade(Long sourceGradeId, Long targetGradeId, School school) {
+        if (sourceGradeId == null || targetGradeId == null || Objects.equals(sourceGradeId, targetGradeId)) {
+            throw new IllegalArgumentException("请选择不同的源年级和目标年级");
+        }
+        Grade sourceGrade = gradeRepository.findById(sourceGradeId).orElseThrow(() -> new IllegalArgumentException("源年级不存在"));
+        Grade targetGrade = gradeRepository.findById(targetGradeId).orElseThrow(() -> new IllegalArgumentException("目标年级不存在"));
+        if (school == null || !sameSchool(sourceGrade.getSchool(), school) || !sameSchool(targetGrade.getSchool(), school)) {
+            throw new IllegalArgumentException("年级不属于当前学校");
+        }
+        Map<String, SchoolClass> targetClasses = new HashMap<>();
+        for (SchoolClass schoolClass : classRepository.findByGradeId(targetGradeId)) {
+            if ("行政班".equals(schoolClass.getType()) && sameSchool(schoolClass.getSchool(), school)) {
+                targetClasses.putIfAbsent(schoolClass.getName().trim(), schoolClass);
+            }
+        }
+        int promoted = 0;
+        List<String> missingClasses = new ArrayList<>();
+        for (SchoolClass sourceClass : classRepository.findByGradeId(sourceGradeId)) {
+            if (!"行政班".equals(sourceClass.getType()) || !sameSchool(sourceClass.getSchool(), school)) continue;
+            String targetClassName = promotedClassName(sourceClass.getName(), sourceGrade.getName(), targetGrade.getName());
+            SchoolClass targetClass = targetClasses.get(targetClassName);
+            if (targetClass == null) {
+                targetClass = new SchoolClass();
+                targetClass.setName(targetClassName);
+                targetClass.setType("行政班");
+                targetClass.setGrade(targetGrade);
+                targetClass.setSchool(school);
+                targetClass = classRepository.save(targetClass);
+                targetClasses.put(targetClassName, targetClass);
+            }
+            List<Student> students = studentRepository.findBySchoolClassIdOrderByStudentNo(sourceClass.getId());
+            for (Student student : students) {
+                student.setSchoolClass(targetClass);
+                studentRepository.save(student);
+                promoted++;
+            }
+        }
+        return new GradePromotionResult(sourceGrade.getName(), targetGrade.getName(), promoted, missingClasses);
+    }
+
+    private String promotedClassName(String sourceName, String sourceGradeName, String targetGradeName) {
+        String name = sourceName == null ? "" : sourceName.trim();
+        if (!sourceGradeName.isBlank() && name.startsWith(sourceGradeName)) {
+            return targetGradeName + name.substring(sourceGradeName.length());
+        }
+        return name;
+    }
+
+    @Transactional
+    public GradePromotionResult autoPromoteJuniorGrade(School school) {
+        return promoteAllGrades(school).results().stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("未找到可升级的年级"));
+    }
+
+    /** 一键处理所有标准升学链路。 */
+    @Transactional
+    public AutoGradePromotionResult promoteAllGrades(School school) {
+        if (school == null) throw new IllegalArgumentException("当前学校不存在");
+        List<GradePromotionResult> results = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        // 先归档毕业年级，再执行其他年级升级，避免新升入毕业年级的学生被立即归档。
+        for (String graduatingGradeName : List.of("初三", "高三")) {
+            Optional<Grade> graduating = gradeRepository.findByNameAndSchool(graduatingGradeName, school);
+            if (graduating.isEmpty()) { skipped.add(graduatingGradeName + "（年级不存在）"); continue; }
+            int archived = 0;
+            for (SchoolClass schoolClass : classRepository.findByGradeId(graduating.get().getId())) {
+                if (!"行政班".equals(schoolClass.getType()) || !sameSchool(schoolClass.getSchool(), school)) continue;
+                for (Student student : studentRepository.findBySchoolClassIdOrderByStudentNo(schoolClass.getId())) {
+                    if (!"毕业".equals(student.getStudentStatus())) {
+                        student.setStudentStatus("毕业"); studentRepository.save(student);
+                        if (!graduatedStudentArchiveRepository.existsByStudentIdAndGraduationYear(student.getId(), LocalDateTime.now().getYear())) {
+                            GraduatedStudentArchive archive = new GraduatedStudentArchive();
+                            archive.setStudent(student); archive.setGraduationYear(LocalDateTime.now().getYear());
+                            archive.setGradeName(graduatingGradeName); archive.setClassName(schoolClass.getName());
+                            graduatedStudentArchiveRepository.save(archive);
+                        }
+                        archived++;
+                    }
+                }
+            }
+            results.add(new GradePromotionResult(graduatingGradeName, "归档", archived, List.of()));
+        }
+        List<String[]> pairs = List.of(
+                // 从高年级向低年级处理，避免刚升入中间年级的学生在同一次操作中再次升级。
+                new String[]{"初二", "初三"}, new String[]{"初一", "初二"},
+                new String[]{"高二", "高三"}, new String[]{"高一", "高二"});
+        for (String[] pair : pairs) {
+            Optional<Grade> source = gradeRepository.findByNameAndSchool(pair[0], school);
+            Optional<Grade> target = gradeRepository.findByNameAndSchool(pair[1], school);
+            if (source.isEmpty() || target.isEmpty()) {
+                skipped.add(pair[0] + "→" + pair[1] + "（年级或目标年级不存在）");
+                continue;
+            }
+            results.add(promoteGrade(source.get().getId(), target.get().getId(), school));
+        }
+        return new AutoGradePromotionResult(results, skipped);
+    }
+
+    @Transactional
+    public void syncGraduatedArchives(School school) {
+        if (school == null) return;
+        int year = LocalDate.now().getYear();
+        for (Student student : studentRepository.findBySchoolAndStudentStatus(school, "毕业")) {
+            if (graduatedStudentArchiveRepository.existsByStudentIdAndGraduationYear(student.getId(), year)) continue;
+            GraduatedStudentArchive archive = new GraduatedStudentArchive();
+            archive.setStudent(student); archive.setGraduationYear(year);
+            SchoolClass c = student.getSchoolClass();
+            archive.setGradeName(c != null && c.getGrade() != null ? c.getGrade().getName() : null);
+            archive.setClassName(c != null ? c.getName() : null);
+            graduatedStudentArchiveRepository.save(archive);
+        }
+    }
+
+    public record AutoGradePromotionResult(List<GradePromotionResult> results, List<String> skippedPairs) {}
+
+    private boolean sameSchool(School left, School right) {
+        return left != null && right != null && Objects.equals(left.getId(), right.getId());
+    }
+
+    public record GradePromotionResult(String sourceGradeName, String targetGradeName,
+                                       int promotedCount, List<String> missingClasses) {}
 
     @Transactional
     public void updateElective(Long id, String electiveClass) {

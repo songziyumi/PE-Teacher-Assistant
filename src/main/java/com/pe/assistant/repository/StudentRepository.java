@@ -102,6 +102,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     long countBySchool(School school);
 
     List<Student> findBySchoolOrderByStudentNo(School school);
+    List<Student> findBySchoolAndStudentStatus(School school, String studentStatus);
 
     @Modifying
     @Query("DELETE FROM Student s WHERE s.school = :school")

@@ -62,6 +62,8 @@
             gap: 10px;
             flex-wrap: wrap;
         }
+        .grade-promotion-form { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .grade-promotion-form select { min-height: 42px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 10px; background: #fff; }
         .delete-all-verify {
             display: inline-flex;
             align-items: center;
@@ -222,6 +224,7 @@
             .toolbar-grid { grid-template-columns: 1fr; }
             .toolbar-grid .wide { grid-column: span 1; }
             .toolbar-actions,
+            .grade-promotion-form,
             .delete-all-form,
             .page-toolbar,
             .page-size-form,
@@ -231,6 +234,7 @@
                 align-items: stretch;
             }
             .toolbar-actions > *,
+            .grade-promotion-form > *,
             .delete-all-form > *,
             .page-toolbar > *,
             .page-size-form > *,
@@ -297,6 +301,12 @@
 
         <div class="toolbar-actions">
             <button type="button" class="btn btn-primary" onclick="openAdd()">添加学生</button>
+            <a th:href="@{/admin/students/graduated}" class="btn btn-outline">毕业生档案</a>
+            <form th:action="@{/admin/students/promote-grade}" method="post" class="grade-promotion-form"
+                  onsubmit="return confirm('确认一键执行全部年级升级？系统将处理初一至初三、高一至高三，并按同名行政班迁移。')">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit" class="btn btn-secondary">一键升级全部年级</button>
+            </form>
             <a th:href="@{/admin/students/export(all=true)}" class="btn btn-outline">导出全部</a>
             <a th:href="@{/admin/students/export(gradeId=${gradeId},classId=${classId},name=${name},studentNo=${studentNo},idCard=${idCard},electiveClassInput=${electiveClassInput},studentStatus=${studentStatus})}"
                class="btn btn-outline">按搜索条件导出</a>
