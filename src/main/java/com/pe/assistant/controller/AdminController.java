@@ -418,7 +418,7 @@ public class AdminController {
         try {
             School school = currentUserService.getCurrentSchool();
             studentService.deleteAll(school);
-            ra.addFlashAttribute("success", "已删除全部学生数据");
+            ra.addFlashAttribute("success", "已删除全部在籍学生数据，毕业生及其档案已保留");
         } catch (Exception e) {
             ra.addFlashAttribute("error", "删除失败：" + (e.getMessage() == null ? "请稍后重试" : e.getMessage()));
         }

@@ -669,19 +669,11 @@ public class StudentService {
 
     @Transactional
     public void deleteAll(School school) {
-        courseSelectionRepository.deleteAllBySchool(school);
-        eventStudentRepository.deleteAllBySchool(school);
-        attendanceRepository.deleteAllBySchool(school);
-        termGradeRepository.deleteAllBySchool(school);
-        physicalTestRepository.deleteAllBySchool(school);
-        healthTestRecordRepository.deleteAllBySchool(school);
-        examRecordRepository.deleteAllBySchool(school);
-        studentReferenceCleanupService.deleteAllBySchoolId(school.getId());
-
-        courseClassCapacityRepository.resetCountsBySchool(school);
-        courseRepository.resetCountsBySchool(school);
-
-        studentRepository.deleteAllBySchool(school);
+        if (school == null) return;
+        // 毕业生及其归档、历史成绩永久保留，只清理当前在籍学生。
+        for (Student student : studentRepository.findBySchoolAndStudentStatus(school, "在籍")) {
+            delete(student.getId());
+        }
     }
 
     @Transactional
