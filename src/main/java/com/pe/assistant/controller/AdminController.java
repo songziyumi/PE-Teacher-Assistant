@@ -3,6 +3,7 @@ package com.pe.assistant.controller;
 import com.pe.assistant.controller.api.AdminApiController;
 import com.pe.assistant.dto.ApiResponse;
 import com.pe.assistant.entity.*;
+import com.pe.assistant.repository.GraduatedStudentArchiveRepository;
 import com.pe.assistant.service.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -34,6 +35,7 @@ public class AdminController {
     private final TeacherService teacherService;
     private final ClassService classService;
     private final StudentService studentService;
+    private final GraduatedStudentArchiveRepository graduatedStudentArchiveRepository;
     private final GradeService gradeService;
     private final AttendanceService attendanceService;
     private final SchoolService schoolService;
@@ -338,6 +340,7 @@ public class AdminController {
                            Model model, HttpSession session) {
         School school = currentUserService.getCurrentSchool();
         int pageSize = normalizePageSize(size);
+        if (studentStatus == null || studentStatus.isBlank()) studentStatus = "在籍";
         StudentFilter filter = resolveStudentFilter(school, gradeId, classId, name, studentNo, idCard,
                 electiveClass, electiveClassInput, studentStatus);
         Page<Student> studentPage = studentService.findWithFilters(school, filter.classId(), filter.gradeId(),
@@ -365,6 +368,13 @@ public class AdminController {
         }
         model.addAttribute("deleteAllStudentsCode", deleteAllCode);
         return "admin/students";
+    }
+
+    @GetMapping("/students/graduated")
+    public String graduatedStudents(@RequestParam(required = false) Integer year, Model model) {
+        model.addAttribute("archives", graduatedStudentArchiveRepository.findBySchoolAndYear(currentUserService.getCurrentSchool(), year));
+        model.addAttribute("year", year);
+        return "admin/graduated-students";
     }
 
     @GetMapping("/students/check-student-no")

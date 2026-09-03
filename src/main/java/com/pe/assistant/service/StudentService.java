@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final SchoolClassRepository classRepository;
     private final GradeRepository gradeRepository;
+    private final GraduatedStudentArchiveRepository graduatedStudentArchiveRepository;
     private final AttendanceRepository attendanceRepository;
     private final TermGradeRepository termGradeRepository;
     private final PhysicalTestRepository physicalTestRepository;
@@ -430,7 +432,14 @@ public class StudentService {
                 if (!"行政班".equals(schoolClass.getType()) || !sameSchool(schoolClass.getSchool(), school)) continue;
                 for (Student student : studentRepository.findBySchoolClassIdOrderByStudentNo(schoolClass.getId())) {
                     if (!"毕业".equals(student.getStudentStatus())) {
-                        student.setStudentStatus("毕业"); studentRepository.save(student); archived++;
+                        student.setStudentStatus("毕业"); studentRepository.save(student);
+                        if (!graduatedStudentArchiveRepository.existsByStudentIdAndGraduationYear(student.getId(), LocalDateTime.now().getYear())) {
+                            GraduatedStudentArchive archive = new GraduatedStudentArchive();
+                            archive.setStudent(student); archive.setGraduationYear(LocalDateTime.now().getYear());
+                            archive.setGradeName(graduatingGradeName); archive.setClassName(schoolClass.getName());
+                            graduatedStudentArchiveRepository.save(archive);
+                        }
+                        archived++;
                     }
                 }
             }
