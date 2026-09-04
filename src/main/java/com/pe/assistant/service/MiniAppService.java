@@ -201,14 +201,20 @@ public class MiniAppService {
         School school = currentUserService.getCurrentSchool();
         SchoolClass schoolClass = classService.findById(classId);
         List<Student> students;
+        String electiveClassName = buildElectiveClassName(schoolClass);
         if (isElectiveType(schoolClass.getType())) {
-            String electiveClassName = (schoolClass.getGrade() != null ? schoolClass.getGrade().getName() + "/" : "") + schoolClass.getName();
-            students = findCurrentElectiveStudents(school, electiveClassName);
+            students = findCurrentElectiveStudents(school, schoolClass);
         } else {
             students = studentService.findByClassIdForTeacher(school, classId);
+            // Older imports could create an elective-named class as an administrative class.
+            // If it has no administrative students, still expose its elective roster.
+            if (students.isEmpty() && electiveClassName != null) {
+                students = findCurrentElectiveStudents(school, schoolClass);
+            }
         }
 
         List<MiniAppTeacherStudentDto> filtered = students.stream()
+                .filter(student -> !"毕业".equals(student.getStudentStatus()))
                 .filter(student -> containsIgnoreCase(student.getName(), keyword) || containsIgnoreCase(student.getStudentNo(), keyword))
                 .filter(student -> isBlank(studentStatus) || normalizeStudentStatus(studentStatus).equals(normalizeStudentStatus(student.getStudentStatus())))
                 .sorted(Comparator.comparing(student -> safeString(student.getStudentNo())))
@@ -226,20 +232,31 @@ public class MiniAppService {
         return PageDto.of(paged);
     }
 
-    private List<Student> findCurrentElectiveStudents(School school, String electiveClassName) {
-        List<SelectionEvent> closedEvents = selectionEventRepository
-                .findBySchoolAndStatusOrderByCreatedAtDesc(school, "CLOSED");
-        if (closedEvents.isEmpty()) {
-            return List.of();
-        }
-        SelectionEvent currentEvent = closedEvents.get(0);
-        return selectionEventService.findEventStudents(currentEvent).stream()
-                .filter(student -> courseService.findMySelections(student, currentEvent).stream()
-                        .filter(selection -> "CONFIRMED".equals(selection.getStatus()))
-                        .map(CourseSelection::getCourse)
-                        .map(electiveClassResolver::buildStoredName)
-                        .anyMatch(electiveClassName::equals))
+    private List<Student> findCurrentElectiveStudents(School school, SchoolClass schoolClass) {
+        String exactName = buildElectiveClassName(schoolClass);
+        if (exactName == null) return List.of();
+
+        // Prefer the grade-qualified value. Bare names are legacy data and are only
+        // used when no exact records exist, with an additional grade guard.
+        List<Student> exact = studentService.findByElectiveClassesForTeacher(school, List.of(exactName));
+        if (!exact.isEmpty()) return exact;
+
+        String bareName = schoolClass.getName() == null ? null : schoolClass.getName().trim();
+        if (bareName == null || bareName.isBlank()) return List.of();
+        List<Student> legacy = studentService.findByElectiveClassesForTeacher(school, List.of(bareName));
+        String gradeName = schoolClass.getGrade() == null ? null : schoolClass.getGrade().getName();
+        if (gradeName == null || gradeName.isBlank()) return legacy;
+        return legacy.stream()
+                .filter(student -> student.getSchoolClass() != null
+                        && student.getSchoolClass().getGrade() != null
+                        && gradeName.equals(student.getSchoolClass().getGrade().getName()))
                 .toList();
+    }
+
+    private String buildElectiveClassName(SchoolClass schoolClass) {
+        if (schoolClass == null || schoolClass.getName() == null || schoolClass.getName().isBlank()) return null;
+        return (schoolClass.getGrade() != null ? schoolClass.getGrade().getName() + "/" : "")
+                + schoolClass.getName().trim();
     }
 
     public MiniAppStudentMessageSummaryDto buildStudentMessageSummary() {

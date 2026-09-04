@@ -842,8 +842,6 @@ public class AdminController {
             Map<String, Integer> col = new HashMap<>();
             for (Cell c : header) col.put(c.getStringCellValue().trim(), c.getColumnIndex());
             List<SchoolClass> classes = classService.findAll(school);
-            List<SchoolClass> electiveClasses = classes.stream()
-                    .filter(c -> "选修课".equals(c.getType())).toList();
             int count = 0, updated = 0, skip = 0;
             List<String> errors = new ArrayList<>();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -857,14 +855,6 @@ public class AdminController {
                 String idCard       = cellStr(row, col.getOrDefault("身份证号", -1));
                 String rawElective  = cellStr(row, col.getOrDefault("选修课", -1));
                 String studentStatus = cellStr(row, col.getOrDefault("学籍状态", -1));
-                // 将 Excel 中的选修班名称规范化为 "年级/班级名" 格式
-                String electiveClass = electiveClasses.stream()
-                        .filter(ec -> matchesClass(ec, rawElective))
-                        .findFirst()
-                        .map(ec -> ec.getGrade() != null
-                                ? ec.getGrade().getName() + "/" + ec.getName()
-                                : ec.getName())
-                        .orElse(rawElective.isBlank() ? null : rawElective);
                 SchoolClass sc = classes.stream()
                     .filter(c -> c.getName().equals(className)
                             && c.getGrade() != null
@@ -875,6 +865,7 @@ public class AdminController {
                     skip++; continue;
                 }
                 try {
+                    String electiveClass = normalizeImportedElectiveClass(gradeName, rawElective);
                     boolean created = studentService.importCreateOrUpdate(name, gender, studentNo, idCard, electiveClass, sc.getId(), school, studentStatus);
                     if (created) count++; else updated++;
                 } catch (Exception e) { errors.add("第" + (i+1) + "行：" + e.getMessage()); skip++; }
@@ -1059,6 +1050,26 @@ public class AdminController {
             || input.equals(grade + cname)
             || input.equals(grade + "/" + cname)
             || input.equals(grade + " " + cname);
+    }
+
+    /** Store imported elective classes in one grade-qualified format: 年级/班级名. */
+    private String normalizeImportedElectiveClass(String gradeName, String rawElective) {
+        String grade = safeTrim(gradeName);
+        String raw = safeTrim(rawElective);
+        if (raw.isBlank()) return null;
+        if (grade.isBlank()) {
+            throw new IllegalArgumentException("选项班「" + raw + "」缺少年级，必须使用 年级/选项班 格式");
+        }
+        int slash = raw.indexOf('/');
+        if (slash >= 0) {
+            String prefix = safeTrim(raw.substring(0, slash));
+            String name = safeTrim(raw.substring(slash + 1));
+            if (!grade.equals(prefix) || name.isBlank()) {
+                throw new IllegalArgumentException("选项班格式错误，应为「" + grade + "/选项班名" + "」");
+            }
+            return grade + "/" + name;
+        }
+        return grade + "/" + raw;
     }
 
     private String cellStr(Row row, int idx) {

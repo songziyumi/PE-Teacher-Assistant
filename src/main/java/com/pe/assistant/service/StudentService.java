@@ -182,6 +182,20 @@ public class StudentService {
         return filterVisibleForTeacher(school, findByElectiveClass(school, electiveClass));
     }
 
+    public List<Student> findByElectiveClassesForTeacher(School school, List<String> electiveClasses) {
+        if (electiveClasses == null || electiveClasses.isEmpty()) return List.of();
+        return filterVisibleForTeacher(school,
+                studentRepository.findBySchoolAndElectiveClassInOrderByStudentNo(school, electiveClasses));
+    }
+
+    public List<Student> findByElectiveClassForTeacherSince(School school, String electiveClass,
+                                                              LocalDateTime cutoff) {
+        if (school == null || cutoff == null) return findByElectiveClassForTeacher(school, electiveClass);
+        return filterVisibleForTeacher(school,
+                studentRepository.findBySchoolAndElectiveClassAndElectiveClassUpdatedAtAfterOrderByStudentNo(
+                        school, electiveClass, cutoff));
+    }
+
     /** 学生名单 xlsx 导出 */
     public byte[] exportStudentsXlsx(List<Student> students) throws IOException {
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -253,6 +267,7 @@ public class StudentService {
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
+        s.setElectiveClassUpdatedAt(LocalDateTime.now());
         s.setStudentStatus(normalizeStatusForSave(studentStatus));
         s.setSchoolClass(sc);
         s.setSchool(effectiveSchool);
@@ -287,6 +302,7 @@ public class StudentService {
             s.setStudentNo(normalizedStudentNo);
             s.setIdCard(idCard);
             s.setElectiveClass(electiveClass);
+            s.setElectiveClassUpdatedAt(LocalDateTime.now());
             s.setStudentStatus(normalizedStatus);
             s.setSchoolClass(sc);
             if (s.getSchool() == null && effectiveSchool != null) {
@@ -301,6 +317,7 @@ public class StudentService {
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
+        s.setElectiveClassUpdatedAt(LocalDateTime.now());
         s.setStudentStatus(normalizedStatus);
         s.setSchoolClass(sc);
         s.setSchool(effectiveSchool);
@@ -333,6 +350,7 @@ public class StudentService {
         s.setStudentNo(normalizedStudentNo);
         s.setIdCard(idCard);
         s.setElectiveClass(electiveClass);
+        s.setElectiveClassUpdatedAt(LocalDateTime.now());
         if (studentStatus != null) {
             s.setStudentStatus(normalizeStatusForSave(studentStatus));
         } else if (s.getStudentStatus() == null || s.getStudentStatus().isBlank()) {
@@ -489,6 +507,7 @@ public class StudentService {
     public void updateElective(Long id, String electiveClass) {
         Student s = studentRepository.findById(id).orElseThrow();
         s.setElectiveClass((electiveClass == null || electiveClass.isBlank()) ? null : electiveClass);
+        s.setElectiveClassUpdatedAt(LocalDateTime.now());
         studentRepository.save(s);
     }
 
@@ -497,6 +516,7 @@ public class StudentService {
         Student s = resolveLoginStudent(studentNo)
                 .orElseThrow(() -> new IllegalArgumentException("找不到学号：" + studentNo));
         s.setElectiveClass(electiveClass);
+        s.setElectiveClassUpdatedAt(LocalDateTime.now());
         studentRepository.save(s);
     }
 
@@ -590,6 +610,7 @@ public class StudentService {
             return false;
         }
         student.setElectiveClass(electiveClass);
+        student.setElectiveClassUpdatedAt(LocalDateTime.now());
         studentRepository.save(student);
         return true;
     }
@@ -822,6 +843,7 @@ public class StudentService {
             try {
                 Student student = findStudentForBatchUpdate(school, studentId);
                 student.setElectiveClass(normalizedElectiveClass);
+                student.setElectiveClassUpdatedAt(LocalDateTime.now());
                 saveStudentWithDuplicateGuard(student);
                 result.addSuccess();
             } catch (IllegalArgumentException | IllegalStateException ex) {
