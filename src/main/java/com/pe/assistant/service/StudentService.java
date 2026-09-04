@@ -182,6 +182,12 @@ public class StudentService {
         return filterVisibleForTeacher(school, findByElectiveClass(school, electiveClass));
     }
 
+    public List<Student> findByElectiveClassesForTeacher(School school, List<String> electiveClasses) {
+        if (electiveClasses == null || electiveClasses.isEmpty()) return List.of();
+        return filterVisibleForTeacher(school,
+                studentRepository.findBySchoolAndElectiveClassInOrderByStudentNo(school, electiveClasses));
+    }
+
     public List<Student> findByElectiveClassForTeacherSince(School school, String electiveClass,
                                                               LocalDateTime cutoff) {
         if (school == null || cutoff == null) return findByElectiveClassForTeacher(school, electiveClass);
