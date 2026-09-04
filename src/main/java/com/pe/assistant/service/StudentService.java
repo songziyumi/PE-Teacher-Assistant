@@ -407,12 +407,25 @@ public class StudentService {
             }
         }
 
+        Set<String> eventElectiveClassNames = new LinkedHashSet<>();
+        for (Course course : courseRepository.findByEventOrderByNameAsc(event)) {
+            String storedName = buildElectiveClassName(course);
+            if (storedName != null && !storedName.isBlank()) eventElectiveClassNames.add(storedName);
+        }
+        if (!eventElectiveClassNames.isEmpty() && event.getSchool() != null) {
+            for (Student student : studentRepository.findBySchoolAndElectiveClassInOrderByStudentNo(event.getSchool(), new ArrayList<>(eventElectiveClassNames))) {
+                if (!targetStudents.containsKey(student.getId())) {
+                    applyElectiveClass(student, null);
+                }
+            }
+        }
+
         int updated = 0;
         for (Student student : targetStudents.values()) {
             String electiveClass = courseSelectionRepository.findByEventAndStudentAndStatus(event, student, "CONFIRMED")
                     .map(CourseSelection::getCourse)
                     .map(this::buildElectiveClassName)
-                    .orElseGet(() -> resolveLatestConfirmedElectiveClass(student));
+                    .orElse(null);
             if (applyElectiveClass(student, electiveClass)) {
                 updated++;
             }
