@@ -230,16 +230,11 @@ public class MiniAppService {
         List<SelectionEvent> closedEvents = selectionEventRepository
                 .findBySchoolAndStatusOrderByCreatedAtDesc(school, "CLOSED");
         if (closedEvents.isEmpty()) {
-            return List.of();
+            return studentService.findByElectiveClassForTeacher(school, electiveClassName);
         }
         SelectionEvent currentEvent = closedEvents.get(0);
-        return selectionEventService.findEventStudents(currentEvent).stream()
-                .filter(student -> courseService.findMySelections(student, currentEvent).stream()
-                        .filter(selection -> "CONFIRMED".equals(selection.getStatus()))
-                        .map(CourseSelection::getCourse)
-                        .map(electiveClassResolver::buildStoredName)
-                        .anyMatch(electiveClassName::equals))
-                .toList();
+        return studentService.findByElectiveClassForTeacherSince(
+                school, electiveClassName, currentEvent.getCreatedAt());
     }
 
     public MiniAppStudentMessageSummaryDto buildStudentMessageSummary() {

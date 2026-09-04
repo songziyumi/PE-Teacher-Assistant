@@ -2,6 +2,7 @@ package com.pe.assistant.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -27,6 +28,9 @@ public class Student {
 
     @Column(name = "elective_class", length = 100)
     private String electiveClass;
+
+    @Column(name = "elective_class_updated_at")
+    private LocalDateTime electiveClassUpdatedAt;
 
     @Column(name = "student_status", length = 20)
     private String studentStatus = "在籍";
