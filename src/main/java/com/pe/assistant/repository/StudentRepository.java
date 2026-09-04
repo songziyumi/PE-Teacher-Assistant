@@ -90,6 +90,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findByElectiveClassOrderByStudentNo(String electiveClass);
 
     List<Student> findBySchoolAndElectiveClassOrderByStudentNo(School school, String electiveClass);
+    List<Student> findBySchoolAndElectiveClassInOrderByStudentNo(School school, List<String> electiveClasses);
 
     List<Student> findByElectiveClassInOrderByStudentNo(List<String> names);
 
