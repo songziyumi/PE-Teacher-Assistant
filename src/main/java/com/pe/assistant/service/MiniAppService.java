@@ -209,6 +209,7 @@ public class MiniAppService {
         }
 
         List<MiniAppTeacherStudentDto> filtered = students.stream()
+                .filter(student -> isElectiveType(schoolClass.getType()) || !"毕业".equals(student.getStudentStatus()))
                 .filter(student -> containsIgnoreCase(student.getName(), keyword) || containsIgnoreCase(student.getStudentNo(), keyword))
                 .filter(student -> isBlank(studentStatus) || normalizeStudentStatus(studentStatus).equals(normalizeStudentStatus(student.getStudentStatus())))
                 .sorted(Comparator.comparing(student -> safeString(student.getStudentNo())))
@@ -227,14 +228,7 @@ public class MiniAppService {
     }
 
     private List<Student> findCurrentElectiveStudents(School school, String electiveClassName) {
-        List<SelectionEvent> closedEvents = selectionEventRepository
-                .findBySchoolAndStatusOrderByCreatedAtDesc(school, "CLOSED");
-        if (closedEvents.isEmpty()) {
-            return studentService.findByElectiveClassForTeacher(school, electiveClassName);
-        }
-        SelectionEvent currentEvent = closedEvents.get(0);
-        return studentService.findByElectiveClassForTeacherSince(
-                school, electiveClassName, currentEvent.getCreatedAt());
+        return studentService.findByElectiveClassForTeacher(school, electiveClassName);
     }
 
     public MiniAppStudentMessageSummaryDto buildStudentMessageSummary() {
