@@ -49,6 +49,7 @@ public class MiniAppService {
     private final SelectionEventRepository selectionEventRepository;
     private final SelectionEventService selectionEventService;
     private final StudentService studentService;
+    private final ElectiveClassResolver electiveClassResolver;
     private final StudentAccountService studentAccountService;
     private final TeacherOperationLogRepository teacherOperationLogRepository;
 
@@ -202,7 +203,7 @@ public class MiniAppService {
         List<Student> students;
         if (isElectiveType(schoolClass.getType())) {
             String electiveClassName = (schoolClass.getGrade() != null ? schoolClass.getGrade().getName() + "/" : "") + schoolClass.getName();
-            students = studentService.findByElectiveClassForTeacher(school, electiveClassName);
+            students = findCurrentElectiveStudents(school, electiveClassName);
         } else {
             students = studentService.findByClassIdForTeacher(school, classId);
         }
@@ -223,6 +224,22 @@ public class MiniAppService {
                 PageRequest.of(safePage, safeSize),
                 filtered.size());
         return PageDto.of(paged);
+    }
+
+    private List<Student> findCurrentElectiveStudents(School school, String electiveClassName) {
+        List<SelectionEvent> closedEvents = selectionEventRepository
+                .findBySchoolAndStatusOrderByCreatedAtDesc(school, "CLOSED");
+        if (closedEvents.isEmpty()) {
+            return List.of();
+        }
+        SelectionEvent currentEvent = closedEvents.get(0);
+        return selectionEventService.findEventStudents(currentEvent).stream()
+                .filter(student -> courseService.findMySelections(student, currentEvent).stream()
+                        .filter(selection -> "CONFIRMED".equals(selection.getStatus()))
+                        .map(CourseSelection::getCourse)
+                        .map(electiveClassResolver::buildStoredName)
+                        .anyMatch(electiveClassName::equals))
+                .toList();
     }
 
     public MiniAppStudentMessageSummaryDto buildStudentMessageSummary() {
